@@ -452,7 +452,7 @@ await wallet.connect();
 - [x] rewardAmount 최소값을 config로 강제(기본 0.02 KAS)
 - [x] tx outputs = [user(reward), change(change)] 고정
 - [x] UTXO 선택(단순: largest-first 또는 oldest-first)
-- [ ] 수수료/질량 정책에 맞게 안전하게 구성(필요 시 margin)
+- [x] 수수료/질량 정책에 맞게 안전하게 구성(필요 시 margin)
 
 **산출물**
 - `apps/server/src/tx/rewardPayout.ts` 등
@@ -461,27 +461,32 @@ await wallet.connect();
 - 서버 단독 스크립트로 "지급 tx 1개"를 생성/브로드캐스트 성공
 
 **변경 요약**
-- `apps/server/src/tx/kaspaClient.ts`: Kaspa RPC 클라이언트 인터페이스
-- `apps/server/src/tx/rewardPayout.ts`: 지급 TX 빌더 (스켈레톤)
+- `apps/server/src/tx/kaspaClient.ts`: 실제 kaspa-wasm RPC 클라이언트 통합
+- `apps/server/src/tx/rewardPayout.ts`: 완전한 TX 빌더 구현
+  - createTransaction/signTransaction 호출
+  - priority fee + margin 수수료 구성
+  - payload 지원
 - UTXO 선택: largest-first 전략
 - min reward: config에서 0.02 KAS (2,000,000 sompi)
-- kaspa-wasm, ws 의존성 추가
-- 7개 유틸리티 테스트
+- kaspa-wasm, isomorphic-ws, kaspa-rpc-client 의존성 추가
+- 테스트 스크립트: `scripts/test-reward-payout.ts`
 
 **실행 방법**
-```typescript
-import { sendRewardPayout, kasToSompi } from './tx';
+```bash
+# Dry run (RPC 연결 테스트)
+TREASURY_PRIVATE_KEY=... TREASURY_CHANGE_ADDRESS=... ORACLE_PRIVATE_KEY=... \
+  npx tsx scripts/test-reward-payout.ts
 
-const result = await sendRewardPayout({
-  toAddress: 'kaspa:qz...',
-  amountSompi: kasToSompi(0.05), // 0.05 KAS
-});
-console.log(result.txid);
+# 실제 브로드캐스트 (테스트넷 자금 필요)
+TREASURY_PRIVATE_KEY=... TREASURY_CHANGE_ADDRESS=... ORACLE_PRIVATE_KEY=... \
+  npx tsx scripts/test-reward-payout.ts --broadcast
 ```
 
 **Notes/Blockers**
-- 현재 Placeholder RPC (mock txid 반환)
-- 실제 kaspa-wasm 통합은 테스트넷 키 준비 후 완성 예정
+- kaspa-wasm RPC 런타임 이슈 발견: Node.js에서 RpcClient 생성 시 "Invalid input" 또는 "memory access out of bounds" 에러 발생
+- kaspa-rpc-client (gRPC 기반) 대안 추가했으나 추가 통합 필요
+- 트랜잭션 빌딩/서명 코드는 완성됨, RPC 연결 문제 해결 시 즉시 테스트 가능
+- 후속 티켓: RPC 연결 문제 해결 또는 대안 RPC 클라이언트 완전 통합
 
 
 ### - [ ] T-042 Reward Event State Machine + Idempotency

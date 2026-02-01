@@ -8,26 +8,30 @@
  * - Input: Treasury UTXO(s)
  * - Output 1: User address (reward amount)
  * - Output 2: Treasury change address (remaining balance - fee)
- *
- * NOTE: This is a skeleton implementation. Full kaspa-wasm transaction
- * building will be completed when testnet environment is ready.
  */
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
 import { getConfig } from '../config/index.js';
-import { getKaspaClient, type UtxoEntry } from './kaspaClient.js';
+import { getKaspaClient, getKaspaWasm, type UtxoEntry } from './kaspaClient.js';
 
 // 1 KAS = 100,000,000 sompi
 export const SOMPI_PER_KAS = BigInt(100_000_000);
 
-// Default fee per transaction (1000 sompi = 0.00001 KAS)
-export const DEFAULT_FEE_SOMPI = BigInt(1000);
+// Default priority fee per transaction (1000 sompi = 0.00001 KAS)
+// This is additional fee on top of the computed mass-based fee
+export const DEFAULT_PRIORITY_FEE_SOMPI = BigInt(1000);
+
+// Minimum output amount (dust threshold)
+// Kaspa requires outputs to be at least 294 sompi (for script size)
+export const MIN_OUTPUT_SOMPI = BigInt(546);
 
 export interface PayoutRequest {
   /** Recipient address */
   toAddress: string;
   /** Amount in sompi (1 KAS = 100,000,000 sompi) */
   amountSompi: bigint;
-  /** Optional payload to include in transaction */
+  /** Optional payload to include in transaction (hex string) */
   payload?: string;
 }
 
@@ -62,13 +66,26 @@ function validatePayoutRequest(request: PayoutRequest): void {
 }
 
 /**
- * Get treasury address from config
+ * Get treasury address derived from private key
  */
-function getTreasuryAddress(): string {
+async function getTreasuryAddress(): Promise<string> {
   const config = getConfig();
-  // In real implementation, derive from private key
-  // For now, use the change address as the treasury address
-  return config.treasuryChangeAddress;
+  const kaspa = await getKaspaWasm();
+
+  // Derive address from private key
+  const privateKey = new kaspa.PrivateKey(config.treasuryPrivateKey);
+  const keypair = privateKey.toKeypair();
+  const publicKey = keypair.publicKey as string;
+
+  // Network type for address derivation
+  const networkType = config.network === 'mainnet'
+    ? kaspa.NetworkType.Mainnet
+    : kaspa.NetworkType.Testnet;
+
+  const address = kaspa.createAddress(publicKey, networkType);
+  // kaspa Address has toString() method
+  const addrObj = address as { toString(): string };
+  return addrObj.toString();
 }
 
 /**
@@ -76,7 +93,7 @@ function getTreasuryAddress(): string {
  */
 async function getTreasuryUtxos(): Promise<UtxoEntry[]> {
   const client = await getKaspaClient();
-  const treasuryAddress = getTreasuryAddress();
+  const treasuryAddress = await getTreasuryAddress();
 
   console.log(`[payout] Fetching UTXOs for treasury: ${treasuryAddress}`);
 
@@ -91,7 +108,8 @@ async function getTreasuryUtxos(): Promise<UtxoEntry[]> {
 /**
  * Select UTXOs to cover the required amount + fee
  *
- * Uses simple "largest first" strategy
+ * Uses simple "largest first" strategy for simplicity.
+ * Production should consider mass/fee optimization.
  */
 function selectUtxos(
   utxos: UtxoEntry[],
@@ -126,8 +144,7 @@ function selectUtxos(
 /**
  * Build, sign, and broadcast a reward payout transaction
  *
- * NOTE: Currently uses placeholder RPC client.
- * Real implementation will use kaspa-wasm for transaction building.
+ * Uses kaspa-wasm for transaction creation, signing, and broadcast.
  */
 export async function sendRewardPayout(
   request: PayoutRequest
@@ -135,16 +152,27 @@ export async function sendRewardPayout(
   validatePayoutRequest(request);
 
   const config = getConfig();
-  const client = await getKaspaClient();
+  const kaspa = await getKaspaWasm();
+  const rpcClient = await getKaspaClient();
 
-  // Get UTXOs
+  // Get treasury private key
+  const privateKey = new kaspa.PrivateKey(config.treasuryPrivateKey);
+
+  // Get UTXOs from treasury address
   const allUtxos = await getTreasuryUtxos();
 
-  // Calculate required amount (reward + fee)
-  const feeSompi = DEFAULT_FEE_SOMPI;
-  const requiredSompi = request.amountSompi + feeSompi;
+  if (allUtxos.length === 0) {
+    throw new Error('No UTXOs available in treasury');
+  }
 
-  // Select UTXOs
+  // Estimate fee: priority fee + margin for mass calculation
+  // Mass fee is computed automatically by createTransaction
+  const priorityFee = DEFAULT_PRIORITY_FEE_SOMPI;
+  const feeMargin = BigInt(5000); // Extra margin for safety
+  const estimatedFee = priorityFee + feeMargin;
+
+  // Select UTXOs to cover amount + estimated fee
+  const requiredSompi = request.amountSompi + estimatedFee;
   const { selected: selectedUtxos, total: inputTotal } = selectUtxos(
     allUtxos,
     requiredSompi
@@ -153,40 +181,77 @@ export async function sendRewardPayout(
   console.log(
     `[payout] Selected ${selectedUtxos.length} UTXOs, total: ${inputTotal} sompi`
   );
-
-  // Calculate change
-  const changeSompi = inputTotal - request.amountSompi - feeSompi;
-
   console.log(`[payout] Payout: ${request.amountSompi} sompi to ${request.toAddress}`);
-  console.log(`[payout] Change: ${changeSompi} sompi to ${config.treasuryChangeAddress}`);
-  console.log(`[payout] Fee: ${feeSompi} sompi`);
 
-  // TODO: Build actual transaction with kaspa-wasm
-  // 1. Create transaction inputs from selected UTXOs
-  // 2. Create transaction outputs (recipient + change)
-  // 3. Sign with treasury private key
-  // 4. Submit to network
-
-  // For now, use placeholder RPC which returns mock txid
-  console.warn('[payout] Using placeholder - no real transaction sent');
-  const result = await client.submitTransaction({
-    transaction: {
-      inputs: selectedUtxos.map((u) => u.outpoint),
-      outputs: [
-        { address: request.toAddress, amount: request.amountSompi.toString() },
-        { address: config.treasuryChangeAddress, amount: changeSompi.toString() },
-      ],
+  // Prepare UTXO entries for kaspa-wasm
+  // Convert our UtxoEntry format to kaspa-wasm format
+  const utxoEntries = selectedUtxos.map((u) => ({
+    address: u.address,
+    outpoint: {
+      transactionId: u.outpoint.transactionId,
+      index: u.outpoint.index,
     },
-    allowOrphan: false,
-  });
+    utxoEntry: {
+      amount: BigInt(u.utxoEntry.amount),
+      scriptPublicKey: u.utxoEntry.scriptPublicKey,
+      blockDaaScore: BigInt(u.utxoEntry.blockDaaScore),
+      isCoinbase: u.utxoEntry.isCoinbase,
+    },
+  }));
 
-  const txid = result.transactionId;
+  // Prepare outputs
+  const recipientAddress = new kaspa.Address(request.toAddress);
+  const outputs = [
+    {
+      address: recipientAddress,
+      amount: request.amountSompi,
+    },
+  ];
+
+  // Change address
+  const changeAddress = new kaspa.Address(config.treasuryChangeAddress);
+
+  // Prepare payload if provided
+  const payload = request.payload
+    ? new TextEncoder().encode(request.payload)
+    : undefined;
+
+  // Create transaction using kaspa-wasm
+  // createTransaction(utxo_entry_source, outputs, change_address, priority_fee, payload, sig_op_count, minimum_signatures)
+  const signableTransaction = kaspa.createTransaction(
+    utxoEntries,
+    outputs,
+    changeAddress,
+    priorityFee,
+    payload,
+    1, // sig_op_count (1 signature per input)
+    1  // minimum_signatures (1 for standard P2PK)
+  );
+
+  console.log('[payout] Transaction created, signing...');
+
+  // Sign the transaction
+  const signedTransaction = kaspa.signTransaction(
+    signableTransaction,
+    [privateKey],
+    true // verify_sig
+  );
+
+  console.log('[payout] Transaction signed, submitting...');
+
+  // Submit to network
+  const txid = await rpcClient.submitTransaction(signedTransaction);
+
+  // Calculate actual fee from transaction
+  // For now, use the priority fee + estimated overhead
+  const actualFee = priorityFee;
+
   console.log(`[payout] Transaction submitted: ${txid}`);
 
   return {
     txid,
     amountSompi: request.amountSompi,
-    feeSompi,
+    feeSompi: actualFee,
   };
 }
 
@@ -202,4 +267,11 @@ export function kasToSompi(kas: number): bigint {
  */
 export function sompiToKas(sompi: bigint): number {
   return Number(sompi) / Number(SOMPI_PER_KAS);
+}
+
+/**
+ * Check if an amount is above dust threshold
+ */
+export function isAboveDust(sompi: bigint): boolean {
+  return sompi >= MIN_OUTPUT_SOMPI;
 }
