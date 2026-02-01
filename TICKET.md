@@ -315,7 +315,7 @@
 
 ## 4) P3 — 지갑 연동(클라이언트)
 
-### - [ ] T-030 Wallet Provider Abstraction
+### - [x] T-030 Wallet Provider Abstraction
 **의존**
 - T-010
 
@@ -323,16 +323,41 @@
 - 특정 지갑 종속을 줄이기 위한 추상화 레이어.
 
 **작업**
-- [ ] `IWalletProvider` 인터페이스 정의:
+- [x] `IWalletProvider` 인터페이스 정의:
     - connect()
     - getAddress()
     - sendTransaction(to, amount, options)
-- [ ] 구현체:
+- [x] 구현체:
     - `KaswareProvider`(우선)
     - `MockProvider`(단, 온체인 지급/입금에 사용 금지. UI 개발용으로만)
 
 **완료조건**
 - 클라이언트 코드가 provider 교체 가능
+
+**변경 요약**
+- `apps/client/src/wallet/` 모듈 추가
+- IWalletProvider 인터페이스: connect, disconnect, getAddress, sendTransaction, getNetwork
+- KaswareProvider: Kasware 브라우저 확장 지갑 연동
+- MockProvider: UI 개발용 목 provider (온체인 결제에 사용 금지)
+- WalletContext + useWallet 훅: React 앱 전역 지갑 상태 관리
+- 18개 테스트 추가
+
+**실행 방법**
+```typescript
+import { createWalletProvider, useWallet, WalletProvider } from './wallet';
+
+// 방법 1: 직접 provider 사용
+const wallet = createWalletProvider('kasware');
+await wallet.connect();
+
+// 방법 2: React Context 사용
+<WalletProvider>
+  <App /> {/* useWallet() 훅 사용 가능 */}
+</WalletProvider>
+```
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-031 Kasware Connect + Address Fetch
