@@ -174,3 +174,64 @@ a {
   color: var(--muted);
 }
 
+.game-status {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.status-text {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.status-playing {
+  color: #00ff88;
+}
+
+.status-over {
+  color: #ff6e4a;
+}
+
+.tx-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.tx-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.tx-seq {
+  color: var(--text);
+  font-family: monospace;
+}
+
+.tx-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.tx-status-pending {
+  color: #ffaa00;
+  background: rgba(255, 170, 0, 0.1);
+}
+
+.tx-status-sent {
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.1);
+}
+
