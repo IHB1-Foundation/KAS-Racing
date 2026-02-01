@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { WalletButton } from '../components';
 
 export function Home() {
   return (
@@ -21,12 +22,7 @@ export function Home() {
         </Link>
       </div>
       <div style={{ marginTop: '24px' }}>
-        <button className="btn btn-outline" disabled>
-          Connect Wallet
-        </button>
-        <span className="muted" style={{ marginLeft: '12px', fontSize: '14px' }}>
-          (Kasware integration in T-031)
-        </span>
+        <WalletButton />
       </div>
     </div>
   );
