@@ -50,16 +50,26 @@
 - 없음
 
 
-### - [ ] T-002 CI Pipeline (Lint/Test/Build)
+### - [~] T-002 CI Pipeline (Lint/Test/Build)
 **의존**
 - T-001
 
 **작업**
-- [ ] GitHub Actions: lint/test/build 워크플로우 추가
-- [ ] PR 시 자동 실행
+- [x] GitHub Actions: lint/test/build 워크플로우 추가
+- [x] PR 시 자동 실행
 
 **완료조건**
 - main 브랜치에 CI 초록
+
+**변경 요약**
+- GitHub Actions 워크플로우 추가: `pnpm install` → `pnpm lint` → `pnpm test` → `pnpm build`
+
+**실행 방법**
+- GitHub에 push 후 Actions 탭에서 CI 결과 확인
+
+**Notes/Blockers**
+- 로컬에서는 `pnpm lint && pnpm test && pnpm build`로 동일 경로 확인 완료.
+- “main 브랜치 CI 초록”은 push 후 확인 필요.
 
 
 ### - [ ] T-003 Open Source Compliance Pack
