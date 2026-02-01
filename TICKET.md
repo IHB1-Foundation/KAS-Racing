@@ -95,17 +95,29 @@
 - 없음
 
 
-### - [ ] T-004 Project Docs Seed (PROJECT.md / ARCHITECTURE.md / WORKLOG.md)
+### - [x] T-004 Project Docs Seed (PROJECT.md / ARCHITECTURE.md / WORKLOG.md)
 **의존**
 - T-001
 
 **작업**
-- [ ] `PROJECT.md`를 레포 루트에 추가(본 문서 내용 반영)
-- [ ] `docs/ARCHITECTURE.md`에 아키텍처 다이어그램(텍스트/mermaid 가능)
-- [ ] `WORKLOG.md` 생성: 티켓별 진행 로그 기록
+- [x] `PROJECT.md`를 레포 루트에 추가(본 문서 내용 반영)
+- [x] `docs/ARCHITECTURE.md`에 아키텍처 다이어그램(텍스트/mermaid 가능)
+- [x] `WORKLOG.md` 생성: 티켓별 진행 로그 기록
 
 **완료조건**
 - 신규 개발자가 docs만 보고 구조 이해 가능
+
+**변경 요약**
+- PROJECT.md는 이미 존재 (T-001에서 생성됨)
+- docs/ARCHITECTURE.md 생성: mermaid 다이어그램 (시스템 개요, 컴포넌트 분해, Free Run/Duel 시퀀스)
+- WORKLOG.md 생성: 티켓별 진행 로그 기록
+
+**실행 방법**
+- 문서 확인: `ls PROJECT.md docs/ARCHITECTURE.md WORKLOG.md`
+- mermaid 렌더링: GitHub에서 자동 렌더링 또는 mermaid-cli 사용
+
+**Notes/Blockers**
+- 없음
 
 
 ---

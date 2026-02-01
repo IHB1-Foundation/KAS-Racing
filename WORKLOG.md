@@ -38,11 +38,19 @@ This file tracks progress on each ticket. Entries are appended as work is comple
 ---
 
 ## T-004: Project Docs Seed
-**Status**: IN PROGRESS
+**Status**: DONE
 **Date**: 2026-02-02
+**Commit**: d919065
 
 - PROJECT.md already exists at repo root
-- Created docs/ARCHITECTURE.md with mermaid diagrams
+- Created docs/ARCHITECTURE.md with mermaid diagrams:
+  - System overview (Client/Server/Kaspa)
+  - Component breakdown tables
+  - Free Run sequence diagram
+  - Duel sequence diagram
+  - Transaction types table
+  - Directory structure
+  - Security boundaries
 - Created WORKLOG.md (this file)
 
 ---
