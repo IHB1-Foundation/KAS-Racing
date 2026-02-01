@@ -21,6 +21,9 @@ const DEFAULT_POLICY: SessionPolicy = {
   rewardAmounts: [0.02, 0.05, 0.1],
 };
 
+// Policy constants
+const TIMESTAMP_MAX_DRIFT_MS = 30000; // 30 seconds max drift from server time
+
 /**
  * POST /api/session/start
  * Start a new game session
@@ -91,6 +94,19 @@ router.post('/event', (req: Request, res: Response) => {
 
   // Policy checks
   const now = Date.now();
+
+  // Timestamp sanity check
+  if (body.timestamp) {
+    const drift = Math.abs(now - body.timestamp);
+    if (drift > TIMESTAMP_MAX_DRIFT_MS) {
+      const result: SessionEventResult = {
+        accepted: false,
+        rejectReason: 'TIMESTAMP_INVALID',
+      };
+      res.json(result);
+      return;
+    }
+  }
 
   // Check max events
   if (session.eventCount >= session.policy.rewardMaxPerSession) {
