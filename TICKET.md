@@ -252,18 +252,32 @@
 - 없음
 
 
-### - [ ] T-021 DB Schema + Migrations
+### - [x] T-021 DB Schema + Migrations
 **의존**
 - T-020
 
 **작업**
-- [ ] DB 선택(Postgres 권장, MVP는 SQLite 허용)
-- [ ] 테이블:
+- [x] DB 선택(Postgres 권장, MVP는 SQLite 허용)
+- [x] 테이블:
     - users, sessions, reward_events, matches
-- [ ] 마이그레이션 도구 적용(Prisma/Knex/Drizzle 중 택1)
+- [x] 마이그레이션 도구 적용(Prisma/Knex/Drizzle 중 택1)
 
 **완료조건**
 - 마이그레이션 1회로 스키마 생성 가능
+
+**변경 요약**
+- Drizzle ORM + better-sqlite3 선택 (MVP용 경량 설정)
+- 4개 테이블 스키마: users, sessions, reward_events, matches
+- 마이그레이션 파일 생성: drizzle/0000_even_fantastic_four.sql
+- DB 스크립트: `pnpm db:generate`, `pnpm db:push`, `pnpm db:studio`
+- 서버 코드 리팩토링: app.ts 분리로 테스트 안정성 향상
+
+**실행 방법**
+- `mkdir -p apps/server/data && pnpm db:push` (스키마 적용)
+- `pnpm db:studio` (DB 브라우저 실행)
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-022 Session Policy Engine (Cooldown/Max events)
