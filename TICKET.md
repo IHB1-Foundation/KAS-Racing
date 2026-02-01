@@ -408,21 +408,37 @@ await wallet.connect();
 
 ## 5) P4 — Reward Stream(서버 결제 엔진)
 
-### - [ ] T-040 Treasury Key Management + Config
+### - [x] T-040 Treasury Key Management + Config
 **의존**
 - T-020
 
 **작업**
-- [ ] 서버 환경변수 정의:
+- [x] 서버 환경변수 정의:
     - NETWORK=testnet/mainnet
     - TREASURY_PRIVATE_KEY
     - TREASURY_CHANGE_ADDRESS
     - ORACLE_PRIVATE_KEY (듀얼용)
-- [ ] 키 로딩/검증(키 없으면 서버 기동 실패)
-- [ ] 절대 로그 출력 금지
+- [x] 키 로딩/검증(키 없으면 서버 기동 실패)
+- [x] 절대 로그 출력 금지
 
 **완료조건**
 - 잘못된 키/누락 시 명확한 에러로 종료
+
+**변경 요약**
+- `apps/server/src/config/index.ts`: 환경변수 로딩/검증 모듈
+- `.env.example`: 환경변수 템플릿 (값은 빈칸)
+- 서버 시작 시 config 검증, 실패하면 exit(1)
+- `safeLogConfig()`: 민감 정보 [REDACTED] 처리
+- `SKIP_KEY_VALIDATION=true`: 개발용 검증 스킵 옵션
+- 11개 테스트 추가
+
+**실행 방법**
+- `.env.example`을 `.env`로 복사 후 값 입력
+- `pnpm dev` → 키 없으면 에러 출력 후 종료
+- 개발용: `SKIP_KEY_VALIDATION=true pnpm dev`
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-041 Reward Payout TX Builder (1-in 2-out, min output)
