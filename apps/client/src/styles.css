@@ -1,0 +1,75 @@
+:root {
+  color-scheme: dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji',
+    'Segoe UI Emoji';
+  --bg: #0b1020;
+  --panel: #121a33;
+  --text: #e7ecff;
+  --muted: #aab3d6;
+  --accent: #6ee7ff;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(1200px 800px at 20% 0%, #16214a 0%, var(--bg) 60%);
+  color: var(--text);
+}
+
+a {
+  color: var(--accent);
+}
+
+.card {
+  max-width: 720px;
+  margin: 48px auto;
+  padding: 24px;
+  background: rgba(18, 26, 51, 0.7);
+  border: 1px solid rgba(110, 231, 255, 0.15);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(110, 231, 255, 0.3);
+  text-decoration: none;
+  color: var(--text);
+  background: rgba(110, 231, 255, 0.08);
+}
+
+.btn:hover {
+  border-color: rgba(110, 231, 255, 0.6);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.layout {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+}
+
+.game {
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  border-right: 1px solid rgba(110, 231, 255, 0.15);
+}
+
+.panel {
+  padding: 16px;
+  background: rgba(18, 26, 51, 0.6);
+}
+

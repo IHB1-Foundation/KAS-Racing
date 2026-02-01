@@ -1,0 +1,15 @@
+node_modules
+dist
+.turbo
+.next
+.vite
+.DS_Store
+*.log
+
+.idea
+
+.env
+.env.*.local
+.pnpm-debug.log
+
+coverage
