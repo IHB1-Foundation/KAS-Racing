@@ -13,3 +13,9 @@ dist
 .pnpm-debug.log
 
 coverage
+
+# Database
+*.db
+*.db-wal
+*.db-shm
+apps/server/data/

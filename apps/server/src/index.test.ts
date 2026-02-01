@@ -1,11 +1,20 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import { app, httpServer } from './index.js';
+import { app, httpServer } from './app.js';
 import type { StartSessionResponse, SessionEventResult, TxStatusResponse } from './types/index.js';
 
 describe('server API', () => {
+  beforeAll(() => {
+    // Start server on a random port for tests
+    return new Promise<void>((resolve) => {
+      httpServer.listen(0, () => resolve());
+    });
+  });
+
   afterAll(() => {
-    httpServer.close();
+    return new Promise<void>((resolve) => {
+      httpServer.close(() => resolve());
+    });
   });
 
   describe('GET /api/health', () => {
