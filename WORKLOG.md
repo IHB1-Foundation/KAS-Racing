@@ -75,3 +75,31 @@ This file tracks progress on each ticket. Entries are appended as work is comple
 - All routing and screen transitions working
 
 ---
+
+## T-011: Free Run Core Gameplay (3-lane runner)
+**Status**: DONE
+**Date**: 2026-02-02
+**Commit**: cc1a3e8
+
+- Implemented complete 3-lane infinite runner mechanics
+- Player controls:
+  - LEFT/RIGHT arrow keys
+  - Touch swipe gestures
+  - Lane change cooldown (100ms)
+- Obstacle system:
+  - Red blocks spawn every 1.5s
+  - Random lane selection
+  - Collision detection → game over
+- Checkpoint capsules:
+  - Green "K" capsules spawn every 2.5s
+  - Collection triggers event with seq/distance/time
+  - Visual feedback flash on collection
+- Progression:
+  - Speed: 200 → 600 km/h gradual increase
+  - Distance tracking in meters
+- Game events emitted:
+  - `gameStart`: when SPACE pressed
+  - `checkpointCollected`: {seq, distance, time}
+  - `gameOver`: {distance, checkpoints, time}
+
+---

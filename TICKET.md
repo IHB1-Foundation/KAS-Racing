@@ -155,19 +155,34 @@
 - 없음
 
 
-### - [ ] T-011 Free Run Core Gameplay (3-lane runner)
+### - [x] T-011 Free Run Core Gameplay (3-lane runner)
 **의존**
 - T-010
 
 **작업**
-- [ ] 3레인 이동(키보드/터치)
-- [ ] 장애물 스폰/충돌 판정/게임오버
-- [ ] 거리/속도 증가 로직
-- [ ] 체크포인트 캡슐 스폰(2~3초 체감 빈도)
+- [x] 3레인 이동(키보드/터치)
+- [x] 장애물 스폰/충돌 판정/게임오버
+- [x] 거리/속도 증가 로직
+- [x] 체크포인트 캡슐 스폰(2~3초 체감 빈도)
 
 **완료조건**
 - 60초 이상 플레이 가능
 - 체크포인트 획득 이벤트가 발생
+
+**변경 요약**
+- FreeRunScene 전면 재작성
+- 3레인 이동: LEFT/RIGHT 키보드, 좌우 스와이프
+- 장애물: 1.5초마다 스폰, 충돌 시 게임오버
+- 체크포인트: 2.5초마다 스폰, 수집 시 이벤트 발생
+- 속도: 200 km/h → 600 km/h 점진 증가
+- 이벤트: gameStart, checkpointCollected, gameOver
+
+**실행 방법**
+- `pnpm dev` → `/free-run` 접속 → SPACE로 시작
+- LEFT/RIGHT로 레인 변경, 장애물 피하고 체크포인트 수집
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-012 HUD Layout + Event Hooks
