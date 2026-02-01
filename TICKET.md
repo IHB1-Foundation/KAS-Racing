@@ -280,16 +280,16 @@
 - 없음
 
 
-### - [ ] T-022 Session Policy Engine (Cooldown/Max events)
+### - [x] T-022 Session Policy Engine (Cooldown/Max events)
 **의존**
 - T-021
 
 **작업**
-- [ ] 세션 시작 시 policy 내려주기:
+- [x] 세션 시작 시 policy 내려주기:
     - rewardCooldownMs=2000
     - rewardMaxPerSession=10
     - rewardAmounts preset
-- [ ] 이벤트 수신 시 정책 검사:
+- [x] 이벤트 수신 시 정책 검사:
     - 쿨다운
     - 최대횟수
     - 세션 상태(active)
@@ -297,6 +297,18 @@
 
 **완료조건**
 - 정책 위반 이벤트는 거절되고 이유 코드가 반환됨
+
+**변경 요약**
+- timestamp sanity check 추가 (30초 max drift)
+- 정책 위반 reject 코드: COOLDOWN_ACTIVE, MAX_EVENTS_REACHED, SESSION_ENDED, TIMESTAMP_INVALID
+- 7개 정책 테스트 추가 (쿨다운, 최대 횟수, 세션 상태, 타임스탬프)
+
+**실행 방법**
+- `pnpm test` 로 정책 테스트 실행
+- API 테스트: 세션 시작 응답에 policy 포함 확인
+
+**Notes/Blockers**
+- 없음
 
 
 ---
