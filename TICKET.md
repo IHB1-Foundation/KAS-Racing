@@ -72,18 +72,27 @@
 - “main 브랜치 CI 초록”은 push 후 확인 필요.
 
 
-### - [ ] T-003 Open Source Compliance Pack
+### - [x] T-003 Open Source Compliance Pack
 **의존**
 - T-001
 
 **작업**
-- [ ] OSI 라이선스 선택 및 `LICENSE` 추가(MIT 권장)
-- [ ] `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md` 추가(간단 버전)
-- [ ] `SECURITY.md`(키 커밋 금지, 취약점 제보 채널)
+- [x] OSI 라이선스 선택 및 `LICENSE` 추가(MIT 권장)
+- [x] `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md` 추가(간단 버전)
+- [x] `SECURITY.md`(키 커밋 금지, 취약점 제보 채널)
 
 **완료조건**
 - 레포 루트에 LICENSE 존재
 - 문서가 최소한의 템플릿 수준으로라도 완비
+
+**변경 요약**
+- `LICENSE`(MIT), `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md` 추가
+
+**실행 방법**
+- 문서 확인: `ls LICENSE CODE_OF_CONDUCT.md CONTRIBUTING.md SECURITY.md`
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-004 Project Docs Seed (PROJECT.md / ARCHITECTURE.md / WORKLOG.md)
