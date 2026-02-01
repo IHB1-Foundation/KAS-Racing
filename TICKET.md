@@ -441,7 +441,7 @@ await wallet.connect();
 - 없음
 
 
-### - [ ] T-041 Reward Payout TX Builder (1-in 2-out, min output)
+### - [~] T-041 Reward Payout TX Builder (1-in 2-out, min output)
 **의존**
 - T-040, T-022
 
@@ -449,16 +449,39 @@ await wallet.connect();
 - 체크포인트 이벤트가 승인되면 즉시 지급 tx를 생성/서명/브로드캐스트.
 
 **작업**
-- [ ] rewardAmount 최소값을 config로 강제(기본 0.02 KAS)
-- [ ] tx outputs = [user(reward), change(change)] 고정
-- [ ] UTXO 선택(단순: largest-first 또는 oldest-first)
+- [x] rewardAmount 최소값을 config로 강제(기본 0.02 KAS)
+- [x] tx outputs = [user(reward), change(change)] 고정
+- [x] UTXO 선택(단순: largest-first 또는 oldest-first)
 - [ ] 수수료/질량 정책에 맞게 안전하게 구성(필요 시 margin)
 
 **산출물**
 - `apps/server/src/tx/rewardPayout.ts` 등
 
 **완료조건**
-- 서버 단독 스크립트로 “지급 tx 1개”를 생성/브로드캐스트 성공
+- 서버 단독 스크립트로 "지급 tx 1개"를 생성/브로드캐스트 성공
+
+**변경 요약**
+- `apps/server/src/tx/kaspaClient.ts`: Kaspa RPC 클라이언트 인터페이스
+- `apps/server/src/tx/rewardPayout.ts`: 지급 TX 빌더 (스켈레톤)
+- UTXO 선택: largest-first 전략
+- min reward: config에서 0.02 KAS (2,000,000 sompi)
+- kaspa-wasm, ws 의존성 추가
+- 7개 유틸리티 테스트
+
+**실행 방법**
+```typescript
+import { sendRewardPayout, kasToSompi } from './tx';
+
+const result = await sendRewardPayout({
+  toAddress: 'kaspa:qz...',
+  amountSompi: kasToSompi(0.05), // 0.05 KAS
+});
+console.log(result.txid);
+```
+
+**Notes/Blockers**
+- 현재 Placeholder RPC (mock txid 반환)
+- 실제 kaspa-wasm 통합은 테스트넷 키 준비 후 완성 예정
 
 
 ### - [ ] T-042 Reward Event State Machine + Idempotency
