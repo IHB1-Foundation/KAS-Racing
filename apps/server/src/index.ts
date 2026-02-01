@@ -1,6 +1,26 @@
 import { app, httpServer, io } from './app.js';
+import { getConfig, safeLogConfig, resetConfigCache } from './config/index.js';
 
-// Start server only when running directly (not imported for tests)
+// Validate configuration on startup (unless explicitly skipped for development)
+const skipKeyValidation = process.env.SKIP_KEY_VALIDATION === 'true';
+
+if (!skipKeyValidation) {
+  try {
+    const config = getConfig();
+    console.log('[server] Configuration loaded:', safeLogConfig(config));
+  } catch (error) {
+    console.error('[server] FATAL: Configuration error');
+    console.error((error as Error).message);
+    console.error('[server] Set SKIP_KEY_VALIDATION=true to skip (development only)');
+    process.exit(1);
+  }
+} else {
+  console.warn('[server] WARNING: Key validation skipped (SKIP_KEY_VALIDATION=true)');
+  console.warn('[server] Reward payouts and duel settlements will NOT work!');
+  resetConfigCache();
+}
+
+// Start server
 const port = Number(process.env.PORT ?? 8787);
 
 console.log('[server] WebSocket server initialized');
