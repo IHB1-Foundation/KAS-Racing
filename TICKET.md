@@ -124,21 +124,35 @@
 
 ## 2) P1 — 클라이언트(게임) MVP
 
-### - [ ] T-010 Client App Skeleton (Phaser + Routing)
+### - [x] T-010 Client App Skeleton (Phaser + Routing)
 **의존**
 - T-001
 
 **작업**
-- [ ] Phaser 프로젝트 셋업
-- [ ] 화면 구성:
+- [x] Phaser 프로젝트 셋업
+- [x] 화면 구성:
     - Home: Play Free Run / Duel / Connect Wallet
     - Free Run Scene
     - Duel Lobby Scene
     - Debug/Proof Scene(선택)
-- [ ] 간단한 UI 프레임(좌: 게임, 우: 패널 영역)
+- [x] 간단한 UI 프레임(좌: 게임, 우: 패널 영역)
 
 **완료조건**
 - 브라우저에서 각 화면 전환이 동작
+
+**변경 요약**
+- Phaser 3 게임 엔진을 React에 통합 (GameCanvas 컴포넌트)
+- 3개 게임 Scene: BootScene, FreeRunScene, DuelScene
+- 4개 페이지: Home, FreeRun, DuelLobby, Proof
+- 레이아웃: 좌측 게임(800x600), 우측 패널(360px)
+- 라우팅: `/`, `/free-run`, `/duel`, `/proof`
+
+**실행 방법**
+- `pnpm dev` 후 `http://localhost:5173` 접속
+- 각 버튼 클릭으로 화면 전환 확인
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-011 Free Run Core Gameplay (3-lane runner)

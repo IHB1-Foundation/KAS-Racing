@@ -54,3 +54,24 @@ This file tracks progress on each ticket. Entries are appended as work is comple
 - Created WORKLOG.md (this file)
 
 ---
+
+## T-010: Client App Skeleton (Phaser + Routing)
+**Status**: DONE
+**Date**: 2026-02-02
+**Commit**: 2022b96
+
+- Integrated Phaser 3 game engine with React
+- Created game structure:
+  - `src/game/config.ts`: Phaser configuration
+  - `src/game/scenes/`: BootScene, FreeRunScene, DuelScene
+  - `src/components/GameCanvas.tsx`: React-Phaser bridge
+- Created page components:
+  - Home: Play Free Run / Duel / Proof buttons + Connect Wallet
+  - FreeRun: Game canvas + stats panel
+  - DuelLobby: Lobby view + match view
+  - Proof: Transaction verification page
+- Layout: 2-column grid (game area + 360px panel)
+- Routes: `/`, `/free-run`, `/duel`, `/proof`
+- All routing and screen transitions working
+
+---
