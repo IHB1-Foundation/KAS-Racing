@@ -360,17 +360,34 @@ await wallet.connect();
 - 없음
 
 
-### - [ ] T-031 Kasware Connect + Address Fetch
+### - [x] T-031 Kasware Connect + Address Fetch
 **의존**
 - T-030
 
 **작업**
-- [ ] Connect/Disconnect UI
-- [ ] 주소 표시/복사
-- [ ] 오류 처리(미설치, 권한 거부)
+- [x] Connect/Disconnect UI
+- [x] 주소 표시/복사
+- [x] 오류 처리(미설치, 권한 거부)
 
 **완료조건**
-- “Connect Wallet” 클릭 → 주소 표시 성공
+- "Connect Wallet" 클릭 → 주소 표시 성공
+
+**변경 요약**
+- WalletButton 컴포넌트 추가 (`apps/client/src/components/WalletButton.tsx`)
+- Connect/Disconnect 버튼 UI
+- 주소 truncation 표시 (kaspa:qz0c...9k5v)
+- 클릭하여 주소 복사 기능
+- 에러 처리: 미설치 시 설치 링크, 권한 거부 시 메시지
+- App.tsx에 WalletProvider 감싸기
+- Home 페이지에 WalletButton 통합
+
+**실행 방법**
+- `pnpm dev` → http://localhost:5173 접속
+- "Connect Wallet" 클릭 → Kasware 설치되어 있으면 연결, 없으면 설치 안내
+- 연결 후 주소 클릭 → 클립보드에 복사
+
+**Notes/Blockers**
+- Kasware 미설치 시 MockProvider로 fallback (UI 개발용)
 
 
 ### - [ ] T-032 Deposit Flow UX (Duel)
