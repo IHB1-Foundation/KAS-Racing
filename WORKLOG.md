@@ -103,3 +103,23 @@ This file tracks progress on each ticket. Entries are appended as work is comple
   - `gameOver`: {distance, checkpoints, time}
 
 ---
+
+## T-012: HUD Layout + Event Hooks
+**Status**: DONE
+**Date**: 2026-02-02
+**Commit**: 03629b6
+
+- GameCanvas enhanced with event callbacks:
+  - onStatsUpdate: real-time game state polling (100ms)
+  - onCheckpoint: checkpoint collection event
+  - onGameOver: game over event
+  - onGameStart: game start event
+- FreeRun page HUD integration:
+  - Live distance/speed/checkpoints display
+  - Game status indicator (Running.../Game Over)
+  - Transaction Timeline placeholder with pending records
+- New CSS styles:
+  - .game-status, .status-text, .status-playing, .status-over
+  - .tx-list, .tx-item, .tx-seq, .tx-status
+
+---

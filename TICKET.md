@@ -185,18 +185,33 @@
 - 없음
 
 
-### - [ ] T-012 HUD Layout + Event Hooks
+### - [x] T-012 HUD Layout + Event Hooks
 **의존**
 - T-011
 
 **작업**
-- [ ] HUD에 표시:
+- [x] HUD에 표시:
     - distance, speed, checkpoints collected
     - tx panel placeholder
-- [ ] 체크포인트 획득 시 클라이언트 이벤트 발생(서버 호출 준비)
+- [x] 체크포인트 획득 시 클라이언트 이벤트 발생(서버 호출 준비)
 
 **완료조건**
 - 캡슐 먹을 때 HUD 카운터 증가
+
+**변경 요약**
+- GameCanvas: 이벤트 콜백 추가 (onStatsUpdate, onCheckpoint, onGameOver, onGameStart)
+- FreeRun: 실시간 HUD 업데이트 (distance/speed/checkpoints)
+- FreeRun: 게임 상태 표시 (Running.../Game Over)
+- FreeRun: TX Timeline placeholder (pending 기록 표시)
+- 스타일: tx-list, tx-item, game-status 컴포넌트 추가
+
+**실행 방법**
+- `pnpm dev` → `/free-run` 접속 → 게임 플레이
+- HUD 패널에서 실시간 distance/speed/checkpoints 확인
+- 체크포인트 수집 시 TX Timeline에 pending 항목 추가됨
+
+**Notes/Blockers**
+- 없음
 
 
 ---
