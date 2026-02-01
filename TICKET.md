@@ -218,23 +218,38 @@
 
 ## 3) P2 — 서버 MVP(세션/정책/API)
 
-### - [ ] T-020 Server App Skeleton (REST + WebSocket)
+### - [x] T-020 Server App Skeleton (REST + WebSocket)
 **의존**
 - T-001
 
 **작업**
-- [ ] Node 서버(Express 또는 Nest) 구성
-- [ ] REST 기본 라우팅:
+- [x] Node 서버(Express 또는 Nest) 구성
+- [x] REST 기본 라우팅:
     - `POST /api/session/start`
     - `POST /api/session/event`
     - `GET /api/tx/:txid/status` (stub)
-- [ ] WebSocket 채널:
+- [x] WebSocket 채널:
     - `txStatusUpdated`
     - `sessionEventAck`
 
 **완료조건**
 - 로컬에서 서버 기동 + 헬스체크 OK
 - 클라이언트가 서버에 연결 가능
+
+**변경 요약**
+- Express + socket.io 기반 서버 구현
+- REST 라우트: session (start/event/end), tx (status)
+- WebSocket: subscribe/unsubscribe 채널, txStatusUpdated/sessionEventAck 이벤트
+- In-memory 세션/tx 상태 저장소 (DB는 T-021에서 구현)
+- Stub txid 시뮬레이션: broadcasted → accepted → included → confirmed 진행
+
+**실행 방법**
+- `pnpm dev` 후 서버 http://localhost:8787
+- `curl http://localhost:8787/api/health`
+- `curl -X POST http://localhost:8787/api/session/start -H "Content-Type: application/json" -d '{"userAddress":"kaspa:test", "mode":"free_run"}'`
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-021 DB Schema + Migrations
