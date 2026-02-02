@@ -7,6 +7,7 @@ import sessionRoutes from './routes/session.js';
 import txRoutes from './routes/tx.js';
 import matchRoutes from './routes/match.js';
 import { setupWebSocket } from './ws/index.js';
+import { requestLogger } from './middleware/requestLogger.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -14,6 +15,14 @@ const httpServer = createServer(app);
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Skip logging and rate limiting in test environment
+const isTestEnv = process.env.NODE_ENV === 'test';
+
+// Request logging
+if (!isTestEnv) {
+  app.use(requestLogger);
+}
 
 // Trust proxy (needed for rate limiting behind reverse proxy)
 app.set('trust proxy', 1);
@@ -71,9 +80,7 @@ const matchLimiter = rateLimit({
   },
 });
 
-// Apply rate limiters only in non-test environments
-const isTestEnv = process.env.NODE_ENV === 'test';
-
+// Apply rate limiters in non-test environments
 if (!isTestEnv) {
   // Apply general limiter to all API routes
   app.use('/api', generalLimiter);
