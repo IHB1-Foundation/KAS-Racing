@@ -206,33 +206,88 @@ a {
 
 .tx-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 6px;
   font-size: 13px;
 }
 
+.tx-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .tx-seq {
   color: var(--text);
   font-family: monospace;
+  font-weight: bold;
+}
+
+.tx-amount {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: bold;
 }
 
 .tx-status {
-  font-size: 12px;
+  font-size: 11px;
   padding: 2px 8px;
   border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
 }
 
 .tx-status-pending {
   color: #ffaa00;
-  background: rgba(255, 170, 0, 0.1);
+  background: rgba(255, 170, 0, 0.15);
 }
 
-.tx-status-sent {
+.tx-status-broadcasted {
+  color: #00ccff;
+  background: rgba(0, 204, 255, 0.15);
+}
+
+.tx-status-accepted {
+  color: #00ddaa;
+  background: rgba(0, 221, 170, 0.15);
+}
+
+.tx-status-included {
   color: #00ff88;
-  background: rgba(0, 255, 136, 0.1);
+  background: rgba(0, 255, 136, 0.15);
+}
+
+.tx-status-confirmed {
+  color: #88ff00;
+  background: rgba(136, 255, 0, 0.15);
+}
+
+.tx-status-failed {
+  color: #ff5555;
+  background: rgba(255, 85, 85, 0.15);
+}
+
+.tx-id {
+  font-size: 11px;
+  font-family: monospace;
+}
+
+.tx-id a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.tx-id a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.tx-error {
+  font-size: 11px;
+  color: #ff5555;
 }
 
 /* Wallet Button Styles */
@@ -307,8 +362,14 @@ a {
   font-size: 13px;
 }
 
-.btn-small {
+.btn-small,
+.btn-sm {
   padding: 6px 10px;
   font-size: 12px;
+}
+
+.address {
+  font-family: monospace;
+  color: var(--accent);
 }
 

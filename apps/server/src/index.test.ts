@@ -1,7 +1,20 @@
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import { app, httpServer } from './app.js';
 import type { StartSessionResponse, SessionEventResult, TxStatusResponse } from './types/index.js';
+
+// Mock rewardService to avoid config validation in tests
+vi.mock('./services/rewardService.js', () => ({
+  processRewardRequest: vi.fn().mockImplementation(async (req: { sessionId: string; seq: number; rewardAmountKas: number }) => ({
+    eventId: 'test-event-id',
+    sessionId: req.sessionId,
+    seq: req.seq,
+    rewardAmount: req.rewardAmountKas,
+    txid: `test-txid-${req.seq}`,
+    txStatus: 'broadcasted',
+    isNew: true,
+  })),
+}));
 
 describe('server API', () => {
   beforeAll(() => {

@@ -1,7 +1,9 @@
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type Response, type RequestHandler } from 'express';
 import { randomUUID } from 'crypto';
+import { eq } from 'drizzle-orm';
+import { db, sessions, type NewSession } from '../db/index.js';
+import { processRewardRequest } from '../services/rewardService.js';
 import type {
-  Session,
   SessionPolicy,
   StartSessionRequest,
   StartSessionResponse,
@@ -10,9 +12,6 @@ import type {
 } from '../types/index.js';
 
 const router = Router();
-
-// In-memory session store (will be replaced with DB in T-021)
-const sessions = new Map<string, Session>();
 
 // Default policy
 const DEFAULT_POLICY: SessionPolicy = {
@@ -24,179 +23,276 @@ const DEFAULT_POLICY: SessionPolicy = {
 // Policy constants
 const TIMESTAMP_MAX_DRIFT_MS = 30000; // 30 seconds max drift from server time
 
+// Async handler wrapper to fix TypeScript errors with Express
+type AsyncHandler = (req: Request, res: Response) => Promise<void>;
+const asyncHandler = (fn: AsyncHandler): RequestHandler => {
+  return (req, res, next) => {
+    fn(req, res).catch(next);
+  };
+};
+
 /**
  * POST /api/session/start
  * Start a new game session
  */
-router.post('/start', (req: Request, res: Response) => {
-  const body = req.body as StartSessionRequest;
+router.post('/start', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const body = req.body as StartSessionRequest;
 
-  if (!body.userAddress) {
-    res.status(400).json({ error: 'userAddress is required' });
-    return;
+    if (!body.userAddress) {
+      res.status(400).json({ error: 'userAddress is required' });
+      return;
+    }
+
+    const mode = body.mode || 'free_run';
+    if (mode !== 'free_run' && mode !== 'duel') {
+      res.status(400).json({ error: 'mode must be free_run or duel' });
+      return;
+    }
+
+    const sessionId = randomUUID();
+    const now = new Date();
+
+    // Create session in database
+    const newSession: NewSession = {
+      id: sessionId,
+      userAddress: body.userAddress,
+      mode,
+      status: 'active',
+      rewardCooldownMs: DEFAULT_POLICY.rewardCooldownMs,
+      rewardMaxPerSession: DEFAULT_POLICY.rewardMaxPerSession,
+      eventCount: 0,
+      createdAt: now,
+    };
+
+    await db.insert(sessions).values(newSession);
+    console.log(`[session] Created session ${sessionId} for ${body.userAddress} (${mode})`);
+
+    const response: StartSessionResponse = {
+      sessionId,
+      policy: DEFAULT_POLICY,
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('[session] Failed to create session:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  const mode = body.mode || 'free_run';
-  if (mode !== 'free_run' && mode !== 'duel') {
-    res.status(400).json({ error: 'mode must be free_run or duel' });
-    return;
-  }
-
-  const sessionId = randomUUID();
-  const session: Session = {
-    id: sessionId,
-    userAddress: body.userAddress,
-    mode,
-    policy: { ...DEFAULT_POLICY },
-    status: 'active',
-    createdAt: Date.now(),
-    eventCount: 0,
-    lastEventAt: null,
-  };
-
-  sessions.set(sessionId, session);
-
-  const response: StartSessionResponse = {
-    sessionId,
-    policy: session.policy,
-  };
-
-  res.json(response);
-});
+}));
 
 /**
  * POST /api/session/event
  * Report a game event (checkpoint collection)
  */
-router.post('/event', (req: Request, res: Response) => {
-  const body = req.body as SessionEventRequest;
+router.post('/event', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const body = req.body as SessionEventRequest;
 
-  // Validate request
-  if (!body.sessionId) {
-    res.status(400).json({ error: 'sessionId is required' });
-    return;
-  }
+    // Validate request
+    if (!body.sessionId) {
+      res.status(400).json({ error: 'sessionId is required' });
+      return;
+    }
 
-  const session = sessions.get(body.sessionId);
-  if (!session) {
-    res.status(404).json({ error: 'Session not found' });
-    return;
-  }
+    // Get session from database
+    const sessionResults = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, body.sessionId))
+      .limit(1);
 
-  if (session.status !== 'active') {
-    const result: SessionEventResult = {
-      accepted: false,
-      rejectReason: 'SESSION_ENDED',
-    };
-    res.json(result);
-    return;
-  }
+    const session = sessionResults[0];
+    if (!session) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
 
-  // Policy checks
-  const now = Date.now();
-
-  // Timestamp sanity check
-  if (body.timestamp) {
-    const drift = Math.abs(now - body.timestamp);
-    if (drift > TIMESTAMP_MAX_DRIFT_MS) {
+    if (session.status !== 'active') {
       const result: SessionEventResult = {
         accepted: false,
-        rejectReason: 'TIMESTAMP_INVALID',
+        rejectReason: 'SESSION_ENDED',
       };
       res.json(result);
       return;
     }
-  }
 
-  // Check max events
-  if (session.eventCount >= session.policy.rewardMaxPerSession) {
-    const result: SessionEventResult = {
-      accepted: false,
-      rejectReason: 'MAX_EVENTS_REACHED',
-    };
-    res.json(result);
-    return;
-  }
+    // Policy checks
+    const now = Date.now();
 
-  // Check cooldown
-  if (session.lastEventAt !== null) {
-    const elapsed = now - session.lastEventAt;
-    if (elapsed < session.policy.rewardCooldownMs) {
+    // Timestamp sanity check
+    if (body.timestamp) {
+      const drift = Math.abs(now - body.timestamp);
+      if (drift > TIMESTAMP_MAX_DRIFT_MS) {
+        const result: SessionEventResult = {
+          accepted: false,
+          rejectReason: 'TIMESTAMP_INVALID',
+        };
+        res.json(result);
+        return;
+      }
+    }
+
+    // Check max events
+    if (session.eventCount >= session.rewardMaxPerSession) {
       const result: SessionEventResult = {
         accepted: false,
-        rejectReason: 'COOLDOWN_ACTIVE',
+        rejectReason: 'MAX_EVENTS_REACHED',
       };
       res.json(result);
       return;
     }
+
+    // Check cooldown
+    if (session.lastEventAt !== null) {
+      const lastEventTime = session.lastEventAt instanceof Date
+        ? session.lastEventAt.getTime()
+        : session.lastEventAt;
+      const elapsed = now - lastEventTime;
+      if (elapsed < session.rewardCooldownMs) {
+        const result: SessionEventResult = {
+          accepted: false,
+          rejectReason: 'COOLDOWN_ACTIVE',
+        };
+        res.json(result);
+        return;
+      }
+    }
+
+    // Select reward amount (simple rotation)
+    const amounts = DEFAULT_POLICY.rewardAmounts;
+    const rewardIndex = (session.eventCount + 1) % amounts.length;
+    const rewardAmount = amounts[rewardIndex] ?? amounts[0] ?? 0.02;
+
+    // Update session state first (for cooldown tracking)
+    // This ensures cooldown check works even if rewardService is mocked
+    await db
+      .update(sessions)
+      .set({
+        eventCount: session.eventCount + 1,
+        lastEventAt: new Date(now),
+      })
+      .where(eq(sessions.id, body.sessionId));
+
+    // Process reward with idempotency
+    const rewardResult = await processRewardRequest({
+      sessionId: body.sessionId,
+      seq: body.seq,
+      type: body.type || 'checkpoint',
+      rewardAmountKas: rewardAmount,
+    });
+
+    if (rewardResult.error) {
+      console.warn(`[session] Reward processing error: ${rewardResult.error}`);
+      const result: SessionEventResult = {
+        accepted: false,
+        rejectReason: rewardResult.error,
+      };
+      res.json(result);
+      return;
+    }
+
+    // Success
+    const result: SessionEventResult = {
+      accepted: true,
+      rewardAmount: rewardResult.rewardAmount,
+      txid: rewardResult.txid ?? undefined,
+    };
+
+    console.log(`[session] Event accepted: session=${body.sessionId} seq=${body.seq} txid=${rewardResult.txid ?? 'null'}`);
+    res.json(result);
+
+  } catch (error) {
+    console.error('[session] Event processing error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  // Accept the event
-  session.eventCount += 1;
-  session.lastEventAt = now;
-
-  // Select reward amount (simple rotation for now)
-  const amounts = session.policy.rewardAmounts;
-  const rewardAmount = amounts[session.eventCount % amounts.length];
-
-  // TODO: T-041/T-042 will implement actual tx generation
-  // For now, return a stub txid
-  const stubTxid = `stub_${body.sessionId}_${body.seq}_${Date.now().toString(36)}`;
-
-  const result: SessionEventResult = {
-    accepted: true,
-    rewardAmount,
-    txid: stubTxid,
-  };
-
-  res.json(result);
-});
+}));
 
 /**
  * GET /api/session/:id
  * Get session info
  */
-router.get('/:id', (req: Request, res: Response) => {
-  const { id } = req.params;
-  if (!id) {
-    res.status(400).json({ error: 'Session ID is required' });
-    return;
-  }
-  const session = sessions.get(id);
-  if (!session) {
-    res.status(404).json({ error: 'Session not found' });
-    return;
-  }
+router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'Session ID is required' });
+      return;
+    }
 
-  res.json({
-    id: session.id,
-    mode: session.mode,
-    status: session.status,
-    eventCount: session.eventCount,
-    policy: session.policy,
-    createdAt: session.createdAt,
-  });
-});
+    const sessionResults = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, id))
+      .limit(1);
+
+    const session = sessionResults[0];
+    if (!session) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+
+    const createdAtMs = session.createdAt instanceof Date
+      ? session.createdAt.getTime()
+      : session.createdAt;
+
+    res.json({
+      id: session.id,
+      mode: session.mode,
+      status: session.status,
+      eventCount: session.eventCount,
+      policy: {
+        rewardCooldownMs: session.rewardCooldownMs,
+        rewardMaxPerSession: session.rewardMaxPerSession,
+        rewardAmounts: DEFAULT_POLICY.rewardAmounts,
+      },
+      createdAt: createdAtMs,
+    });
+  } catch (error) {
+    console.error('[session] Failed to get session:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}));
 
 /**
  * POST /api/session/:id/end
  * End a session
  */
-router.post('/:id/end', (req: Request, res: Response) => {
-  const { id } = req.params;
-  if (!id) {
-    res.status(400).json({ error: 'Session ID is required' });
-    return;
-  }
-  const session = sessions.get(id);
-  if (!session) {
-    res.status(404).json({ error: 'Session not found' });
-    return;
-  }
+router.post('/:id/end', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'Session ID is required' });
+      return;
+    }
 
-  session.status = 'ended';
-  res.json({ ok: true, sessionId: session.id });
-});
+    const sessionResults = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, id))
+      .limit(1);
+
+    const session = sessionResults[0];
+    if (!session) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+
+    // Update session status
+    await db
+      .update(sessions)
+      .set({
+        status: 'ended',
+        endedAt: new Date(),
+      })
+      .where(eq(sessions.id, id));
+
+    console.log(`[session] Session ${id} ended`);
+    res.json({ ok: true, sessionId: id });
+
+  } catch (error) {
+    console.error('[session] Failed to end session:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}));
 
 export default router;
-export { sessions };

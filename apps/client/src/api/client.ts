@@ -1,0 +1,117 @@
+/**
+ * API Client for KAS Racing server
+ */
+
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8787';
+
+export interface SessionPolicy {
+  rewardCooldownMs: number;
+  rewardMaxPerSession: number;
+  rewardAmounts: number[];
+}
+
+export interface StartSessionResponse {
+  sessionId: string;
+  policy: SessionPolicy;
+}
+
+export interface SessionEventResponse {
+  accepted: boolean;
+  rejectReason?: string;
+  rewardAmount?: number;
+  txid?: string;
+}
+
+export interface SessionInfo {
+  id: string;
+  mode: string;
+  status: string;
+  eventCount: number;
+  policy: SessionPolicy;
+  createdAt: number;
+}
+
+interface ApiError {
+  error?: string;
+}
+
+async function parseErrorResponse(response: Response): Promise<string> {
+  try {
+    const data = (await response.json()) as ApiError;
+    return data.error ?? `Request failed: ${response.status}`;
+  } catch {
+    return `Request failed: ${response.status}`;
+  }
+}
+
+/**
+ * Start a new game session
+ */
+export async function startSession(
+  userAddress: string,
+  mode: 'free_run' | 'duel' = 'free_run'
+): Promise<StartSessionResponse> {
+  const response = await fetch(`${API_BASE}/api/session/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userAddress, mode }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as StartSessionResponse;
+}
+
+/**
+ * Send a game event (checkpoint collection)
+ */
+export async function sendEvent(
+  sessionId: string,
+  type: 'checkpoint',
+  seq: number,
+  timestamp: number
+): Promise<SessionEventResponse> {
+  const response = await fetch(`${API_BASE}/api/session/event`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId, type, seq, timestamp }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as SessionEventResponse;
+}
+
+/**
+ * Get session info
+ */
+export async function getSession(sessionId: string): Promise<SessionInfo> {
+  const response = await fetch(`${API_BASE}/api/session/${sessionId}`);
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as SessionInfo;
+}
+
+/**
+ * End a session
+ */
+export async function endSession(sessionId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/session/${sessionId}/end`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+}

@@ -1,8 +1,22 @@
-import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { eq } from 'drizzle-orm';
 import { app, httpServer } from '../app.js';
+import { db, sessions, rewardEvents } from '../db/index.js';
 import type { StartSessionResponse, SessionEventResult } from '../types/index.js';
-import { sessions } from './session.js';
+
+// Mock rewardService to avoid config validation in tests
+vi.mock('../services/rewardService.js', () => ({
+  processRewardRequest: vi.fn().mockImplementation(async (req: { sessionId: string; seq: number; rewardAmountKas: number }) => ({
+    eventId: 'test-event-id',
+    sessionId: req.sessionId,
+    seq: req.seq,
+    rewardAmount: req.rewardAmountKas,
+    txid: `test-txid-${req.seq}`,
+    txStatus: 'broadcasted',
+    isNew: true,
+  })),
+}));
 
 describe('Session Policy Engine', () => {
   beforeAll(() => {
@@ -17,9 +31,10 @@ describe('Session Policy Engine', () => {
     });
   });
 
-  beforeEach(() => {
-    // Clear sessions between tests
-    sessions.clear();
+  beforeEach(async () => {
+    // Clean up test data from DB
+    await db.delete(rewardEvents);
+    await db.delete(sessions);
   });
 
   describe('Cooldown Policy', () => {
@@ -62,11 +77,11 @@ describe('Session Policy Engine', () => {
       });
       const { sessionId, policy } = startRes.body as StartSessionResponse;
 
-      // Manually set eventCount to max
-      const session = sessions.get(sessionId);
-      if (session) {
-        session.eventCount = policy.rewardMaxPerSession;
-      }
+      // Manually set eventCount to max in DB
+      await db
+        .update(sessions)
+        .set({ eventCount: policy.rewardMaxPerSession })
+        .where(eq(sessions.id, sessionId));
 
       // Next event should fail
       const event = await request(app).post('/api/session/event').send({
