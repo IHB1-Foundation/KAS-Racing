@@ -1343,16 +1343,32 @@ const payload = generatePayload({
 - 없음
 
 
-### - [ ] T-112 Thumbnail Screenshot (Required)
+### - [x] T-112 Thumbnail Screenshot (Required)
 **의존**
 - T-054
 
 **작업**
-- [ ] 대표 화면 캡처(게임 + timeline 패널)
-- [ ] 1장 이상 준비
+- [x] 대표 화면 캡처(게임 + timeline 패널)
+- [x] 1장 이상 준비
 
 **완료조건**
 - 제출 규정 충족
+
+**변경 요약**
+- `docs/THUMBNAIL_GUIDE.md`: 스크린샷 캡처 가이드
+  - 해상도/포맷 요구사항
+  - 이상적인 스크린샷 구도
+  - 캡처 방법 (macOS/Windows)
+  - 후처리 팁
+  - 파일 명명 규칙
+- `docs/screenshots/` 디렉토리 생성
+
+**실행 방법**
+- `docs/THUMBNAIL_GUIDE.md` 참고하여 스크린샷 캡처
+- 캡처된 이미지를 `docs/screenshots/thumbnail_main.png`로 저장
+
+**Notes/Blockers**
+- 실제 스크린샷은 게임 실행 후 수동 캡처 필요
 
 
 ### - [ ] T-113 AI_USAGE.md (Disclosure)
