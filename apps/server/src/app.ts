@@ -4,6 +4,7 @@ import { createServer } from 'http';
 
 import sessionRoutes from './routes/session.js';
 import txRoutes from './routes/tx.js';
+import matchRoutes from './routes/match.js';
 import { setupWebSocket } from './ws/index.js';
 
 const app = express();
@@ -21,6 +22,7 @@ app.get('/api/health', (_req, res) => {
 // API Routes
 app.use('/api/session', sessionRoutes);
 app.use('/api/tx', txRoutes);
+app.use('/api/match', matchRoutes);
 
 // Setup WebSocket
 const io = setupWebSocket(httpServer);
