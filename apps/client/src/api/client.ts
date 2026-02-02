@@ -115,3 +115,115 @@ export async function endSession(sessionId: string): Promise<void> {
     throw new Error(errorMsg);
   }
 }
+
+// ============ Match API ============
+
+export interface MatchPlayer {
+  address: string;
+  depositTxid: string | null;
+  depositStatus: string | null;
+}
+
+export interface MatchInfo {
+  id: string;
+  joinCode: string;
+  status: 'waiting' | 'deposits_pending' | 'ready' | 'playing' | 'finished' | 'cancelled';
+  betAmount: number;
+  playerA: MatchPlayer | null;
+  playerB: MatchPlayer | null;
+  escrowAddressA: string | null;
+  escrowAddressB: string | null;
+  winner: string | null;
+  playerAScore: number | null;
+  playerBScore: number | null;
+  settleTxid: string | null;
+  settleStatus: string | null;
+  createdAt: number;
+  startedAt: number | null;
+  finishedAt: number | null;
+}
+
+export interface CreateMatchResponse {
+  matchId: string;
+  joinCode: string;
+  betAmount: number;
+  status: string;
+}
+
+/**
+ * Create a new match
+ */
+export async function createMatch(
+  playerAddress: string,
+  betAmount: number
+): Promise<CreateMatchResponse> {
+  const response = await fetch(`${API_BASE}/api/match/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerAddress, betAmount }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as CreateMatchResponse;
+}
+
+/**
+ * Join a match by code
+ */
+export async function joinMatch(
+  joinCode: string,
+  playerAddress: string
+): Promise<MatchInfo> {
+  const response = await fetch(`${API_BASE}/api/match/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ joinCode, playerAddress }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as MatchInfo;
+}
+
+/**
+ * Get match info by ID
+ */
+export async function getMatch(matchId: string): Promise<MatchInfo> {
+  const response = await fetch(`${API_BASE}/api/match/${matchId}`);
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as MatchInfo;
+}
+
+/**
+ * Register a deposit transaction for a match
+ */
+export async function registerDeposit(
+  matchId: string,
+  player: 'A' | 'B',
+  txid: string
+): Promise<MatchInfo> {
+  const response = await fetch(`${API_BASE}/api/match/${matchId}/deposit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player, txid }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as MatchInfo;
+}

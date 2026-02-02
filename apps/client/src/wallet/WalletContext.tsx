@@ -6,8 +6,11 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
-import { IWalletProvider, WalletError, WalletErrorCode } from './types';
+import { IWalletProvider, WalletError, WalletErrorCode, TransactionResult, TransactionOptions } from './types';
 import { getDefaultWalletProvider } from './index';
+
+// 1 KAS = 100,000,000 sompi
+const SOMPI_PER_KAS = 100_000_000n;
 
 interface WalletContextState {
   /** Current wallet provider instance */
@@ -28,6 +31,8 @@ interface WalletContextState {
   disconnect: () => Promise<void>;
   /** Clear current error */
   clearError: () => void;
+  /** Send a transaction (amount in KAS, not sompi) */
+  sendTransaction: (to: string, amountKas: number, options?: TransactionOptions) => Promise<TransactionResult>;
 }
 
 const WalletContext = createContext<WalletContextState | null>(null);
@@ -87,6 +92,16 @@ export function WalletProvider({ provider: customProvider, children }: WalletPro
     setError(null);
   }, []);
 
+  const sendTransaction = useCallback(async (
+    to: string,
+    amountKas: number,
+    options?: TransactionOptions
+  ): Promise<TransactionResult> => {
+    // Convert KAS to sompi
+    const amountSompi = BigInt(Math.round(amountKas * Number(SOMPI_PER_KAS)));
+    return provider.sendTransaction(to, amountSompi, options);
+  }, [provider]);
+
   // Try to restore connection on mount (for Kasware)
   useEffect(() => {
     const tryRestore = async () => {
@@ -116,6 +131,7 @@ export function WalletProvider({ provider: customProvider, children }: WalletPro
     connect,
     disconnect,
     clearError,
+    sendTransaction,
   };
 
   return (

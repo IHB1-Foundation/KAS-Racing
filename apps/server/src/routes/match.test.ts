@@ -200,4 +200,119 @@ describe('Match API (Matchmaking)', () => {
       expect(res.body.error).toBe('Match not found');
     });
   });
+
+  describe('POST /api/match/:id/deposit', () => {
+    it('registers deposit for player A', async () => {
+      // Create and join match
+      const createRes = await request(app).post('/api/match/create').send({
+        playerAddress: 'kaspa:player_a',
+        betAmount: 1.0,
+      });
+      const { matchId, joinCode } = createRes.body;
+
+      await request(app).post('/api/match/join').send({
+        joinCode,
+        playerAddress: 'kaspa:player_b',
+      });
+
+      // Register deposit
+      const res = await request(app).post(`/api/match/${matchId}/deposit`).send({
+        player: 'A',
+        txid: 'test-txid-player-a',
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.playerA.depositTxid).toBe('test-txid-player-a');
+      expect(res.body.playerA.depositStatus).toBe('broadcasted');
+      expect(res.body.status).toBe('deposits_pending'); // Only one deposit
+    });
+
+    it('sets status to ready when both deposits registered', async () => {
+      // Create and join match
+      const createRes = await request(app).post('/api/match/create').send({
+        playerAddress: 'kaspa:player_a',
+        betAmount: 1.0,
+      });
+      const { matchId, joinCode } = createRes.body;
+
+      await request(app).post('/api/match/join').send({
+        joinCode,
+        playerAddress: 'kaspa:player_b',
+      });
+
+      // Register both deposits
+      await request(app).post(`/api/match/${matchId}/deposit`).send({
+        player: 'A',
+        txid: 'txid-a',
+      });
+
+      const res = await request(app).post(`/api/match/${matchId}/deposit`).send({
+        player: 'B',
+        txid: 'txid-b',
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('ready');
+      expect(res.body.playerA.depositTxid).toBe('txid-a');
+      expect(res.body.playerB.depositTxid).toBe('txid-b');
+    });
+
+    it('rejects deposit for match not in deposits_pending status', async () => {
+      // Create match (status: waiting)
+      const createRes = await request(app).post('/api/match/create').send({
+        playerAddress: 'kaspa:player_a',
+        betAmount: 1.0,
+      });
+      const { matchId } = createRes.body;
+
+      const res = await request(app).post(`/api/match/${matchId}/deposit`).send({
+        player: 'A',
+        txid: 'test-txid',
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Match is not accepting deposits');
+    });
+
+    it('rejects invalid player', async () => {
+      const createRes = await request(app).post('/api/match/create').send({
+        playerAddress: 'kaspa:player_a',
+        betAmount: 1.0,
+      });
+      const { matchId, joinCode } = createRes.body;
+
+      await request(app).post('/api/match/join').send({
+        joinCode,
+        playerAddress: 'kaspa:player_b',
+      });
+
+      const res = await request(app).post(`/api/match/${matchId}/deposit`).send({
+        player: 'C',
+        txid: 'test-txid',
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('player must be A or B');
+    });
+
+    it('rejects missing txid', async () => {
+      const createRes = await request(app).post('/api/match/create').send({
+        playerAddress: 'kaspa:player_a',
+        betAmount: 1.0,
+      });
+      const { matchId, joinCode } = createRes.body;
+
+      await request(app).post('/api/match/join').send({
+        joinCode,
+        playerAddress: 'kaspa:player_b',
+      });
+
+      const res = await request(app).post(`/api/match/${matchId}/deposit`).send({
+        player: 'A',
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('txid is required');
+    });
+  });
 });

@@ -226,6 +226,106 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   }
 }));
 
+interface RegisterDepositRequest {
+  player: 'A' | 'B';
+  txid: string;
+}
+
+/**
+ * POST /api/match/:id/deposit
+ * Register a deposit transaction for a match
+ */
+router.post('/:id/deposit', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const body = req.body as RegisterDepositRequest;
+
+    if (!id) {
+      res.status(400).json({ error: 'Match ID is required' });
+      return;
+    }
+
+    if (!body.player || (body.player !== 'A' && body.player !== 'B')) {
+      res.status(400).json({ error: 'player must be A or B' });
+      return;
+    }
+
+    if (!body.txid) {
+      res.status(400).json({ error: 'txid is required' });
+      return;
+    }
+
+    // Find match
+    const matchResults = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, id))
+      .limit(1);
+
+    const match = matchResults[0];
+    if (!match) {
+      res.status(404).json({ error: 'Match not found' });
+      return;
+    }
+
+    // Check match status
+    if (match.status !== 'deposits_pending') {
+      res.status(400).json({ error: 'Match is not accepting deposits', status: match.status });
+      return;
+    }
+
+    // Update deposit info
+    const updateData = body.player === 'A'
+      ? { playerADepositTxid: body.txid, playerADepositStatus: 'broadcasted' }
+      : { playerBDepositTxid: body.txid, playerBDepositStatus: 'broadcasted' };
+
+    await db
+      .update(matches)
+      .set(updateData)
+      .where(eq(matches.id, id));
+
+    console.log(`[match] Player ${body.player} deposited ${body.txid} for match ${id}`);
+
+    // Check if both deposits are now registered
+    const updatedResults = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, id))
+      .limit(1);
+
+    const updatedMatch = updatedResults[0];
+    if (!updatedMatch) {
+      res.status(500).json({ error: 'Failed to fetch updated match' });
+      return;
+    }
+
+    // If both deposits are registered, update status to ready
+    if (updatedMatch.playerADepositTxid && updatedMatch.playerBDepositTxid) {
+      await db
+        .update(matches)
+        .set({ status: 'ready' })
+        .where(eq(matches.id, id));
+
+      console.log(`[match] Both deposits registered, match ${id} is now ready`);
+
+      // Fetch again with updated status
+      const finalResults = await db
+        .select()
+        .from(matches)
+        .where(eq(matches.id, id))
+        .limit(1);
+
+      res.json(matchToResponse(finalResults[0]!));
+      return;
+    }
+
+    res.json(matchToResponse(updatedMatch));
+  } catch (error) {
+    console.error('[match] Failed to register deposit:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}));
+
 /**
  * GET /api/match/code/:joinCode
  * Get match info by join code
