@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import Phaser from 'phaser';
-import { createGameConfig, type GameMode, FreeRunScene } from '../game';
+import { createGameConfig, type GameMode, FreeRunScene, DuelScene } from '../game';
 
 export interface GameStats {
   distance: number;
@@ -8,6 +8,7 @@ export interface GameStats {
   checkpoints: number;
   isPlaying: boolean;
   isGameOver: boolean;
+  timeRemaining?: number;
 }
 
 export interface CheckpointEvent {
@@ -22,6 +23,11 @@ export interface GameOverEvent {
   time: number;
 }
 
+export interface RaceEndEvent {
+  distance: number;
+  time: number;
+}
+
 interface GameCanvasProps {
   mode: GameMode;
   onGameReady?: (game: Phaser.Game) => void;
@@ -29,6 +35,7 @@ interface GameCanvasProps {
   onCheckpoint?: (event: CheckpointEvent) => void;
   onGameOver?: (event: GameOverEvent) => void;
   onGameStart?: () => void;
+  onRaceEnd?: (event: RaceEndEvent) => void;
 }
 
 export function GameCanvas({
@@ -38,6 +45,7 @@ export function GameCanvas({
   onCheckpoint,
   onGameOver,
   onGameStart,
+  onRaceEnd,
 }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
@@ -45,7 +53,8 @@ export function GameCanvas({
 
   const setupEventHandlers = useCallback(
     (game: Phaser.Game) => {
-      const scene = game.scene.getScene('FreeRunScene') as FreeRunScene | null;
+      const sceneKey = mode === 'freerun' ? 'FreeRunScene' : 'DuelScene';
+      const scene = game.scene.getScene(sceneKey) as FreeRunScene | DuelScene | null;
       if (!scene) return;
 
       // Listen for game events
@@ -53,13 +62,23 @@ export function GameCanvas({
         onGameStart?.();
       });
 
-      scene.events.on('checkpointCollected', (event: CheckpointEvent) => {
-        onCheckpoint?.(event);
-      });
+      // FreeRun specific events
+      if (mode === 'freerun') {
+        scene.events.on('checkpointCollected', (event: CheckpointEvent) => {
+          onCheckpoint?.(event);
+        });
 
-      scene.events.on('gameOver', (event: GameOverEvent) => {
-        onGameOver?.(event);
-      });
+        scene.events.on('gameOver', (event: GameOverEvent) => {
+          onGameOver?.(event);
+        });
+      }
+
+      // Duel specific events
+      if (mode === 'duel') {
+        scene.events.on('raceEnd', (event: RaceEndEvent) => {
+          onRaceEnd?.(event);
+        });
+      }
 
       // Poll for stats updates
       if (statsIntervalRef.current) {
@@ -72,14 +91,15 @@ export function GameCanvas({
           onStatsUpdate?.({
             distance: Math.floor(state.distance),
             speed: Math.floor(state.speed),
-            checkpoints: state.checkpoints,
+            checkpoints: 'checkpoints' in state ? state.checkpoints : 0,
             isPlaying: state.isPlaying,
             isGameOver: state.isGameOver,
+            timeRemaining: 'timeRemaining' in state ? state.timeRemaining : undefined,
           });
         }
       }, 100);
     },
-    [onGameStart, onCheckpoint, onGameOver, onStatsUpdate],
+    [mode, onGameStart, onCheckpoint, onGameOver, onRaceEnd, onStatsUpdate],
   );
 
   useEffect(() => {

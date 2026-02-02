@@ -359,4 +359,175 @@ router.get('/code/:joinCode', asyncHandler(async (req: Request, res: Response) =
   }
 }));
 
+interface StartGameRequest {
+  player: 'A' | 'B';
+}
+
+/**
+ * POST /api/match/:id/start
+ * Start the game for a match
+ */
+router.post('/:id/start', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const body = req.body as StartGameRequest;
+
+    if (!id) {
+      res.status(400).json({ error: 'Match ID is required' });
+      return;
+    }
+
+    // Find match
+    const matchResults = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, id))
+      .limit(1);
+
+    const match = matchResults[0];
+    if (!match) {
+      res.status(404).json({ error: 'Match not found' });
+      return;
+    }
+
+    // Check match status
+    if (match.status !== 'ready') {
+      res.status(400).json({ error: 'Match is not ready to start', status: match.status });
+      return;
+    }
+
+    // Update match to playing
+    await db
+      .update(matches)
+      .set({
+        status: 'playing',
+        startedAt: new Date(),
+      })
+      .where(eq(matches.id, id));
+
+    console.log(`[match] Game started for match ${id} by player ${body.player}`);
+
+    // Fetch updated match
+    const updatedResults = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, id))
+      .limit(1);
+
+    res.json(matchToResponse(updatedResults[0]!));
+  } catch (error) {
+    console.error('[match] Failed to start game:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}));
+
+interface SubmitScoreRequest {
+  player: 'A' | 'B';
+  score: number;
+}
+
+/**
+ * POST /api/match/:id/submit-score
+ * Submit player's score after race ends
+ */
+router.post('/:id/submit-score', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const body = req.body as SubmitScoreRequest;
+
+    if (!id) {
+      res.status(400).json({ error: 'Match ID is required' });
+      return;
+    }
+
+    if (!body.player || (body.player !== 'A' && body.player !== 'B')) {
+      res.status(400).json({ error: 'player must be A or B' });
+      return;
+    }
+
+    if (typeof body.score !== 'number' || body.score < 0) {
+      res.status(400).json({ error: 'score must be a non-negative number' });
+      return;
+    }
+
+    // Find match
+    const matchResults = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, id))
+      .limit(1);
+
+    const match = matchResults[0];
+    if (!match) {
+      res.status(404).json({ error: 'Match not found' });
+      return;
+    }
+
+    // Check match status
+    if (match.status !== 'playing' && match.status !== 'ready') {
+      res.status(400).json({ error: 'Match is not in progress', status: match.status });
+      return;
+    }
+
+    // Update score
+    const updateData = body.player === 'A'
+      ? { playerAScore: body.score }
+      : { playerBScore: body.score };
+
+    await db
+      .update(matches)
+      .set(updateData)
+      .where(eq(matches.id, id));
+
+    console.log(`[match] Player ${body.player} submitted score ${body.score} for match ${id}`);
+
+    // Check if both scores are in
+    const updatedResults = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, id))
+      .limit(1);
+
+    const updatedMatch = updatedResults[0]!;
+
+    // If both scores are submitted, determine winner
+    if (updatedMatch.playerAScore !== null && updatedMatch.playerBScore !== null) {
+      let winnerId: string;
+      if (updatedMatch.playerAScore > updatedMatch.playerBScore) {
+        winnerId = 'A';
+      } else if (updatedMatch.playerBScore > updatedMatch.playerAScore) {
+        winnerId = 'B';
+      } else {
+        winnerId = 'draw';
+      }
+
+      await db
+        .update(matches)
+        .set({
+          status: 'finished',
+          winnerId,
+          finishedAt: new Date(),
+        })
+        .where(eq(matches.id, id));
+
+      console.log(`[match] Match ${id} finished. Winner: ${winnerId}`);
+
+      // Fetch final state
+      const finalResults = await db
+        .select()
+        .from(matches)
+        .where(eq(matches.id, id))
+        .limit(1);
+
+      res.json(matchToResponse(finalResults[0]!));
+      return;
+    }
+
+    res.json(matchToResponse(updatedMatch));
+  } catch (error) {
+    console.error('[match] Failed to submit score:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}));
+
 export default router;

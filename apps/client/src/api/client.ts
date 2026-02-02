@@ -227,3 +227,46 @@ export async function registerDeposit(
 
   return (await response.json()) as MatchInfo;
 }
+
+/**
+ * Start the game for a match
+ */
+export async function startGame(
+  matchId: string,
+  player: 'A' | 'B'
+): Promise<MatchInfo> {
+  const response = await fetch(`${API_BASE}/api/match/${matchId}/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as MatchInfo;
+}
+
+/**
+ * Submit score after race ends
+ */
+export async function submitScore(
+  matchId: string,
+  player: 'A' | 'B',
+  score: number
+): Promise<MatchInfo> {
+  const response = await fetch(`${API_BASE}/api/match/${matchId}/submit-score`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player, score }),
+  });
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as MatchInfo;
+}
