@@ -567,7 +567,7 @@ const result2 = await processRewardRequest({
 
 ## 6) P5 — Tx 상태 추적 + Speed-Visualizer SDK
 
-### - [ ] T-050 Tx Status Provider (Server-side)
+### - [x] T-050 Tx Status Provider (Server-side)
 **의존**
 - T-020
 
@@ -575,15 +575,30 @@ const result2 = await processRewardRequest({
 - txid의 현재 상태(accepted/included/confirmations)를 안정적으로 조회.
 
 **작업**
-- [ ] 옵션 A: 인덱싱 API 사용(서버에서만 호출; API Key 클라 노출 금지)
-- [ ] 옵션 B: 자체 노드/RPC 사용
-- [ ] `/api/tx/:txid/status` 구현
-- [ ] 서버 내부 폴링 워커:
+- [x] 옵션 A: 인덱싱 API 사용(서버에서만 호출; API Key 클라 노출 금지)
+- [x] `/api/tx/:txid/status` 구현
+- [x] 서버 내부 폴링 워커:
     - broadcasted 상태의 tx를 주기적으로 조회
     - 상태 변화 시 WebSocket push
 
 **완료조건**
 - txid 1개를 넣으면 단계가 시간에 따라 업데이트됨
+
+**변경 요약**
+- `apps/server/src/services/txStatusService.ts`: REST API 기반 TX 상태 조회 + stub TX 시뮬레이션
+- `apps/server/src/workers/txStatusWorker.ts`: 2초 간격 폴링 워커 (broadcasted/accepted/included 상태 추적)
+- `apps/server/src/routes/tx.ts`: `/api/tx/:txid/status` 엔드포인트
+- `apps/server/src/ws/index.ts`: `emitTxStatusUpdated` WebSocket push
+- 개발 환경에서도 워커 동작 (stub TX 시뮬레이션 지원)
+- 10개 테스트 추가
+
+**실행 방법**
+- `pnpm dev` 후 게임 플레이 → 체크포인트 수집 시 TX 상태가 자동 업데이트됨
+- `curl http://localhost:8787/api/tx/stub_test_123/status` → stub TX 시뮬레이션 응답
+- WebSocket: `subscribe` 이벤트로 세션 구독 후 `txStatusUpdated` 이벤트 수신
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-051 Speed-Visualizer SDK Package Skeleton
