@@ -1105,17 +1105,32 @@ const payload = generatePayload({
 
 ## 10) P9 — 보안/안정화/운영 품질
 
-### - [ ] T-090 Rate Limiting + Abuse Protection
+### - [x] T-090 Rate Limiting + Abuse Protection
 **의존**
 - T-020, T-022
 
 **작업**
-- [ ] IP 기반 rate limit (session/event)
-- [ ] 동일 세션 이벤트 폭주 방지
-- [ ] 오류 코드/메시지 표준화
+- [x] IP 기반 rate limit (session/event)
+- [x] 동일 세션 이벤트 폭주 방지
+- [x] 오류 코드/메시지 표준화
 
 **완료조건**
 - 간단한 스팸 요청에 서버가 무너지지 않음
+
+**변경 요약**
+- `apps/server/src/app.ts`: express-rate-limit 미들웨어 추가
+  - General API: 100 req/min per IP
+  - Session events: 30 req/min per IP+sessionId
+  - Match operations: 20 req/min per IP
+- `apps/server/src/errors/index.ts`: 표준화된 에러 코드 (ErrorCode enum)
+- 테스트 환경에서는 rate limit 비활성화
+
+**실행 방법**
+- 서버 실행 후 동일 API를 반복 호출하면 429 응답
+- `{ error: 'RATE_LIMIT_EXCEEDED', message: '...', retryAfterMs: 60000 }`
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-091 Observability (Structured logs + Timing)
