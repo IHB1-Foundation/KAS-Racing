@@ -1312,20 +1312,35 @@ const payload = generatePayload({
 - 없음
 
 
-### - [ ] T-111 Demo Video Script + Capture Checklist
+### - [x] T-111 Demo Video Script + Capture Checklist
 **의존**
 - T-110
 
 **작업**
-- [ ] 2~3분 원테이크 시나리오
+- [x] 2~3분 원테이크 시나리오
     - Free Run: checkpoint → txid → lifecycle
     - Duel: deposit 2개 + settle 1개
     - Proof page(가능하면)
-- [ ] 화면 구성(좌: 게임, 우: timeline + explorer)
-- [ ] 영문 자막 파일(srt) 준비(선택)
+- [x] 화면 구성(좌: 게임, 우: timeline + explorer)
+- [x] 영문 자막 파일(srt) 준비(선택)
 
 **완료조건**
 - 촬영만 하면 제출 가능한 상태
+
+**변경 요약**
+- `docs/DEMO_SCRIPT.md` 생성
+- 5개 Scene: Intro, Free Run, Duel, Proof, SDK, Closing
+- Pre-recording 체크리스트 (환경, 브라우저 레이아웃)
+- Key moments to capture 정의
+- Post-recording 체크리스트 (비디오, 자막, 썸네일)
+- Troubleshooting 가이드
+
+**실행 방법**
+- `cat docs/DEMO_SCRIPT.md` 확인
+- 스크립트 따라 녹화 진행
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-112 Thumbnail Screenshot (Required)
