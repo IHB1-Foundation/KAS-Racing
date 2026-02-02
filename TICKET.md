@@ -1069,16 +1069,36 @@ const payload = generatePayload({
 - 실제 TX 브로드캐스트 테스트: 환경변수 설정 필요 (TREASURY_PRIVATE_KEY 등)
 
 
-### - [ ] T-082 Proof Page (Parse + Display)
+### - [x] T-082 Proof Page (Parse + Display)
 **의존**
 - T-081, T-052
 
 **작업**
-- [ ] txid 입력/선택 → payload 파싱 결과 표시
-- [ ] “이 이벤트가 온체인에 기록됨”을 사람 눈으로 확인 가능하게 UI 구성
+- [x] txid 입력/선택 → payload 파싱 결과 표시
+- [x] "이 이벤트가 온체인에 기록됨"을 사람 눈으로 확인 가능하게 UI 구성
 
 **완료조건**
 - 데모 중 Proof page로 증거 제시 가능
+
+**변경 요약**
+- `apps/server/src/routes/tx.ts`: `/api/tx/:txid` 엔드포인트 추가 (TX 상세 정보 + payload)
+- `apps/client/src/utils/payloadParser.ts`: 클라이언트 측 payload 파서
+- `apps/client/src/api/client.ts`: getTxDetails, getTxStatus API 함수 추가
+- `apps/client/src/pages/Proof.tsx`: Proof 페이지 UI 구현
+  - txid 입력 폼 (Enter 키 지원)
+  - 유효한 KAS Racing 이벤트 감지 및 표시
+  - 이벤트 상세 정보 테이블 (Network, Mode, Event Type, Session, Seq, Commit)
+  - TX 출력 목록 (금액, 주소)
+  - TxLifecycleTimeline 컴포넌트로 TX 상태 표시
+  - Explorer 링크
+
+**실행 방법**
+- `pnpm dev` → http://localhost:5173/proof 접속
+- txid 입력 (예: `stub_testsession_1_xxxxx`) → Verify 클릭
+- 페이로드 파싱 결과 및 TX 상태 확인
+
+**Notes/Blockers**
+- 없음
 
 
 ---
