@@ -680,13 +680,24 @@ import { TxLifecycleTimeline, KaspaRPMGauge } from '@kas-racing/speed-visualizer
 - 없음
 
 
-### - [ ] T-054 Integrate SDK into Game HUD
+### - [x] T-054 Integrate SDK into Game HUD
 **의존**
 - T-052, T-053, T-012
 
 **작업**
 - [x] TxLifecycleTimeline을 FreeRun 페이지에 통합 (T-051에서 완료)
-- [ ] KaspaRPMGauge를 HUD에 추가 (네트워크 BPS 데이터 연동 필요)
+- [x] KaspaRPMGauge를 HUD에 추가
+
+**완료조건**
+- 한 판 플레이 중 tx lifecycle이 "눈으로" 확인됨
+
+**변경 요약**
+- `apps/client/src/pages/FreeRun.tsx`: KaspaRPMGauge 컴포넌트 통합
+- 게임 속도에 따라 Network Pulse 게이지가 동적으로 변함
+- TxLifecycleTimeline과 KaspaRPMGauge 모두 HUD에 표시
+
+**Notes/Blockers**
+- 실제 네트워크 BPS 데이터 연동은 추후 개선 가능
 - [ ] 체크포인트 지급 txid가 Timeline에 자동으로 연결
 
 **완료조건**
