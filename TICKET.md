@@ -1371,16 +1371,31 @@ const payload = generatePayload({
 - 실제 스크린샷은 게임 실행 후 수동 캡처 필요
 
 
-### - [ ] T-113 AI_USAGE.md (Disclosure)
+### - [x] T-113 AI_USAGE.md (Disclosure)
 **의존**
 - T-003
 
 **작업**
-- [ ] AI 사용 도구/범위/산출물 표로 명시
-- [ ] “핵심 로직을 AI가 전부 작성”한 경우를 피하도록 명확히 기록
+- [x] AI 사용 도구/범위/산출물 표로 명시
+- [x] "핵심 로직을 AI가 전부 작성"한 경우를 피하도록 명확히 기록
 
 **완료조건**
 - 레포에 AI_USAGE.md 존재
+
+**변경 요약**
+- `AI_USAGE.md` 생성
+  - AI 도구: Claude Opus 4.5
+  - 컴포넌트별 AI 기여도 표
+  - AI 미사용 영역 명시 (비즈니스 로직, 보안 결정 등)
+  - AI 상호작용 프로세스 설명
+  - 검증 체크리스트
+  - 커밋 Co-Author 형식 설명
+
+**실행 방법**
+- `cat AI_USAGE.md` 확인
+
+**Notes/Blockers**
+- 없음
 
 
 ---
