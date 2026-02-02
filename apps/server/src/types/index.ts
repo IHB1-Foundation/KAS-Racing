@@ -38,7 +38,8 @@ export type TxStatus =
   | 'broadcasted'
   | 'accepted'
   | 'included'
-  | 'confirmed';
+  | 'confirmed'
+  | 'failed';
 
 export interface TxStatusInfo {
   txid: string;

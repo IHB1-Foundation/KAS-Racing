@@ -7,15 +7,17 @@ import type { StartSessionResponse, SessionEventResult } from '../types/index.js
 
 // Mock rewardService to avoid config validation in tests
 vi.mock('../services/rewardService.js', () => ({
-  processRewardRequest: vi.fn().mockImplementation(async (req: { sessionId: string; seq: number; rewardAmountKas: number }) => ({
-    eventId: 'test-event-id',
-    sessionId: req.sessionId,
-    seq: req.seq,
-    rewardAmount: req.rewardAmountKas,
-    txid: `test-txid-${req.seq}`,
-    txStatus: 'broadcasted',
-    isNew: true,
-  })),
+  processRewardRequest: vi.fn().mockImplementation((req: { sessionId: string; seq: number; rewardAmountKas: number }) =>
+    Promise.resolve({
+      eventId: 'test-event-id',
+      sessionId: req.sessionId,
+      seq: req.seq,
+      rewardAmount: req.rewardAmountKas,
+      txid: `test-txid-${req.seq}`,
+      txStatus: 'broadcasted',
+      isNew: true,
+    })
+  ),
 }));
 
 describe('Session Policy Engine', () => {

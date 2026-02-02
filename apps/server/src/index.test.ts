@@ -1,19 +1,29 @@
-import { describe, expect, it, beforeAll, afterAll, vi } from 'vitest';
+import { describe, expect, it, beforeEach, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import { app, httpServer } from './app.js';
+import { db, sessions, rewardEvents } from './db/index.js';
 import type { StartSessionResponse, SessionEventResult, TxStatusResponse } from './types/index.js';
 
 // Mock rewardService to avoid config validation in tests
 vi.mock('./services/rewardService.js', () => ({
-  processRewardRequest: vi.fn().mockImplementation(async (req: { sessionId: string; seq: number; rewardAmountKas: number }) => ({
-    eventId: 'test-event-id',
-    sessionId: req.sessionId,
-    seq: req.seq,
-    rewardAmount: req.rewardAmountKas,
-    txid: `test-txid-${req.seq}`,
-    txStatus: 'broadcasted',
-    isNew: true,
-  })),
+  processRewardRequest: vi.fn().mockImplementation((req: { sessionId: string; seq: number; rewardAmountKas: number }) =>
+    Promise.resolve({
+      eventId: 'test-event-id',
+      sessionId: req.sessionId,
+      seq: req.seq,
+      rewardAmount: req.rewardAmountKas,
+      txid: `test-txid-${req.seq}`,
+      txStatus: 'broadcasted',
+      isNew: true,
+    })
+  ),
+}));
+
+// Mock txStatusService to avoid config validation in tests
+// Return error for unknown txids so they get 404
+vi.mock('./services/txStatusService.js', () => ({
+  getTxStatusFromDb: vi.fn().mockResolvedValue(null),
+  fetchTxStatus: vi.fn().mockResolvedValue({ accepted: false, included: false, error: 'Not found' }),
 }));
 
 describe('server API', () => {
@@ -28,6 +38,12 @@ describe('server API', () => {
     return new Promise<void>((resolve) => {
       httpServer.close(() => resolve());
     });
+  });
+
+  // Clean up DB before each test to ensure isolation
+  beforeEach(async () => {
+    await db.delete(rewardEvents);
+    await db.delete(sessions);
   });
 
   describe('GET /api/health', () => {
@@ -63,18 +79,14 @@ describe('server API', () => {
   });
 
   describe('POST /api/session/event', () => {
-    let sessionId: string;
-
-    beforeAll(async () => {
-      const res = await request(app).post('/api/session/start').send({
+    it('accepts a valid checkpoint event', async () => {
+      // Create session first
+      const startRes = await request(app).post('/api/session/start').send({
         userAddress: 'kaspa:test456',
         mode: 'free_run',
       });
-      const body = res.body as StartSessionResponse;
-      sessionId = body.sessionId;
-    });
+      const { sessionId } = startRes.body as StartSessionResponse;
 
-    it('accepts a valid checkpoint event', async () => {
       const res = await request(app).post('/api/session/event').send({
         sessionId,
         type: 'checkpoint',
