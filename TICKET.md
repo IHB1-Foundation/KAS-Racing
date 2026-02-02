@@ -441,7 +441,7 @@ await wallet.connect();
 - 없음
 
 
-### - [~] T-041 Reward Payout TX Builder (1-in 2-out, min output)
+### - [x] T-041 Reward Payout TX Builder (1-in 2-out, min output)
 **의존**
 - T-040, T-022
 
@@ -461,32 +461,32 @@ await wallet.connect();
 - 서버 단독 스크립트로 "지급 tx 1개"를 생성/브로드캐스트 성공
 
 **변경 요약**
-- `apps/server/src/tx/kaspaClient.ts`: 실제 kaspa-wasm RPC 클라이언트 통합
-- `apps/server/src/tx/rewardPayout.ts`: 완전한 TX 빌더 구현
-  - createTransaction/signTransaction 호출
-  - priority fee + margin 수수료 구성
-  - payload 지원
+- `apps/server/src/tx/kaspaRestClient.ts`: REST API 기반 클라이언트 (api.kaspa.org)
+- `apps/server/src/tx/rewardPayout.ts`: REST API + kaspa-wasm 통합
+  - kaspa-wasm으로 트랜잭션 생성/서명
+  - REST API로 UTXO 조회 및 트랜잭션 제출
+  - signScriptHash를 사용한 Schnorr 서명
 - UTXO 선택: largest-first 전략
 - min reward: config에서 0.02 KAS (2,000,000 sompi)
-- kaspa-wasm, isomorphic-ws, kaspa-rpc-client 의존성 추가
+- priority fee: 5000 sompi
 - 테스트 스크립트: `scripts/test-reward-payout.ts`
 
 **실행 방법**
 ```bash
-# Dry run (RPC 연결 테스트)
-TREASURY_PRIVATE_KEY=... TREASURY_CHANGE_ADDRESS=... ORACLE_PRIVATE_KEY=... \
-  npx tsx scripts/test-reward-payout.ts
+# Dry run (REST API 연결 테스트)
+NETWORK=mainnet TREASURY_PRIVATE_KEY=... TREASURY_CHANGE_ADDRESS=... \
+  ORACLE_PRIVATE_KEY=... npx tsx scripts/test-reward-payout.ts
 
-# 실제 브로드캐스트 (테스트넷 자금 필요)
-TREASURY_PRIVATE_KEY=... TREASURY_CHANGE_ADDRESS=... ORACLE_PRIVATE_KEY=... \
-  npx tsx scripts/test-reward-payout.ts --broadcast
+# 실제 브로드캐스트 (자금 필요)
+NETWORK=mainnet TREASURY_PRIVATE_KEY=... TREASURY_CHANGE_ADDRESS=... \
+  ORACLE_PRIVATE_KEY=... npx tsx scripts/test-reward-payout.ts --broadcast
 ```
 
 **Notes/Blockers**
-- kaspa-wasm RPC 런타임 이슈 발견: Node.js에서 RpcClient 생성 시 "Invalid input" 또는 "memory access out of bounds" 에러 발생
-- kaspa-rpc-client (gRPC 기반) 대안 추가했으나 추가 통합 필요
-- 트랜잭션 빌딩/서명 코드는 완성됨, RPC 연결 문제 해결 시 즉시 테스트 가능
-- 후속 티켓: RPC 연결 문제 해결 또는 대안 RPC 클라이언트 완전 통합
+- 테스트넷 REST API (api-tn11.kaspa.org) 현재 503 에러 - 메인넷 API 사용 권장
+- kaspa-wasm RPC (wRPC) 연결 문제로 REST API 방식으로 전환
+- REST API 연결 테스트 성공 ✓
+- 실제 브로드캐스트 테스트: 자금이 있는 지갑 필요
 
 
 ### - [ ] T-042 Reward Event State Machine + Idempotency

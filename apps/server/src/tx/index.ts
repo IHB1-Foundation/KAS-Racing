@@ -17,11 +17,14 @@ export {
 export type { PayoutRequest, PayoutResult } from './rewardPayout.js';
 
 export {
-  getKaspaClient,
-  getKaspaWasm,
-  disconnectKaspa,
-  isKaspaConnected,
-  getRpcUrl,
-} from './kaspaClient.js';
+  getKaspaRestClient,
+  getRestApiUrl,
+  KaspaRestClient,
+} from './kaspaRestClient.js';
 
-export type { UtxoEntry, IKaspaRpc } from './kaspaClient.js';
+export type {
+  RestUtxoEntry,
+  SubmitTxRequest,
+  TxAcceptanceResponse,
+  FeeEstimateResponse,
+} from './kaspaRestClient.js';
