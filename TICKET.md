@@ -390,18 +390,39 @@ await wallet.connect();
 - Kasware 미설치 시 MockProvider로 fallback (UI 개발용)
 
 
-### - [ ] T-032 Deposit Flow UX (Duel)
+### - [x] T-032 Deposit Flow UX (Duel)
 **의존**
 - T-031, T-060(매치 생성 API 최소 stub)
 
 **작업**
-- [ ] Duel lobby에서 bet 선택
-- [ ] 매치 생성/참가 후 서버가 준 escrow address 표시
-- [ ] “Deposit” 버튼 → 지갑 sendTransaction 실행
-- [ ] txid 표시 + 서버에 txid 등록
+- [x] Duel lobby에서 bet 선택
+- [x] 매치 생성/참가 후 서버가 준 escrow address 표시
+- [x] "Deposit" 버튼 → 지갑 sendTransaction 실행
+- [x] txid 표시 + 서버에 txid 등록
 
 **완료조건**
 - 실제 tx 브로드캐스트 후 txid가 UI에 보임(테스트넷 권장)
+
+**변경 요약**
+- `apps/client/src/api/client.ts`: Match API 함수 추가 (createMatch, joinMatch, getMatch, registerDeposit)
+- `apps/client/src/pages/DuelLobby.tsx`: 전면 재작성
+  - lobby → create/join → waiting → deposits → game 플로우
+  - bet amount 선택 (0.1/0.5/1.0/5.0 KAS)
+  - join code 입력 및 표시
+  - deposit 상태 표시 (TxLifecycleTimeline 통합)
+- `apps/client/src/wallet/WalletContext.tsx`: sendTransaction 추가 (KAS→sompi 변환)
+- `apps/server/src/routes/match.ts`: POST /api/match/:id/deposit 엔드포인트
+- 5개 deposit API 테스트 추가
+
+**실행 방법**
+- `pnpm dev` → http://localhost:5173/duel 접속
+- 지갑 연결 → Create Match → 코드 공유
+- 다른 브라우저에서 Join with Code → 코드 입력
+- 양측 Deposit 버튼 클릭 → txid가 UI에 표시됨
+
+**Notes/Blockers**
+- escrow address는 placeholder 사용 (T-072에서 실제 생성 예정)
+- MockProvider로 테스트 시 simulated txid가 생성됨
 
 
 ---
