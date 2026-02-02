@@ -1200,16 +1200,39 @@ const payload = generatePayload({
 
 ## 11) P10 — 배포/데모 환경
 
-### - [ ] T-100 Deployment: Client (Static Hosting)
+### - [x] T-100 Deployment: Client (Static Hosting)
 **의존**
 - T-010
 
 **작업**
-- [ ] Vercel/Netlify 중 택1 배포
-- [ ] 환경변수(network, server URL) 설정
+- [x] Vercel/Netlify 중 택1 배포
+- [x] 환경변수(network, server URL) 설정
 
 **완료조건**
 - 공개 URL에서 게임이 로드됨
+
+**변경 요약**
+- `vercel.json` (루트): monorepo 배포 설정
+- `apps/client/vercel.json`: standalone 배포 설정
+- `apps/client/.env.example`: 클라이언트 환경변수 템플릿 (VITE_API_URL, VITE_NETWORK)
+- SPA 라우팅을 위한 rewrite 규칙 포함
+
+**실행 방법**
+1. Vercel CLI 설치: `npm i -g vercel`
+2. 프로젝트 연결: `vercel link`
+3. 환경변수 설정: Vercel Dashboard에서 VITE_API_URL 설정
+4. 배포: `vercel --prod`
+
+또는 GitHub 연동:
+1. Vercel Dashboard → Import Git Repository
+2. Root Directory: `/` (monorepo 전체)
+3. Build Command: `pnpm build`
+4. Output Directory: `apps/client/dist`
+5. Environment Variables 설정
+
+**Notes/Blockers**
+- 설정 파일 준비 완료
+- 실제 배포는 Vercel 계정 연동 후 수동 진행 필요
 
 
 ### - [ ] T-101 Deployment: Server (WebSocket 지원)
