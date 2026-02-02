@@ -939,7 +939,7 @@ curl http://localhost:8787/api/match/{matchId}
 - Testnet 12에서만 테스트 가능 (Mainnet 미지원)
 
 
-### - [ ] T-072 Escrow Address Generation (per match, per player)
+### - [~] T-072 Escrow Address Generation (per match, per player)
 **의존**
 - T-071, T-060
 
@@ -951,8 +951,14 @@ curl http://localhost:8787/api/match/{matchId}
 **완료조건**
 - 매치마다 고유한 escrow 주소 2개가 생성
 
+**Notes/Blockers**
+- **BLOCKED**: Mainnet에서 KIP-10 covenant 미활성화 (2026년 중 예정)
+- Testnet 12에서 구현 가능하나, 해커톤 데모는 Mainnet 사용 필요
+- 현재 Fallback 모드 (treasury 주소) 사용 중 (T-062에서 구현됨)
+- Mainnet covenant 활성화 후 진행 예정
 
-### - [ ] T-073 Settlement TX Builder for Escrow UTXOs
+
+### - [~] T-073 Settlement TX Builder for Escrow UTXOs
 **의존**
 - T-072, T-063
 
@@ -964,18 +970,26 @@ curl http://localhost:8787/api/match/{matchId}
 **완료조건**
 - escrow 기반 settle tx가 온체인에 포함되고, 지급이 완료됨
 
+**Notes/Blockers**
+- **BLOCKED**: T-072 의존 (Mainnet covenant 미활성화)
+- Fallback 모드 settlement는 T-063에서 구현됨
 
-### - [ ] T-074 Negative Tests: Theft-resistant Proof
+
+### - [~] T-074 Negative Tests: Theft-resistant Proof
 **의존**
 - T-073
 
 **작업**
-- [ ] “제3자 주소로 출력”을 시도하는 settle tx를 만들고 실패해야 함
-- [ ] “환불 타임락 이전 환불 시도”가 실패해야 함
+- [ ] "제3자 주소로 출력"을 시도하는 settle tx를 만들고 실패해야 함
+- [ ] "환불 타임락 이전 환불 시도"가 실패해야 함
 - [ ] 테스트 로그/스크린샷/설명을 docs에 첨부
 
 **완료조건**
 - 자동 테스트 또는 재현 스크립트로 theft 방지 성질을 증명
+
+**Notes/Blockers**
+- **BLOCKED**: T-073 의존 (Mainnet covenant 미활성화)
+- Testnet에서 구현/테스트 후 문서화 예정
 
 
 ---
