@@ -1040,16 +1040,33 @@ const payload = generatePayload({
 - 없음
 
 
-### - [ ] T-081 Attach Payload to Reward TX
+### - [x] T-081 Attach Payload to Reward TX
 **의존**
 - T-041, T-080
 
 **작업**
-- [ ] reward tx 생성 시 payload 삽입(가능한 범위에서)
+- [x] reward tx 생성 시 payload 삽입(가능한 범위에서)
 - [ ] explorer/Proof page에서 payload 확인 가능한지 검증
 
 **완료조건**
 - 적어도 1개의 reward tx에 payload가 포함됨
+
+**변경 요약**
+- `apps/server/src/index.ts`: 서버 시작 시 payload seed 초기화
+- `apps/server/src/services/rewardService.ts`: reward TX 브로드캐스트 시 payload 첨부
+  - generatePayload() 호출하여 Proof-of-Action payload 생성
+  - isPayloadValid() 검증 후 TX에 삽입
+  - payload 크기 초과 시 경고 로그 출력 후 payload 없이 전송
+- 10개 테스트 추가
+
+**실행 방법**
+- `pnpm dev` 후 게임 플레이 → 체크포인트 수집 시 TX에 payload 포함됨
+- 서버 로그: `[reward] Generated payload: KASRACE1|m|f|abc12345|c|1|...`
+- Explorer에서 TX payload 필드 확인 (실제 TX 브로드캐스트 필요)
+
+**Notes/Blockers**
+- explorer/Proof page에서 payload 확인은 T-082에서 구현 예정
+- 실제 TX 브로드캐스트 테스트: 환경변수 설정 필요 (TREASURY_PRIVATE_KEY 등)
 
 
 ### - [ ] T-082 Proof Page (Parse + Display)
