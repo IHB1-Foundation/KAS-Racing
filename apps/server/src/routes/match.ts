@@ -5,6 +5,7 @@ import { db, matches, type NewMatch } from '../db/index.js';
 import type { Match } from '../db/schema.js';
 import { generateMatchEscrowAddresses, getEscrowMode } from '../services/escrowService.js';
 import { emitMatchUpdated } from '../ws/index.js';
+import { processSettlement } from '../services/settlementService.js';
 
 const router = Router();
 
@@ -529,6 +530,20 @@ router.post('/:id/submit-score', asyncHandler(async (req: Request, res: Response
         .where(eq(matches.id, id));
 
       console.log(`[match] Match ${id} finished. Winner: ${winnerId}`);
+
+      // Trigger settlement asynchronously (don't wait for TX)
+      void (async () => {
+        try {
+          const settlement = await processSettlement(id);
+          if (settlement.success) {
+            console.log(`[match] Settlement initiated for ${id}: ${settlement.settleTxid ?? 'no txid (draw)'}`);
+          } else {
+            console.error(`[match] Settlement failed for ${id}: ${settlement.error}`);
+          }
+        } catch (err) {
+          console.error(`[match] Settlement error for ${id}:`, err);
+        }
+      })();
 
       // Fetch final state
       const finalResults = await db

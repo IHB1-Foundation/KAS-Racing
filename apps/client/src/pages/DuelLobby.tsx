@@ -4,7 +4,7 @@ import { useWallet } from '../wallet';
 import { createMatch, joinMatch, getMatch, registerDeposit, type MatchInfo } from '../api/client';
 import { TxLifecycleTimeline } from '@kas-racing/speed-visualizer-sdk';
 
-type View = 'lobby' | 'create' | 'join' | 'waiting' | 'deposits' | 'game';
+type View = 'lobby' | 'create' | 'join' | 'waiting' | 'deposits' | 'game' | 'finished';
 
 const BET_AMOUNTS = [0.1, 0.5, 1.0, 5.0];
 
@@ -19,9 +19,9 @@ export function DuelLobby() {
   const [depositLoading, setDepositLoading] = useState(false);
   const [myPlayer, setMyPlayer] = useState<'A' | 'B' | null>(null);
 
-  // Poll match status when waiting for opponent or deposits
+  // Poll match status when waiting for opponent, deposits, or game
   useEffect(() => {
-    if (!match || (view !== 'waiting' && view !== 'deposits')) return;
+    if (!match || (view !== 'waiting' && view !== 'deposits' && view !== 'game' && view !== 'finished')) return;
 
     const pollMatch = async () => {
       try {
@@ -33,6 +33,8 @@ export function DuelLobby() {
           setView('deposits');
         } else if (updated.status === 'ready' && view === 'deposits') {
           setView('game');
+        } else if (updated.status === 'finished' && view === 'game') {
+          setView('finished');
         }
       } catch (e) {
         console.error('Failed to poll match:', e);
@@ -387,16 +389,80 @@ export function DuelLobby() {
       case 'game':
         return (
           <div className="lobby-content">
-            <h1>Race Ready!</h1>
-            <p className="muted">Both deposits confirmed. Game starting soon...</p>
-            <p style={{ marginTop: '24px', fontSize: '14px' }}>
-              (Gameplay implementation in T-061)
-            </p>
+            <h1>Race in Progress</h1>
+            <p className="muted">Both deposits confirmed. Race is running...</p>
+
+            <div style={{ marginTop: '24px' }}>
+              <p className="muted">Navigate to game scene or check match status.</p>
+            </div>
+
             <button className="btn" onClick={resetMatch} style={{ marginTop: '24px' }}>
               Back to Lobby
             </button>
           </div>
         );
+
+      case 'finished': {
+        const isWinner = match?.winner === myPlayer;
+        const isDraw = match?.winner === 'draw';
+        const winnerLabel = match?.winner === 'A' ? 'Player A' : match?.winner === 'B' ? 'Player B' : 'Draw';
+
+        return (
+          <div className="lobby-content">
+            <h1>
+              {isDraw ? 'Draw!' : isWinner ? 'You Win!' : 'You Lose'}
+            </h1>
+            <p className="muted">
+              {isDraw
+                ? 'Both players scored the same.'
+                : `Winner: ${winnerLabel}`}
+            </p>
+
+            <div className="result-scores" style={{
+              marginTop: '24px',
+              display: 'flex',
+              gap: '24px',
+              justifyContent: 'center',
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div className="muted">Player A</div>
+                <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
+                  {match?.playerAScore?.toLocaleString() ?? '-'}
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div className="muted">Player B</div>
+                <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
+                  {match?.playerBScore?.toLocaleString() ?? '-'}
+                </div>
+              </div>
+            </div>
+
+            {/* Settlement Transaction */}
+            {match?.settleTxid && (
+              <div style={{ marginTop: '24px' }}>
+                <h3>Settlement Transaction</h3>
+                <TxLifecycleTimeline
+                  txid={match.settleTxid}
+                  status={(match.settleStatus as 'broadcasted' | 'accepted' | 'included' | 'confirmed') ?? 'broadcasted'}
+                  timestamps={{ broadcasted: Date.now() }}
+                  network={network}
+                />
+              </div>
+            )}
+
+            {isDraw && (
+              <p className="muted" style={{ marginTop: '16px', fontSize: '14px' }}>
+                In a draw, deposits will be returned (feature pending).
+              </p>
+            )}
+
+            <button className="btn btn-primary" onClick={resetMatch} style={{ marginTop: '24px' }}>
+              Play Again
+            </button>
+          </div>
+        );
+      }
     }
   };
 
@@ -516,6 +582,35 @@ export function DuelLobby() {
               <div className="stat-item">
                 <span className="stat-label">Status</span>
                 <span className="stat-value">{match?.status}</span>
+              </div>
+            </div>
+          </>
+        );
+
+      case 'finished':
+        return (
+          <>
+            <h2>Match Complete</h2>
+            <div className="match-info">
+              <div className="stat-item">
+                <span className="stat-label">Total Pot</span>
+                <span className="stat-value">{(match?.betAmount ?? 0) * 2} KAS</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Winner</span>
+                <span className="stat-value">
+                  {match?.winner === 'draw' ? 'Draw' : `Player ${match?.winner}`}
+                </span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Settlement</span>
+                <span className="stat-value" style={{ fontSize: '12px' }}>
+                  {match?.settleTxid ? match.settleTxid.slice(0, 12) + '...' : 'Pending'}
+                </span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Settle Status</span>
+                <span className="stat-value">{match?.settleStatus ?? 'pending'}</span>
               </div>
             </div>
           </>

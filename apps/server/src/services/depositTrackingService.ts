@@ -1,8 +1,8 @@
 /**
- * Deposit Tracking Service
+ * Deposit and Settlement Tracking Service
  *
- * Tracks deposit transaction status for duel matches.
- * Updates match state when deposits are confirmed.
+ * Tracks deposit and settlement transaction status for duel matches.
+ * Updates match state when deposits are confirmed and settlements complete.
  */
 
 import { eq, and, inArray, or, isNotNull } from 'drizzle-orm';
@@ -267,5 +267,127 @@ export async function updateAllPendingDeposits(): Promise<{
     matchesChecked: pendingMatches.length,
     depositsUpdated,
     matchesReady,
+  };
+}
+
+// ============================================================================
+// Settlement Tracking
+// ============================================================================
+
+/**
+ * Update settlement status for a match
+ */
+export async function updateMatchSettlementStatus(
+  matchId: string,
+  txid: string
+): Promise<{
+  updated: boolean;
+  oldStatus: string | null;
+  newStatus: TxStatus;
+}> {
+  // Fetch current match state
+  const matchResults = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.id, matchId))
+    .limit(1);
+
+  const match = matchResults[0];
+  if (!match) {
+    throw new Error(`Match ${matchId} not found`);
+  }
+
+  const oldStatus = match.settleStatus;
+
+  // Skip if already at final state
+  if (oldStatus === 'confirmed' || oldStatus === 'failed') {
+    return {
+      updated: false,
+      oldStatus,
+      newStatus: oldStatus as TxStatus,
+    };
+  }
+
+  // Fetch current TX status
+  const apiResult = await fetchTxStatus(txid);
+
+  if (apiResult.error) {
+    console.warn(`[settlementTracking] API error for ${txid}: ${apiResult.error}`);
+    return {
+      updated: false,
+      oldStatus,
+      newStatus: (oldStatus ?? 'broadcasted') as TxStatus,
+    };
+  }
+
+  // Determine new status
+  const newStatus = determineNewDepositStatus(oldStatus, apiResult);
+
+  if (!newStatus) {
+    return {
+      updated: false,
+      oldStatus,
+      newStatus: (oldStatus ?? 'broadcasted') as TxStatus,
+    };
+  }
+
+  // Update settlement status in DB
+  await db
+    .update(matches)
+    .set({ settleStatus: newStatus })
+    .where(eq(matches.id, matchId));
+
+  console.log(`[settlementTracking] Match ${matchId} settle status: ${oldStatus} → ${newStatus}`);
+
+  // Emit WebSocket update
+  const updatedMatch = await getMatch(matchId);
+  if (updatedMatch) {
+    emitMatchUpdated(matchId, updatedMatch);
+  }
+
+  return {
+    updated: true,
+    oldStatus,
+    newStatus,
+  };
+}
+
+/**
+ * Get all matches with pending settlements that need tracking
+ */
+export async function getMatchesWithPendingSettlements(): Promise<Match[]> {
+  return db
+    .select()
+    .from(matches)
+    .where(
+      and(
+        eq(matches.status, 'finished'),
+        isNotNull(matches.settleTxid),
+        inArray(matches.settleStatus, ['broadcasted', 'accepted', 'included'])
+      )
+    );
+}
+
+/**
+ * Update all pending settlements
+ */
+export async function updateAllPendingSettlements(): Promise<{
+  matchesChecked: number;
+  settlementsUpdated: number;
+}> {
+  const pendingMatches = await getMatchesWithPendingSettlements();
+
+  let settlementsUpdated = 0;
+
+  for (const match of pendingMatches) {
+    if (match.settleTxid) {
+      const result = await updateMatchSettlementStatus(match.id, match.settleTxid);
+      if (result.updated) settlementsUpdated++;
+    }
+  }
+
+  return {
+    matchesChecked: pendingMatches.length,
+    settlementsUpdated,
   };
 }

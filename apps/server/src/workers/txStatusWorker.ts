@@ -7,7 +7,7 @@
  */
 
 import { updateAllTrackableEvents } from '../services/txStatusService.js';
-import { updateAllPendingDeposits } from '../services/depositTrackingService.js';
+import { updateAllPendingDeposits, updateAllPendingSettlements } from '../services/depositTrackingService.js';
 
 // Polling interval in milliseconds (default: 2 seconds)
 const POLL_INTERVAL_MS = parseInt(process.env.TX_POLL_INTERVAL_MS ?? '2000', 10);
@@ -31,7 +31,12 @@ async function poll(): Promise<void> {
     // Update deposit statuses for duel matches
     const depositResult = await updateAllPendingDeposits();
 
-    const hasActive = rewardResult.total > 0 || depositResult.matchesChecked > 0;
+    // Update settlement statuses for finished matches
+    const settlementResult = await updateAllPendingSettlements();
+
+    const hasActive = rewardResult.total > 0 ||
+      depositResult.matchesChecked > 0 ||
+      settlementResult.matchesChecked > 0;
 
     if (rewardResult.total > 0) {
       console.log(`[txWorker] Rewards: ${rewardResult.total} polled, ${rewardResult.updated} updated`);
@@ -39,6 +44,10 @@ async function poll(): Promise<void> {
 
     if (depositResult.matchesChecked > 0) {
       console.log(`[txWorker] Deposits: ${depositResult.matchesChecked} matches, ${depositResult.depositsUpdated} updated, ${depositResult.matchesReady} ready`);
+    }
+
+    if (settlementResult.matchesChecked > 0) {
+      console.log(`[txWorker] Settlements: ${settlementResult.matchesChecked} matches, ${settlementResult.settlementsUpdated} updated`);
     }
 
     // Schedule next poll
