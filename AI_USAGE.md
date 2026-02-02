@@ -42,7 +42,7 @@ The following were primarily human-driven:
 - **Business Logic Decisions**: Reward amounts, game mechanics tuning
 - **Cryptographic Choices**: Key management approach, transaction signing
 - **Third-party Integrations**: Kasware wallet API, Kaspa REST API selection
-- **Deployment Configuration**: Cloud provider selection (Vercel, Fly.io)
+- **Deployment Configuration**: Cloud provider selection (Vercel, Railway)
 - **Final Review**: All code was reviewed before commit
 
 ## AI Interaction Process

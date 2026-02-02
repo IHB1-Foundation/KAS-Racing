@@ -1276,6 +1276,67 @@ const payload = generatePayload({
 - Dockerfile 빌드 컨텍스트는 repository 루트에서 실행해야 함
 
 
+### - [x] T-102 Deployment: Server (Railway)
+**의존**
+- T-101 (서버 Dockerfile/헬스체크 준비)
+- T-100 (클라이언트 Vercel 배포/환경변수)
+- T-092 (CORS/보안 기본 설정)
+
+**목표**
+- BE를 Railway에 배포하고, FE(Vercel)가 Railway 서버 URL로 연동되도록 정리한다.
+
+**작업**
+- [x] Railway 프로젝트/서비스 생성 + GitHub 연동 (모노레포 `apps/server` 기준)
+- [x] 배포 방식 결정:
+    - Dockerfile 사용(권장): `apps/server/Dockerfile` (빌드 컨텍스트는 repo root)
+    - 또는 Nixpacks 사용 시 build/start 커맨드 명시
+- [x] Railway Config-as-Code 추가: `railway.json` (repo root, `apps/server/Dockerfile` 지정)
+- [x] Railway 환경변수/시크릿 설정(서버):
+    - `NETWORK`
+    - `TREASURY_PRIVATE_KEY`, `TREASURY_CHANGE_ADDRESS`
+    - `ORACLE_PRIVATE_KEY`
+    - `CORS_ORIGIN` (Vercel 도메인)
+    - `DATABASE_PATH` (선택: Volume mount 경로를 커스텀할 때만)
+    - `SKIP_KEY_VALIDATION`는 prod에서 `false` 유지
+- [x] SQLite 지속성 전략 확정:
+    - Railway Volume 사용(권장): mount to `/app/apps/server/data` (기본 DB 경로 `./data/kas-racing.db` 그대로 사용)
+    - 또는 `DATABASE_PATH=/data/kas-racing.db` + mount to `/data`
+    - (대안) Railway Postgres로 마이그레이션(범위 커짐)
+- [x] 헬스체크 확인: `GET /api/health` → 200
+- [x] Vercel 환경변수 업데이트(클라이언트):
+    - `VITE_API_URL=https://<railway-service-domain>`
+- [x] 문서 갱신:
+    - `README.md` Deployment 섹션을 `Vercel + Railway`로 교체
+    - Fly.io 가이드는 "대안/레거시"로 분리(필요 시)
+
+**산출물**
+- Railway 배포 설정: `railway.json`
+- 문서: `README.md` (또는 `docs/DEPLOYMENT_RAILWAY.md`)
+
+**완료조건**
+- Railway 공개 URL에서 `/api/health`가 200을 반환
+- Vercel 배포된 클라이언트에서 `VITE_API_URL`로 API 호출이 성공 (세션 start/event 최소 1회)
+
+**변경 요약**
+- `railway.json` 추가: Dockerfile 빌드 설정, 헬스체크 경로, 재시작 정책
+- `README.md` Deployment 섹션 업데이트: Railway를 기본으로, Fly.io를 Legacy로 분리
+- `apps/server/.env.example` 업데이트: Railway 환경변수 가이드, DATABASE_PATH 추가
+- `apps/server/src/app.ts` CORS 개선: 쉼표 구분 다중 origin 지원
+- `AI_USAGE.md` 업데이트: 배포 플랫폼을 Railway로 변경
+
+**실행 방법**
+1. Railway Dashboard에서 새 프로젝트 생성
+2. GitHub repo 연결 (Root Directory: `/`)
+3. 환경변수 설정: `NETWORK`, `TREASURY_PRIVATE_KEY`, `TREASURY_CHANGE_ADDRESS`, `ORACLE_PRIVATE_KEY`, `CORS_ORIGIN`
+4. Volume 생성 후 `/app/apps/server/data`에 마운트
+5. 배포 후 `https://<service>.up.railway.app/api/health` 확인
+6. Vercel에서 `VITE_API_URL` 환경변수를 Railway URL로 설정
+
+**Notes/Blockers**
+- 설정 파일 및 문서 준비 완료
+- 실제 배포 및 검증은 Railway/Vercel 계정에서 수동으로 수행 필요
+
+
 ---
 
 ## 12) P11 — 제출물(README/영상/썸네일/AI 공개)

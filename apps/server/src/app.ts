@@ -14,8 +14,22 @@ const httpServer = createServer(app);
 
 // CORS Configuration
 // In production, restrict to specific origins
+const rawCorsOrigin = process.env.CORS_ORIGIN?.trim();
+const parsedCorsOrigins =
+  rawCorsOrigin && rawCorsOrigin.length > 0
+    ? rawCorsOrigin
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+    : [];
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || true, // Allow all in dev, restrict in prod via env var
+  origin:
+    parsedCorsOrigins.length === 0
+      ? true
+      : parsedCorsOrigins.length === 1
+        ? parsedCorsOrigins[0]
+        : parsedCorsOrigins,
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type'],
   credentials: true,
