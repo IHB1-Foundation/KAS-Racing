@@ -876,18 +876,37 @@ curl http://localhost:8787/api/match/{matchId}
 
 ## 8) P7 — Covenant 기반 theft-resistant escrow (가능한 범위까지, 기술점수 파트)
 
-### - [ ] T-070 Feasibility Check: Covenant/KIP-10 Support on Target Network
+### - [x] T-070 Feasibility Check: Covenant/KIP-10 Support on Target Network
 **의존**
 - T-020
 
 **작업**
-- [ ] 선택 네트워크(testnet/mainnet)에서 covenant 관련 기능이 실제로 사용 가능한지 확인
-- [ ] SDK/노드/RPC에서 필요한 opcode/introspection 지원 여부 확인
-- [ ] 불가하면: 범위를 축소하고 “부분 구현 + 로드맵”으로 전환(티켓에 기록)
+- [x] 선택 네트워크(testnet/mainnet)에서 covenant 관련 기능이 실제로 사용 가능한지 확인
+- [x] SDK/노드/RPC에서 필요한 opcode/introspection 지원 여부 확인
+- [x] 불가하면: 범위를 축소하고 "부분 구현 + 로드맵"으로 전환(티켓에 기록)
 
 **완료조건**
-- “가능/불가능/부분 가능” 결론과 근거를 문서로 남김
+- "가능/불가능/부분 가능" 결론과 근거를 문서로 남김
 - 불가능일 경우, T-071~T-074는 범위 조정
+
+**변경 요약**
+- `docs/COVENANT_FEASIBILITY.md`: Covenant 지원 상태 문서화
+
+**결론**
+| 네트워크 | 상태 | 비고 |
+|---------|------|------|
+| Testnet 12 | ✅ 활성화 (2026-01) | Covenant 사용 가능 |
+| Mainnet | ⏳ 미활성화 | 2026년 중 활성화 예정 |
+
+**결정**
+- T-071~T-074: Testnet에서 구현 가능, Mainnet은 fallback 모드 사용
+- Hackathon 데모: Fallback 모드 (이미 구현됨) + 로드맵 언급
+- Post-Hackathon: Testnet에서 covenant 구현 후 mainnet 전환
+
+**Notes/Blockers**
+- KIP-10 (Crescendo Hard Fork, 2025-05)로 인프라 준비 완료
+- Testnet 12 (2026-01)부터 covenant 테스트 가능
+- Mainnet 활성화 시점 모니터링 필요
 
 
 ### - [ ] T-071 Escrow Script Template Design (Oracle settle + Timelock refund)
