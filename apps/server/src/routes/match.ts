@@ -3,6 +3,8 @@ import { randomUUID, randomBytes } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { db, matches, type NewMatch } from '../db/index.js';
 import type { Match } from '../db/schema.js';
+import { generateMatchEscrowAddresses, getEscrowMode } from '../services/escrowService.js';
+import { emitMatchUpdated } from '../ws/index.js';
 
 const router = Router();
 
@@ -93,6 +95,19 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
     const joinCode = generateJoinCode();
     const now = new Date();
 
+    // Generate escrow addresses
+    let escrowAddressA: string | undefined;
+    let escrowAddressB: string | undefined;
+
+    try {
+      const escrowAddresses = await generateMatchEscrowAddresses(matchId);
+      escrowAddressA = escrowAddresses.escrowAddressA;
+      escrowAddressB = escrowAddresses.escrowAddressB;
+    } catch (error) {
+      console.warn(`[match] Failed to generate escrow addresses:`, error);
+      // Continue without escrow addresses - they can be set later
+    }
+
     // Create match in database
     const newMatch: NewMatch = {
       id: matchId,
@@ -100,17 +115,23 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
       playerAAddress: body.playerAddress,
       betAmount: body.betAmount,
       status: 'waiting',
+      escrowAddressA,
+      escrowAddressB,
       createdAt: now,
     };
 
     await db.insert(matches).values(newMatch);
     console.log(`[match] Created match ${matchId} with code ${joinCode} by ${body.playerAddress}`);
+    console.log(`[match] Escrow mode: ${getEscrowMode()}, addresses: A=${escrowAddressA}, B=${escrowAddressB}`);
 
     res.json({
       matchId,
       joinCode,
       betAmount: body.betAmount,
       status: 'waiting',
+      escrowAddressA,
+      escrowAddressB,
+      escrowMode: getEscrowMode(),
     });
   } catch (error) {
     console.error('[match] Failed to create match:', error);
@@ -286,7 +307,7 @@ router.post('/:id/deposit', asyncHandler(async (req: Request, res: Response) => 
 
     console.log(`[match] Player ${body.player} deposited ${body.txid} for match ${id}`);
 
-    // Check if both deposits are now registered
+    // Fetch updated match
     const updatedResults = await db
       .select()
       .from(matches)
@@ -299,27 +320,24 @@ router.post('/:id/deposit', asyncHandler(async (req: Request, res: Response) => 
       return;
     }
 
-    // If both deposits are registered, update status to ready
-    if (updatedMatch.playerADepositTxid && updatedMatch.playerBDepositTxid) {
-      await db
-        .update(matches)
-        .set({ status: 'ready' })
-        .where(eq(matches.id, id));
+    // Emit WebSocket update for real-time tracking
+    emitMatchUpdated(id, updatedMatch);
 
-      console.log(`[match] Both deposits registered, match ${id} is now ready`);
+    // Note: Match transitions to 'ready' only when both deposits are accepted/included.
+    // This is handled by the depositTrackingService via the txStatusWorker.
+    // For immediate feedback, if both txids are registered, we stay in 'deposits_pending'
+    // until the worker confirms the deposits are accepted.
 
-      // Fetch again with updated status
-      const finalResults = await db
-        .select()
-        .from(matches)
-        .where(eq(matches.id, id))
-        .limit(1);
+    const response = matchToResponse(updatedMatch);
 
-      res.json(matchToResponse(finalResults[0]!));
-      return;
-    }
-
-    res.json(matchToResponse(updatedMatch));
+    // Add deposit tracking info
+    res.json({
+      ...response,
+      depositTracking: {
+        message: 'Deposit registered. Status will update when transaction is accepted on-chain.',
+        bothDepositsRegistered: !!(updatedMatch.playerADepositTxid && updatedMatch.playerBDepositTxid),
+      },
+    });
   } catch (error) {
     console.error('[match] Failed to register deposit:', error);
     res.status(500).json({ error: 'Internal server error' });

@@ -3,9 +3,11 @@
  *
  * Periodically polls for transaction status updates.
  * Updates DB and emits WebSocket events on changes.
+ * Also tracks deposit transactions for duel matches.
  */
 
 import { updateAllTrackableEvents } from '../services/txStatusService.js';
+import { updateAllPendingDeposits } from '../services/depositTrackingService.js';
 
 // Polling interval in milliseconds (default: 2 seconds)
 const POLL_INTERVAL_MS = parseInt(process.env.TX_POLL_INTERVAL_MS ?? '2000', 10);
@@ -23,15 +25,25 @@ async function poll(): Promise<void> {
   if (!isRunning) return;
 
   try {
-    const result = await updateAllTrackableEvents();
+    // Update reward event statuses
+    const rewardResult = await updateAllTrackableEvents();
 
-    if (result.total > 0) {
-      console.log(`[txWorker] Polled ${result.total} events, ${result.updated} updated`);
+    // Update deposit statuses for duel matches
+    const depositResult = await updateAllPendingDeposits();
+
+    const hasActive = rewardResult.total > 0 || depositResult.matchesChecked > 0;
+
+    if (rewardResult.total > 0) {
+      console.log(`[txWorker] Rewards: ${rewardResult.total} polled, ${rewardResult.updated} updated`);
+    }
+
+    if (depositResult.matchesChecked > 0) {
+      console.log(`[txWorker] Deposits: ${depositResult.matchesChecked} matches, ${depositResult.depositsUpdated} updated, ${depositResult.matchesReady} ready`);
     }
 
     // Schedule next poll
     // Use shorter interval if there are active transactions
-    const nextInterval = result.total > 0 ? POLL_INTERVAL_MS : IDLE_POLL_INTERVAL_MS;
+    const nextInterval = hasActive ? POLL_INTERVAL_MS : IDLE_POLL_INTERVAL_MS;
     pollTimer = setTimeout(() => { void poll(); }, nextInterval);
 
   } catch (error) {

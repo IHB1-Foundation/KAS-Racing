@@ -34,6 +34,9 @@ describe('Match API (Matchmaking)', () => {
       expect(res.body.joinCode).toHaveLength(6);
       expect(res.body.betAmount).toBe(0.5);
       expect(res.body.status).toBe('waiting');
+      expect(res.body.escrowMode).toBe('fallback');
+      // Escrow addresses may be undefined if kaspa-wasm fails to load in test env
+      // but escrowMode should always be present
     });
 
     it('rejects missing playerAddress', async () => {
@@ -227,7 +230,7 @@ describe('Match API (Matchmaking)', () => {
       expect(res.body.status).toBe('deposits_pending'); // Only one deposit
     });
 
-    it('sets status to ready when both deposits registered', async () => {
+    it('stays in deposits_pending when both deposits registered (waits for acceptance)', async () => {
       // Create and join match
       const createRes = await request(app).post('/api/match/create').send({
         playerAddress: 'kaspa:player_a',
@@ -252,9 +255,12 @@ describe('Match API (Matchmaking)', () => {
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.status).toBe('ready');
+      // Status stays 'deposits_pending' until deposits are accepted on-chain
+      // The depositTrackingService will transition to 'ready' when both are accepted
+      expect(res.body.status).toBe('deposits_pending');
       expect(res.body.playerA.depositTxid).toBe('txid-a');
       expect(res.body.playerB.depositTxid).toBe('txid-b');
+      expect(res.body.depositTracking.bothDepositsRegistered).toBe(true);
     });
 
     it('rejects deposit for match not in deposits_pending status', async () => {
