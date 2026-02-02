@@ -29,12 +29,8 @@ httpServer.listen(port, () => {
   console.log(`[server] HTTP listening on http://localhost:${port}`);
   console.log(`[server] WebSocket path: /ws`);
 
-  // Start TX status worker (only if not skipping key validation)
-  if (!skipKeyValidation) {
-    startTxStatusWorker();
-  } else {
-    console.log('[server] TX status worker skipped (SKIP_KEY_VALIDATION=true)');
-  }
+  // Start TX status worker (always start for status tracking)
+  startTxStatusWorker();
 });
 
 export { app, httpServer, io };

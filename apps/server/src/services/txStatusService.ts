@@ -16,15 +16,68 @@ import type { TxStatus } from '../types/index.js';
 const CONFIRMATIONS_THRESHOLD = 10;
 
 /**
- * Get transaction status from REST API
+ * Simulate status for stub/test transactions
+ * Returns simulated status based on elapsed time since broadcast
  */
-export async function fetchTxStatus(txid: string): Promise<{
+function simulateStubTxStatus(txid: string, broadcastedAt?: Date): {
+  accepted: boolean;
+  included: boolean;
+  confirmations?: number;
+} {
+  // Parse timestamp from stub txid or use broadcastedAt
+  let broadcastTime: number;
+
+  if (broadcastedAt) {
+    broadcastTime = broadcastedAt.getTime();
+  } else if (txid.startsWith('stub_')) {
+    const parts = txid.split('_');
+    const ts = parts[parts.length - 1] ?? '';
+    broadcastTime = parseInt(ts, 36);
+    if (isNaN(broadcastTime)) {
+      broadcastTime = Date.now() - 5000;
+    }
+  } else {
+    broadcastTime = Date.now() - 5000;
+  }
+
+  const elapsed = Date.now() - broadcastTime;
+
+  // Simulate progression: broadcasted (0ms) → accepted (500ms) → included (2s) → confirmed (4s)
+  if (elapsed > 4000) {
+    return { accepted: true, included: true, confirmations: 10 };
+  }
+  if (elapsed > 2000) {
+    return { accepted: true, included: true, confirmations: 1 };
+  }
+  if (elapsed > 500) {
+    return { accepted: true, included: false };
+  }
+
+  return { accepted: false, included: false };
+}
+
+/**
+ * Check if a txid is a stub/test transaction
+ */
+function isStubTx(txid: string): boolean {
+  return txid.startsWith('stub_') || txid.startsWith('test-txid-');
+}
+
+/**
+ * Get transaction status from REST API or simulate for stub txids
+ */
+export async function fetchTxStatus(txid: string, broadcastedAt?: Date): Promise<{
   accepted: boolean;
   included: boolean;
   confirmations?: number;
   acceptingBlockHash?: string;
   error?: string;
 }> {
+  // For stub/test transactions, simulate status
+  if (isStubTx(txid)) {
+    return simulateStubTxStatus(txid, broadcastedAt);
+  }
+
   try {
     const config = getConfig();
     const client = getKaspaRestClient(config.network);
@@ -119,8 +172,8 @@ export async function updateTxStatus(event: RewardEvent): Promise<{
     return { updated: false, oldStatus, newStatus: oldStatus };
   }
 
-  // Fetch current status from API
-  const apiResult = await fetchTxStatus(event.txid);
+  // Fetch current status from API (pass broadcastedAt for stub simulation)
+  const apiResult = await fetchTxStatus(event.txid, event.broadcastedAt ?? undefined);
 
   if (apiResult.error) {
     console.warn(`[txStatus] API error for ${event.txid}: ${apiResult.error}`);
