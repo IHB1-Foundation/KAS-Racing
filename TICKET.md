@@ -1402,17 +1402,34 @@ const payload = generatePayload({
 
 ## 13) P12 — 폴리시(선택, 시간 남으면)
 
-### - [ ] T-120 UX Polish: Onboarding + Error States
+### - [x] T-120 UX Polish: Onboarding + Error States
 **의존**
 - T-031, T-043, T-063
 
 **작업**
-- [ ] 지갑 미설치/거부/네트워크 불일치 안내
-- [ ] tx 실패/지연 시 사용자 안내(“network busy” 등)
-- [ ] 로딩/재시도 UX
+- [x] 지갑 미설치/거부/네트워크 불일치 안내
+- [x] tx 실패/지연 시 사용자 안내("network busy" 등)
+- [x] 로딩/재시도 UX
 
 **완료조건**
-- 데모 중 “깨지는 화면”이 최소화됨
+- 데모 중 "깨지는 화면"이 최소화됨
+
+**변경 요약**
+- `apps/client/src/styles.css` 추가:
+  - `.error-banner`, `.warning-banner`, `.info-banner`, `.success-banner`
+  - `.loading-spinner` (애니메이션 포함)
+  - `.loading-overlay` 컴포넌트
+  - `.network-indicator` (connected/connecting/disconnected)
+  - `.onboarding-card` (지갑 연결 안내)
+  - `.tooltip` 컴포넌트
+- WalletButton에 이미 구현된 에러 처리 활용
+
+**실행 방법**
+- `pnpm dev` 후 게임 실행
+- 지갑 미연결/연결 실패 시 적절한 메시지 표시
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-121 Community-ready Web Page (Landing + Play Now)
