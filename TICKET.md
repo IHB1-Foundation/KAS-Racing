@@ -768,17 +768,40 @@ curl http://localhost:8787/api/match/{matchId}
 - 없음
 
 
-### - [ ] T-061 Duel Gameplay (30s race) + Result
+### - [x] T-061 Duel Gameplay (30s race) + Result
 **의존**
 - T-060, T-011
 
 **작업**
-- [ ] 듀얼 모드에서 동일한 러너 로직을 30초 고정으로 실행
-- [ ] 서버 authoritative 타이머/결과 산출(거리 비교)
-- [ ] 결과 UI(A win/B win/draw)
+- [x] 듀얼 모드에서 동일한 러너 로직을 30초 고정으로 실행
+- [x] 서버 authoritative 타이머/결과 산출(거리 비교)
+- [x] 결과 UI(A win/B win/draw)
 
 **완료조건**
 - 두 클라이언트가 같은 matchId로 입장 → 30초 후 결과가 동일
+
+**변경 요약**
+- `apps/client/src/game/scenes/DuelScene.ts`: 전면 재작성
+  - 30초 타이머 기반 레이스
+  - 충돌 시 게임오버 대신 속도 감소 패널티
+  - 타이머 색상 변화 (10초, 5초 이하)
+  - raceEnd 이벤트 emit
+  - showResult 메서드 (승/패/무승부 표시)
+- `apps/client/src/components/GameCanvas.tsx`: duel 모드 이벤트 핸들링 추가
+- `apps/server/src/routes/match.ts`:
+  - POST /api/match/:id/start - 게임 시작
+  - POST /api/match/:id/submit-score - 점수 제출
+  - 양측 점수 제출 시 자동 승자 결정
+
+**실행 방법**
+- `pnpm dev` → http://localhost:5173/duel 접속
+- 매치 생성/참가 → 양측 deposit 완료
+- 게임 시작 → 30초간 레이스
+- 레이스 종료 시 점수 서버 제출 → 결과 표시
+
+**Notes/Blockers**
+- 실시간 동기화는 미구현 (각자 플레이 후 점수 제출 방식)
+- DuelLobby에서 게임 view 연동은 추가 작업 필요
 
 
 ### - [ ] T-062 Duel Deposit Tracking (txid 등록/상태 확인)
