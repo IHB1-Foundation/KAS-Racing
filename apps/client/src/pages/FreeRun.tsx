@@ -1,13 +1,11 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { GameCanvas, type GameStats, type CheckpointEvent, type GameOverEvent } from '../components/GameCanvas';
 import { useWallet } from '../wallet';
 import { startSession, sendEvent, endSession, type SessionPolicy } from '../api/client';
+import { TxLifecycleTimeline, type TxStatus } from '@kas-racing/speed-visualizer-sdk';
 
 const MAX_CHECKPOINTS = 10;
-
-// TX Status type matching server
-type TxStatus = 'pending' | 'broadcasted' | 'accepted' | 'included' | 'confirmed' | 'failed';
 
 interface TxRecord {
   seq: number;
@@ -190,30 +188,10 @@ export function FreeRun() {
     void connect();
   }, [connect]);
 
-  // Format txid for display
-  const formatTxid = useCallback((txid: string) => {
-    if (txid.length <= 16) return txid;
-    return `${txid.slice(0, 8)}...${txid.slice(-8)}`;
-  }, []);
-
-  // Get status display text and class
-  const getStatusDisplay = useMemo(() => (record: TxRecord) => {
-    switch (record.status) {
-      case 'pending':
-        return { text: 'Pending...', class: 'tx-status-pending' };
-      case 'broadcasted':
-        return { text: 'Broadcasted', class: 'tx-status-broadcasted' };
-      case 'accepted':
-        return { text: 'Accepted', class: 'tx-status-accepted' };
-      case 'included':
-        return { text: 'Included', class: 'tx-status-included' };
-      case 'confirmed':
-        return { text: 'Confirmed', class: 'tx-status-confirmed' };
-      case 'failed':
-        return { text: 'Failed', class: 'tx-status-failed' };
-      default:
-        return { text: record.status, class: '' };
-    }
+  // Format address for display
+  const formatAddress = useCallback((addr: string) => {
+    if (addr.length <= 16) return addr;
+    return `${addr.slice(0, 12)}...${addr.slice(-6)}`;
   }, []);
 
   return (
@@ -246,7 +224,7 @@ export function FreeRun() {
         {isConnected && address && (
           <div className="wallet-info" style={{ marginBottom: '16px' }}>
             <span className="muted">Wallet: </span>
-            <span className="address">{formatTxid(address)}</span>
+            <span className="address">{formatAddress(address)}</span>
           </div>
         )}
 
@@ -288,41 +266,35 @@ export function FreeRun() {
           {txRecords.length === 0 ? (
             <p className="muted">No transactions yet</p>
           ) : (
-            <ul className="tx-list">
-              {txRecords.map((tx) => {
-                const statusDisplay = getStatusDisplay(tx);
-                return (
-                  <li key={tx.seq} className="tx-item">
-                    <div className="tx-header">
-                      <span className="tx-seq">#{tx.seq}</span>
-                      {tx.rewardAmount && (
-                        <span className="tx-amount">{tx.rewardAmount} KAS</span>
-                      )}
+            <div className="tx-list">
+              {txRecords.map((tx) => (
+                <div key={tx.seq} style={{ marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span className="tx-seq">#{tx.seq}</span>
+                    {tx.rewardAmount && (
+                      <span className="tx-amount">{tx.rewardAmount} KAS</span>
+                    )}
+                  </div>
+                  {tx.txid ? (
+                    <TxLifecycleTimeline
+                      txid={tx.txid}
+                      status={tx.status}
+                      timestamps={{ broadcasted: tx.timestamp }}
+                      network="mainnet"
+                    />
+                  ) : (
+                    <div className={`tx-status tx-status-${tx.status}`}>
+                      {tx.status === 'pending' ? 'Processing...' : tx.status}
                     </div>
-                    <span className={`tx-status ${statusDisplay.class}`}>
-                      {statusDisplay.text}
-                    </span>
-                    {tx.txid && (
-                      <div className="tx-id">
-                        <a
-                          href={`https://explorer.kaspa.org/txs/${tx.txid}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={tx.txid}
-                        >
-                          {formatTxid(tx.txid)}
-                        </a>
-                      </div>
-                    )}
-                    {tx.error && (
-                      <div className="tx-error" style={{ color: '#ef4444', fontSize: '11px' }}>
-                        {tx.error}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+                  )}
+                  {tx.error && (
+                    <div className="tx-error" style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>
+                      {tx.error}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
