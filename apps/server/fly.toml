@@ -1,0 +1,48 @@
+# Fly.io configuration for KAS Racing Server
+# See https://fly.io/docs/reference/configuration/
+
+app = "kas-racing-server"
+primary_region = "sea"  # Singapore (or change to your preferred region)
+
+[build]
+  dockerfile = "Dockerfile"
+  [build.args]
+    # Build context is repository root
+    # Dockerfile path is relative to apps/server
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+  # NETWORK and keys are set via fly secrets
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[checks]
+  [checks.health]
+    type = "http"
+    port = 8080
+    path = "/api/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+
+# Persistent storage for SQLite database
+[mounts]
+  source = "kas_racing_data"
+  destination = "/app/apps/server/data"

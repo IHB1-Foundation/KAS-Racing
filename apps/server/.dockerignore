@@ -1,0 +1,21 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+
+# Development files
+*.log
+*.test.ts
+**/*.test.ts
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.idea
+
+# Data (will be mounted)
+data/*.db
+data/*.db-*
