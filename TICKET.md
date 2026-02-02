@@ -996,19 +996,48 @@ curl http://localhost:8787/api/match/{matchId}
 
 ## 9) P8 — Payload Proof-of-Action(가능하면)
 
-### - [ ] T-080 Payload Format + Commit Scheme
+### - [x] T-080 Payload Format + Commit Scheme
 **의존**
 - T-022
 
 **작업**
-- [ ] payload 문자열 포맷 확정:
+- [x] payload 문자열 포맷 확정:
     - `KASRACE1|net|mode|sessionId|event|seq|commit`
-- [ ] commit 생성 규칙:
+- [x] commit 생성 규칙:
     - seed는 서버에서 생성/보관
     - commit = H(seed|sessionId|seq|event|timeBucket)
 
 **완료조건**
 - payload 생성이 일관되고 문서화됨
+
+**변경 요약**
+- `apps/server/src/payload/index.ts`: Payload 생성 모듈
+  - generatePayload: 트랜잭션에 삽입할 payload 문자열 생성
+  - parsePayload: payload 문자열 파싱
+  - generateCommit: SHA256 기반 commit 생성
+  - 축약 코드 사용 (net: m/t, mode: f/d, event: c/s/d)
+- 10개 테스트 추가
+
+**실행 방법**
+```typescript
+import { initPayloadSeed, generatePayload } from './payload';
+
+// 서버 시작 시 seed 초기화
+initPayloadSeed();
+
+// payload 생성
+const payload = generatePayload({
+  network: 'mainnet',
+  mode: 'free_run',
+  sessionId: 'abc12345',
+  event: 'checkpoint',
+  seq: 5,
+});
+// -> "KASRACE1|m|f|abc12345|c|5|a1b2c3d4e5f6g7h8"
+```
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-081 Attach Payload to Reward TX
