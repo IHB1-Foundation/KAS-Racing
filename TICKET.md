@@ -708,17 +708,43 @@ import { TxLifecycleTimeline, KaspaRPMGauge } from '@kas-racing/speed-visualizer
 
 ## 7) P6 — Duel(Fallback 먼저 완성)
 
-### - [ ] T-060 Matchmaking (Create/Join by Code)
+### - [x] T-060 Matchmaking (Create/Join by Code)
 **의존**
 - T-020, T-021
 
 **작업**
-- [ ] `POST /api/match/create` → joinCode 발급
-- [ ] `POST /api/match/join` → matchId 반환
-- [ ] match 상태 조회 `GET /api/match/:id`
+- [x] `POST /api/match/create` → joinCode 발급
+- [x] `POST /api/match/join` → matchId 반환
+- [x] match 상태 조회 `GET /api/match/:id`
 
 **완료조건**
 - A가 방 만들고 B가 코드로 참가 가능
+
+**변경 요약**
+- `apps/server/src/routes/match.ts`: 매치 API 라우트 추가
+- `apps/server/src/routes/match.test.ts`: 13개 테스트 추가
+- `apps/server/src/app.ts`: matchRoutes 등록
+- 6자리 영숫자 joinCode 생성 (I,O,0,1 제외)
+- 최소 베팅 금액: 0.1 KAS
+
+**실행 방법**
+```bash
+# 매치 생성
+curl -X POST http://localhost:8787/api/match/create \
+  -H "Content-Type: application/json" \
+  -d '{"playerAddress":"kaspa:test","betAmount":0.5}'
+
+# 매치 참가
+curl -X POST http://localhost:8787/api/match/join \
+  -H "Content-Type: application/json" \
+  -d '{"joinCode":"ABC123","playerAddress":"kaspa:player2"}'
+
+# 매치 조회
+curl http://localhost:8787/api/match/{matchId}
+```
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-061 Duel Gameplay (30s race) + Result
