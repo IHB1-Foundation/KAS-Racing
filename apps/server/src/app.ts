@@ -12,9 +12,19 @@ import { requestLogger } from './middleware/requestLogger.js';
 const app = express();
 const httpServer = createServer(app);
 
+// CORS Configuration
+// In production, restrict to specific origins
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || true, // Allow all in dev, restrict in prod via env var
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type'],
+  credentials: true,
+  maxAge: 86400, // 24 hours
+};
+
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '1mb' })); // Limit body size to prevent abuse
 
 // Skip logging and rate limiting in test environment
 const isTestEnv = process.env.NODE_ENV === 'test';
