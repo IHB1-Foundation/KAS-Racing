@@ -909,15 +909,15 @@ curl http://localhost:8787/api/match/{matchId}
 - Mainnet 활성화 시점 모니터링 필요
 
 
-### - [ ] T-071 Escrow Script Template Design (Oracle settle + Timelock refund)
+### - [x] T-071 Escrow Script Template Design (Oracle settle + Timelock refund)
 **의존**
 - T-070
 
 **작업**
-- [ ] 스크립트 템플릿 정의:
+- [x] 스크립트 템플릿 정의:
     - Branch A: oracle signature + outputs restricted to {playerA, playerB}
     - Branch B: timelock 이후 player 본인 환불
-- [ ] 스크립트 파라미터:
+- [x] 스크립트 파라미터:
     - playerA address/script
     - playerB address/script
     - oracle pubkey
@@ -925,6 +925,18 @@ curl http://localhost:8787/api/match/{matchId}
 
 **완료조건**
 - 템플릿이 코드/문서로 명시되고, 입력/출력 제약이 명확
+
+**변경 요약**
+- `docs/ESCROW_SCRIPT_TEMPLATE.md`: 스크립트 템플릿 설계 문서
+  - Branch A (Oracle Settlement): 오라클 서명 + 출력 제약
+  - Branch B (Timelock Refund): 락타임 후 환불
+  - KIP-10 opcode 사용 정의
+- `apps/server/src/escrow/types.ts`: TypeScript 타입 정의
+  - EscrowScriptParams, MatchEscrow, SettlementRequest 등
+
+**Notes/Blockers**
+- 실제 스크립트 컴파일은 T-072에서 구현
+- Testnet 12에서만 테스트 가능 (Mainnet 미지원)
 
 
 ### - [ ] T-072 Escrow Address Generation (per match, per player)
