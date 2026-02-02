@@ -218,7 +218,6 @@ export async function sendRewardPayout(
   console.log('[payout] Transaction created');
 
   // Get transaction JSON for signing
-  // eslint-disable-next-line @typescript-eslint/no-base-to-string
   const txJsonString = String((signableTx as unknown as { toJSON: () => unknown }).toJSON());
   const txJson = JSON.parse(txJsonString) as {
     tx: {

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 // Users table
 export const users = sqliteTable('users', {
@@ -50,7 +50,10 @@ export const rewardEvents = sqliteTable('reward_events', {
   acceptedAt: integer('accepted_at', { mode: 'timestamp_ms' }),
   includedAt: integer('included_at', { mode: 'timestamp_ms' }),
   confirmedAt: integer('confirmed_at', { mode: 'timestamp_ms' }),
-});
+}, (table) => ({
+  // Unique constraint: only one reward event per (sessionId, seq)
+  sessionSeqIdx: uniqueIndex('reward_events_session_seq_idx').on(table.sessionId, table.seq),
+}));
 
 // Matches table (for duel mode)
 export const matches = sqliteTable('matches', {

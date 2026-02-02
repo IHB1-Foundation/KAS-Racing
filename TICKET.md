@@ -489,17 +489,49 @@ NETWORK=mainnet TREASURY_PRIVATE_KEY=... TREASURY_CHANGE_ADDRESS=... \
 - 실제 브로드캐스트 테스트: 자금이 있는 지갑 필요
 
 
-### - [ ] T-042 Reward Event State Machine + Idempotency
+### - [x] T-042 Reward Event State Machine + Idempotency
 **의존**
 - T-041, T-021
 
 **작업**
-- [ ] reward_events에 (sessionId, seq) unique
-- [ ] pending → broadcasted(txid) → accepted → included → confirmed
-- [ ] 중복 요청/재시도 시 새 tx 생성 금지(기존 txid 상태 반환)
+- [x] reward_events에 (sessionId, seq) unique
+- [x] pending → broadcasted(txid) → accepted → included → confirmed
+- [x] 중복 요청/재시도 시 새 tx 생성 금지(기존 txid 상태 반환)
 
 **완료조건**
 - 동일 이벤트를 여러 번 보내도 지급은 1회만 발생
+
+**변경 요약**
+- `apps/server/src/db/schema.ts`: reward_events에 (sessionId, seq) unique 인덱스 추가
+- `apps/server/src/services/rewardService.ts`: 상태 머신 + idempotency 로직
+  - findRewardEvent: 기존 이벤트 조회
+  - processRewardRequest: 중복 체크 후 TX 브로드캐스트
+  - updateRewardEventStatus: 상태 전이 + timestamp 기록
+- 8개 테스트 추가
+
+**실행 방법**
+```typescript
+import { processRewardRequest } from './services/rewardService';
+
+// 첫 번째 요청 - 새 이벤트 생성 + TX 브로드캐스트
+const result1 = await processRewardRequest({
+  sessionId: 'session-1',
+  seq: 1,
+  rewardAmountKas: 0.02,
+});
+// result1.isNew = true, result1.txid = 'tx-abc...'
+
+// 중복 요청 - 기존 이벤트 반환 (새 TX 없음)
+const result2 = await processRewardRequest({
+  sessionId: 'session-1',
+  seq: 1,
+  rewardAmountKas: 0.02,
+});
+// result2.isNew = false, result2.txid = 'tx-abc...' (동일)
+```
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-043 Client-Server Integration (Checkpoint → Payout)
