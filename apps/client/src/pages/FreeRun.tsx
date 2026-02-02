@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { GameCanvas, type GameStats, type CheckpointEvent, type GameOverEvent } from '../components/GameCanvas';
 import { useWallet } from '../wallet';
 import { startSession, sendEvent, endSession, type SessionPolicy } from '../api/client';
-import { TxLifecycleTimeline, type TxStatus } from '@kas-racing/speed-visualizer-sdk';
+import { TxLifecycleTimeline, KaspaRPMGauge, type TxStatus } from '@kas-racing/speed-visualizer-sdk';
 
 const MAX_CHECKPOINTS = 10;
 
@@ -249,6 +249,16 @@ export function FreeRun() {
               {stats.checkpoints} / {MAX_CHECKPOINTS}
             </span>
           </div>
+        </div>
+
+        {/* Network Pulse Gauge */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px', marginBottom: '16px' }}>
+          <KaspaRPMGauge
+            bps={stats.isPlaying ? Math.min(stats.speed / 100, 10) : 0}
+            maxBps={10}
+            label="Network Pulse"
+            showValue={true}
+          />
         </div>
 
         <div className="game-status">
