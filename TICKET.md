@@ -1280,20 +1280,36 @@ const payload = generatePayload({
 
 ## 12) P11 — 제출물(README/영상/썸네일/AI 공개)
 
-### - [ ] T-110 English README (Hackathon-grade)
+### - [x] T-110 English README (Hackathon-grade)
 **의존**
 - T-043, T-054, T-063
 
 **작업**
-- [ ] What/Why/How(아키텍처)
-- [ ] Quickstart(로컬 실행)
-- [ ] Demo instructions
-- [ ] SDK usage
-- [ ] AI usage disclosure 섹션 링크
-- [ ] License 확인
+- [x] What/Why/How(아키텍처)
+- [x] Quickstart(로컬 실행)
+- [x] Demo instructions
+- [x] SDK usage
+- [x] AI usage disclosure 섹션 링크
+- [x] License 확인
 
 **완료조건**
 - 처음 보는 사람이 로컬에서 재현 가능
+
+**변경 요약**
+- README.md 전면 재작성 (영문)
+- ASCII 아키텍처 다이어그램
+- Quickstart: `pnpm install && pnpm dev`
+- Game modes: Free Run, Duel 설명
+- SDK usage 코드 예제
+- API Reference (REST + WebSocket)
+- Deployment 가이드 (Vercel + Fly.io)
+- Security/Contributing/License 링크
+
+**실행 방법**
+- `cat README.md` 또는 GitHub에서 확인
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-111 Demo Video Script + Capture Checklist
