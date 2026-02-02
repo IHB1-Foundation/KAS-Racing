@@ -1432,13 +1432,29 @@ const payload = generatePayload({
 - 없음
 
 
-### - [ ] T-121 Community-ready Web Page (Landing + Play Now)
+### - [x] T-121 Community-ready Web Page (Landing + Play Now)
 **의존**
 - T-100
 
 **작업**
-- [ ] 랜딩 페이지(한 줄 설명 + Play + GitHub)
-- [ ] 공유 버튼(트위터/디스코드 링크)
+- [x] 랜딩 페이지(한 줄 설명 + Play + GitHub)
+- [x] 공유 버튼(트위터/디스코드 링크)
 
 **완료조건**
 - 커뮤니티 투표 유도 가능한 형태
+
+**변경 요약**
+- `apps/client/src/pages/Home.tsx` 전면 재작성
+  - Hero section (제목, 부제목, 태그라인)
+  - Game modes grid (Free Run, Duel, Proof)
+  - Features section (Real Transactions, Live Tracking, Proof of Play)
+  - Share buttons (X/Twitter, GitHub)
+  - Footer (Built with Kaspa, MIT License)
+- `apps/client/src/styles.css` 랜딩 페이지 스타일 추가
+
+**실행 방법**
+- `pnpm dev` 후 http://localhost:5173 접속
+- 랜딩 페이지 확인
+
+**Notes/Blockers**
+- 없음
