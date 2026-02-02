@@ -534,17 +534,33 @@ const result2 = await processRewardRequest({
 - 없음
 
 
-### - [ ] T-043 Client-Server Integration (Checkpoint → Payout)
+### - [x] T-043 Client-Server Integration (Checkpoint → Payout)
 **의존**
 - T-012, T-042
 
 **작업**
-- [ ] 클라이언트 체크포인트 획득 → `/api/session/event`
-- [ ] 서버 응답으로 rewardAmount/txid 수신
-- [ ] HUD에 txid 표시 + “Broadcasted” 단계 점등
+- [x] 클라이언트 체크포인트 획득 → `/api/session/event`
+- [x] 서버 응답으로 rewardAmount/txid 수신
+- [x] HUD에 txid 표시 + "Broadcasted" 단계 점등
 
 **완료조건**
 - 실제 플레이 중 체크포인트를 먹으면 txid가 즉시 표시됨
+
+**변경 요약**
+- `apps/client/src/api/client.ts`: API 클라이언트 추가 (startSession, sendEvent, endSession)
+- `apps/client/src/pages/FreeRun.tsx`: 게임 시작 시 세션 생성, 체크포인트 수집 시 서버 이벤트 전송
+- `apps/server/src/routes/session.ts`: rewardService.processRewardRequest 연동 (stub → 실제 TX)
+- `apps/client/src/styles.css`: TX 상태별 스타일 추가 (broadcasted/accepted/included/confirmed/failed)
+- HUD에 txid와 explorer 링크 표시
+
+**실행 방법**
+- `pnpm dev` 후 http://localhost:5173/free-run 접속
+- 지갑 연결 후 SPACE로 게임 시작
+- 체크포인트 수집 시 TX Timeline에 txid 표시됨
+- (실제 TX 브로드캐스트는 환경변수 설정 필요: TREASURY_PRIVATE_KEY 등)
+
+**Notes/Blockers**
+- 없음
 
 
 ---
