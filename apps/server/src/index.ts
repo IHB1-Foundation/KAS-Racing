@@ -1,6 +1,7 @@
 import { app, httpServer, io } from './app.js';
 import { getConfig, safeLogConfig, resetConfigCache } from './config/index.js';
 import { startTxStatusWorker } from './workers/txStatusWorker.js';
+import { initPayloadSeed } from './payload/index.js';
 
 // Validate configuration on startup (unless explicitly skipped for development)
 const skipKeyValidation = process.env.SKIP_KEY_VALIDATION === 'true';
@@ -20,6 +21,12 @@ if (!skipKeyValidation) {
   console.warn('[server] Reward payouts and duel settlements will NOT work!');
   resetConfigCache();
 }
+
+// Initialize payload seed for Proof-of-Action
+// Seed is randomly generated on each server start
+// In production, consider loading from persistent secure storage
+initPayloadSeed();
+console.log('[server] Payload seed initialized for Proof-of-Action');
 
 // Start server
 const port = Number(process.env.PORT ?? 8787);

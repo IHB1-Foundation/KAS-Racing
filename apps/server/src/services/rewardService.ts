@@ -16,6 +16,7 @@ import { db } from '../db/index.js';
 import { rewardEvents, sessions, type RewardEvent, type NewRewardEvent } from '../db/schema.js';
 import { sendRewardPayout, kasToSompi } from '../tx/index.js';
 import { getConfig } from '../config/index.js';
+import { generatePayload, isPayloadValid, type PayloadNetwork, type PayloadMode } from '../payload/index.js';
 
 // TX Status enum matching schema
 export type TxStatus = 'pending' | 'broadcasted' | 'accepted' | 'included' | 'confirmed' | 'failed';
@@ -168,11 +169,32 @@ export async function processRewardRequest(
   }
 
   try {
+    // Generate payload for Proof-of-Action
+    const network = config.network as PayloadNetwork;
+    const mode = session.mode as PayloadMode;
+
+    const payload = generatePayload({
+      network,
+      mode,
+      sessionId,
+      event: 'checkpoint',
+      seq,
+    });
+
+    // Validate payload size (check once, use the result)
+    const payloadValid = isPayloadValid(payload);
+    if (!payloadValid) {
+      console.warn(`[reward] Payload too large (${payload.length} chars), sending without payload`);
+    }
+
+    console.log(`[reward] Generated payload: ${payload}`);
+
     // Broadcast transaction
     console.log(`[reward] Broadcasting tx for event ${eventId}...`);
     const result = await sendRewardPayout({
       toAddress: session.userAddress,
       amountSompi,
+      payload: payloadValid ? payload : undefined,
     });
 
     // Update event with txid and broadcasted status

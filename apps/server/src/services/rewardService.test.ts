@@ -24,8 +24,15 @@ vi.mock('../config/index.js', () => ({
   }),
 }));
 
+// Mock payload module
+vi.mock('../payload/index.js', () => ({
+  generatePayload: vi.fn().mockReturnValue('KASRACE1|t|f|session-|c|1|a1b2c3d4e5f6g7h8'),
+  isPayloadValid: vi.fn().mockReturnValue(true),
+}));
+
 import { db } from '../db/index.js';
 import { sendRewardPayout } from '../tx/index.js';
+import { generatePayload, isPayloadValid } from '../payload/index.js';
 import {
   findRewardEvent,
   processRewardRequest,
@@ -35,10 +42,9 @@ import {
 describe('rewardService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
+    // Reset payload mock defaults
+    vi.mocked(generatePayload).mockReturnValue('KASRACE1|t|f|session-|c|1|a1b2c3d4e5f6g7h8');
+    vi.mocked(isPayloadValid).mockReturnValue(true);
   });
 
   describe('findRewardEvent', () => {
@@ -115,12 +121,13 @@ describe('rewardService', () => {
       expect(sendRewardPayout).not.toHaveBeenCalled();
     });
 
-    it('should create new event and broadcast for new request', async () => {
+    it('should create new event and broadcast with payload for new request', async () => {
       const session = {
         id: 'session-1',
         userAddress: 'kaspa:qtest123',
         status: 'active',
         eventCount: 0,
+        mode: 'free_run',
       };
 
       let selectCallCount = 0;
@@ -171,9 +178,21 @@ describe('rewardService', () => {
       expect(result.isNew).toBe(true);
       expect(result.txid).toBe('new-tx-456');
       expect(result.txStatus).toBe('broadcasted');
+
+      // Verify payload was generated
+      expect(generatePayload).toHaveBeenCalledWith({
+        network: 'testnet',
+        mode: 'free_run',
+        sessionId: 'session-1',
+        event: 'checkpoint',
+        seq: 1,
+      });
+
+      // Verify sendRewardPayout was called with payload
       expect(sendRewardPayout).toHaveBeenCalledWith({
         toAddress: 'kaspa:qtest123',
         amountSompi: BigInt(2_000_000),
+        payload: 'KASRACE1|t|f|session-|c|1|a1b2c3d4e5f6g7h8',
       });
     });
 
@@ -183,6 +202,7 @@ describe('rewardService', () => {
         userAddress: 'kaspa:qtest123',
         status: 'active',
         eventCount: 0,
+        mode: 'free_run',
       };
 
       let selectCallCount = 0;
@@ -226,6 +246,67 @@ describe('rewardService', () => {
       expect(result.txid).toBeNull();
       expect(result.txStatus).toBe('failed');
       expect(result.error).toBe('Network error');
+    });
+
+    it('should skip payload when it exceeds size limit', async () => {
+      const session = {
+        id: 'session-1',
+        userAddress: 'kaspa:qtest123',
+        status: 'active',
+        eventCount: 0,
+        mode: 'free_run',
+      };
+
+      let selectCallCount = 0;
+      const mockSelect = vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockImplementation(() => {
+              selectCallCount++;
+              if (selectCallCount === 1) {
+                return Promise.resolve([]);
+              }
+              return Promise.resolve([session]);
+            }),
+          }),
+        }),
+      });
+      vi.mocked(db.select).mockImplementation(mockSelect);
+
+      const mockInsert = vi.fn().mockReturnValue({
+        values: vi.fn().mockResolvedValue(undefined),
+      });
+      vi.mocked(db.insert).mockImplementation(mockInsert);
+
+      const mockUpdate = vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue(undefined),
+        }),
+      });
+      vi.mocked(db.update).mockImplementation(mockUpdate);
+
+      // Mock payload too large
+      vi.mocked(isPayloadValid).mockReturnValueOnce(false);
+
+      vi.mocked(sendRewardPayout).mockResolvedValue({
+        txid: 'new-tx-789',
+        amountSompi: BigInt(2_000_000),
+        feeSompi: BigInt(5000),
+      });
+
+      const result = await processRewardRequest({
+        sessionId: 'session-1',
+        seq: 1,
+        rewardAmountKas: 0.02,
+      });
+
+      expect(result.txid).toBe('new-tx-789');
+      // Verify sendRewardPayout was called without payload
+      expect(sendRewardPayout).toHaveBeenCalledWith({
+        toAddress: 'kaspa:qtest123',
+        amountSompi: BigInt(2_000_000),
+        payload: undefined,
+      });
     });
 
     it('should reject when session is not active', async () => {
