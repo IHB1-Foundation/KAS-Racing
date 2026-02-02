@@ -1133,18 +1133,36 @@ const payload = generatePayload({
 - 없음
 
 
-### - [ ] T-091 Observability (Structured logs + Timing)
+### - [x] T-091 Observability (Structured logs + Timing)
 **의존**
 - T-020, T-042, T-050
 
 **작업**
-- [ ] 모든 tx에 대해:
-    - broadcastedAt, acceptedAt, includedAt 기록
-- [ ] requestId/sessionId/matchId correlation
-- [ ] 데모 중 문제 발생 시 원인 추적 가능
+- [x] 모든 tx에 대해:
+    - broadcastedAt, acceptedAt, includedAt 기록 (T-042에서 구현됨)
+- [x] requestId/sessionId/matchId correlation
+- [x] 데모 중 문제 발생 시 원인 추적 가능
 
 **완료조건**
 - 워크로그 또는 로그 파일로 타임라인 추적 가능
+
+**변경 요약**
+- `apps/server/src/middleware/requestLogger.ts`: 요청 로깅 미들웨어
+  - 요청별 고유 requestId 생성
+  - sessionId, matchId 자동 추출 및 correlation
+  - JSON 형식 구조화 로그
+  - logTxEvent, logGameEvent 헬퍼 함수
+- `apps/server/src/app.ts`: requestLogger 미들웨어 적용
+
+**실행 방법**
+- 서버 로그 예시:
+  ```
+  [request] {"type":"request","requestId":"a1b2c3d4","method":"POST","path":"/api/session/event"...}
+  [response] {"type":"response","requestId":"a1b2c3d4","status":200,"durationMs":45...}
+  ```
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-092 Security Review Checklist
