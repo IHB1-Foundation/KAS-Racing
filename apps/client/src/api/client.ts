@@ -270,3 +270,54 @@ export async function submitScore(
 
   return (await response.json()) as MatchInfo;
 }
+
+// ============ Transaction API ============
+
+export interface TxStatusInfo {
+  txid: string;
+  status: 'broadcasted' | 'accepted' | 'included' | 'confirmed' | 'failed';
+  timestamps: {
+    broadcasted?: number;
+    accepted?: number;
+    included?: number;
+    confirmed?: number;
+  };
+  confirmations: number;
+}
+
+export interface TxDetails {
+  txid: string;
+  payload: string | null;
+  outputs: Array<{ amount: number; address?: string; script_public_key_address?: string }>;
+  inputs: Array<{ previous_outpoint_hash?: string; previous_outpoint_index?: number }>;
+  blockHash: string | null;
+  blockTime: number | null;
+}
+
+/**
+ * Get transaction status
+ */
+export async function getTxStatus(txid: string): Promise<TxStatusInfo> {
+  const response = await fetch(`${API_BASE}/api/tx/${txid}/status`);
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as TxStatusInfo;
+}
+
+/**
+ * Get full transaction details (including payload)
+ */
+export async function getTxDetails(txid: string): Promise<TxDetails> {
+  const response = await fetch(`${API_BASE}/api/tx/${txid}`);
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as TxDetails;
+}
