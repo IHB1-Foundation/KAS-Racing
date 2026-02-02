@@ -804,17 +804,35 @@ curl http://localhost:8787/api/match/{matchId}
 - DuelLobby에서 게임 view 연동은 추가 작업 필요
 
 
-### - [ ] T-062 Duel Deposit Tracking (txid 등록/상태 확인)
+### - [x] T-062 Duel Deposit Tracking (txid 등록/상태 확인)
 **의존**
 - T-032, T-050, T-060
 
 **작업**
-- [ ] escrow address 발급(우선은 단순 주소로도 가능; covenant는 P7)
-- [ ] 각 플레이어 deposit txid 서버 등록
-- [ ] deposit이 accepted/included되면 match 상태가 “READY”로 전환
+- [x] escrow address 발급(우선은 단순 주소로도 가능; covenant는 P7)
+- [x] 각 플레이어 deposit txid 서버 등록
+- [x] deposit이 accepted/included되면 match 상태가 "READY"로 전환
 
 **완료조건**
 - 양측 입금이 확인되면 자동으로 레이스 시작 가능
+
+**변경 요약**
+- `apps/server/src/services/escrowService.ts`: Escrow 주소 생성 서비스 (MVP fallback 모드)
+- `apps/server/src/services/depositTrackingService.ts`: Deposit TX 상태 추적 서비스
+- `apps/server/src/workers/txStatusWorker.ts`: Deposit 상태 폴링 추가
+- `apps/server/src/ws/index.ts`: subscribeMatch/emitMatchUpdated WebSocket 이벤트
+- `apps/server/src/routes/match.ts`: Escrow 주소 생성 + deposit 상태 기반 ready 전환
+- 8개 deposit tracking 테스트 추가
+
+**실행 방법**
+- 매치 생성 시 escrow 주소가 자동 생성됨 (MVP: treasury 주소 사용)
+- deposit 등록 후 txStatusWorker가 2초 간격으로 상태 추적
+- 양측 deposit이 'accepted' 상태가 되면 match가 자동으로 'ready'로 전환
+- WebSocket으로 match 상태 변화를 실시간 수신 가능
+
+**Notes/Blockers**
+- MVP fallback 모드: escrow 주소는 treasury 주소 사용 (서버 custodial)
+- Covenant 기반 theft-resistant escrow는 T-070~T-074에서 구현 예정
 
 
 ### - [ ] T-063 Settlement (Fallback: Server pays winner)
