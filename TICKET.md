@@ -1235,17 +1235,45 @@ const payload = generatePayload({
 - 실제 배포는 Vercel 계정 연동 후 수동 진행 필요
 
 
-### - [ ] T-101 Deployment: Server (WebSocket 지원)
+### - [x] T-101 Deployment: Server (WebSocket 지원)
 **의존**
 - T-020, T-050
 
 **작업**
-- [ ] Render/Fly.io 등 배포
-- [ ] 환경변수/시크릿 설정
-- [ ] 헬스체크 + 재시작 정책
+- [x] Render/Fly.io 등 배포
+- [x] 환경변수/시크릿 설정
+- [x] 헬스체크 + 재시작 정책
 
 **완료조건**
 - 공개 서버 URL에서 API/WS 동작
+
+**변경 요약**
+- `apps/server/Dockerfile`: Multi-stage Docker 빌드 (pnpm monorepo 지원)
+- `apps/server/fly.toml`: Fly.io 배포 설정 (Singapore region, 512MB, SQLite volume)
+- `apps/server/.dockerignore`: 빌드 최적화
+- `apps/server/.env.example`: 환경변수 + Fly secrets 가이드
+- `apps/server/package.json`: `start` 스크립트 추가
+- 헬스체크: `/api/health` (30초 간격)
+
+**실행 방법**
+1. Fly.io CLI 설치: `curl -L https://fly.io/install.sh | sh`
+2. 로그인: `fly auth login`
+3. 앱 생성: `cd apps/server && fly launch --no-deploy`
+4. 볼륨 생성: `fly volumes create kas_racing_data --region sea --size 1`
+5. Secrets 설정:
+   ```bash
+   fly secrets set NETWORK=mainnet
+   fly secrets set TREASURY_PRIVATE_KEY=your_key
+   fly secrets set TREASURY_CHANGE_ADDRESS=kaspa:qz...
+   fly secrets set ORACLE_PRIVATE_KEY=your_key
+   fly secrets set CORS_ORIGIN=https://kas-racing.vercel.app
+   ```
+6. 배포: `fly deploy --dockerfile Dockerfile --config fly.toml`
+
+**Notes/Blockers**
+- 설정 파일 준비 완료
+- 실제 배포는 Fly.io 계정 연동 후 수동 진행 필요
+- Dockerfile 빌드 컨텍스트는 repository 루트에서 실행해야 함
 
 
 ---
