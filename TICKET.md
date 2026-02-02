@@ -835,17 +835,41 @@ curl http://localhost:8787/api/match/{matchId}
 - Covenant 기반 theft-resistant escrow는 T-070~T-074에서 구현 예정
 
 
-### - [ ] T-063 Settlement (Fallback: Server pays winner)
+### - [x] T-063 Settlement (Fallback: Server pays winner)
 **의존**
 - T-062, T-040, T-041
 
 **작업**
-- [ ] 결과 확정 시 서버가 winner에게 payout tx 생성/브로드캐스트
-- [ ] match에 settle txid 기록
-- [ ] UI에 settle txid + lifecycle 표시
+- [x] 결과 확정 시 서버가 winner에게 payout tx 생성/브로드캐스트
+- [x] match에 settle txid 기록
+- [x] UI에 settle txid + lifecycle 표시
 
 **완료조건**
 - 1v1 한 판에서 deposit 2개 + settle 1개가 온체인에서 확인 가능
+
+**변경 요약**
+- `apps/server/src/services/settlementService.ts`: Settlement 서비스 구현
+  - Winner 결정 시 treasury에서 상금 지급 (betAmount * 2)
+  - Draw 처리 (현재는 no-op, 향후 환불 기능 추가)
+  - 실패 시 settleStatus = 'failed'로 마킹
+- `apps/server/src/routes/match.ts`: submit-score 시 비동기 settlement 트리거
+- `apps/server/src/services/depositTrackingService.ts`: Settlement TX 상태 추적 추가
+- `apps/server/src/workers/txStatusWorker.ts`: Settlement 폴링 추가
+- `apps/client/src/pages/DuelLobby.tsx`: 'finished' view 추가
+  - 결과 표시 (Win/Lose/Draw)
+  - Settlement TX 라이프사이클 표시
+- 7개 settlement 테스트 추가
+
+**실행 방법**
+- 매치 완료 (양측 점수 제출) 시 자동으로 settlement 트리거
+- Winner에게 betAmount * 2 KAS 지급
+- UI에서 settle txid와 상태 실시간 확인 가능
+- WebSocket으로 match 상태 변화 push
+
+**Notes/Blockers**
+- MVP fallback 모드: treasury에서 직접 지급
+- Draw 시 환불은 미구현 (T-070+ covenant 구현 시 추가)
+- 실제 TX 브로드캐스트는 환경변수 설정 필요 (TREASURY_PRIVATE_KEY 등)
 
 
 ---
