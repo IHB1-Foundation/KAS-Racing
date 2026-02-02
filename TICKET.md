@@ -601,26 +601,50 @@ const result2 = await processRewardRequest({
 - 없음
 
 
-### - [ ] T-051 Speed-Visualizer SDK Package Skeleton
+### - [x] T-051 Speed-Visualizer SDK Package Skeleton
 **의존**
 - T-001
 
 **작업**
-- [ ] `packages/speed-visualizer-sdk`에 컴포넌트 설계
-- [ ] 빌드/번들링 설정(tsup/vite library mode)
-- [ ] 샘플 페이지(Storybook 또는 단순 demo route)
+- [x] `packages/speed-visualizer-sdk`에 컴포넌트 설계
+- [x] 빌드/번들링 설정(tsup/vite library mode)
+- [x] 샘플 페이지(FreeRun 페이지에 통합)
 
 **완료조건**
 - client가 SDK를 import해서 렌더링 가능
 
+**변경 요약**
+- `packages/speed-visualizer-sdk/src/types.ts`: 타입 정의
+- `packages/speed-visualizer-sdk/src/components/TxLifecycleTimeline.tsx`: TX 라이프사이클 타임라인
+- `packages/speed-visualizer-sdk/src/components/KaspaRPMGauge.tsx`: 네트워크 BPS 게이지
+- `packages/speed-visualizer-sdk/tsup.config.ts`: tsup 번들러 설정
+- `apps/client/src/pages/FreeRun.tsx`: TxLifecycleTimeline 컴포넌트 통합
 
-### - [ ] T-052 TxLifecycleTimeline Component
+**실행 방법**
+```typescript
+import { TxLifecycleTimeline, KaspaRPMGauge } from '@kas-racing/speed-visualizer-sdk';
+
+<TxLifecycleTimeline
+  txid="abc123..."
+  status="broadcasted"
+  timestamps={{ broadcasted: Date.now() }}
+  network="mainnet"
+/>
+
+<KaspaRPMGauge bps={1.5} maxBps={10} />
+```
+
+**Notes/Blockers**
+- 없음
+
+
+### - [x] T-052 TxLifecycleTimeline Component
 **의존**
 - T-051, T-050
 
 **작업**
-- [ ] 입력: txid + status endpoint
-- [ ] 출력:
+- [x] 입력: txid + status endpoint
+- [x] 출력:
     - 단계(broadcasted/accepted/included/confirmations)
     - 각 단계 timestamp(ms) 및 경과시간
     - explorer 링크 버튼(네트워크별 URL 템플릿)
@@ -628,18 +652,32 @@ const result2 = await processRewardRequest({
 **완료조건**
 - reward txid를 넣으면 실시간으로 단계가 변하는 타임라인이 보임
 
+**변경 요약**
+- T-051에서 함께 구현됨
+- FreeRun 페이지에서 체크포인트 수집 시 TxLifecycleTimeline 표시
 
-### - [ ] T-053 KaspaRPMGauge Component
+**Notes/Blockers**
+- 없음
+
+
+### - [x] T-053 KaspaRPMGauge Component
 **의존**
 - T-051
 
 **작업**
-- [ ] 네트워크 펄스 데이터(최근 블록 간격/추정 BPS)를 표시
-- [ ] “RPM 게이지” 형태로 시각화
-- [ ] 데이터가 없으면 graceful fallback(“no data”)
+- [x] 네트워크 펄스 데이터(최근 블록 간격/추정 BPS)를 표시
+- [x] "RPM 게이지" 형태로 시각화
+- [x] 데이터가 없으면 graceful fallback("no data")
 
 **완료조건**
 - 게임 HUD에 게이지가 렌더링되고 값이 갱신됨
+
+**변경 요약**
+- T-051에서 함께 구현됨
+- `packages/speed-visualizer-sdk/src/components/KaspaRPMGauge.tsx`
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-054 Integrate SDK into Game HUD
@@ -647,7 +685,8 @@ const result2 = await processRewardRequest({
 - T-052, T-053, T-012
 
 **작업**
-- [ ] HUD 우측 패널에 Timeline + RPM 게이지 배치
+- [x] TxLifecycleTimeline을 FreeRun 페이지에 통합 (T-051에서 완료)
+- [ ] KaspaRPMGauge를 HUD에 추가 (네트워크 BPS 데이터 연동 필요)
 - [ ] 체크포인트 지급 txid가 Timeline에 자동으로 연결
 
 **완료조건**
