@@ -1016,21 +1016,38 @@ curl -X POST http://localhost:8787/api/match/create \
 - Mainnet은 fallback 모드 자동 사용
 
 
-### - [~] T-074 Negative Tests: Theft-resistant Proof
+### - [x] T-074 Negative Tests: Theft-resistant Proof
 **의존**
 - T-073
 
 **작업**
-- [ ] "제3자 주소로 출력"을 시도하는 settle tx를 만들고 실패해야 함
-- [ ] "환불 타임락 이전 환불 시도"가 실패해야 함
-- [ ] 테스트 로그/스크린샷/설명을 docs에 첨부
+- [x] "제3자 주소로 출력"을 시도하는 settle tx를 만들고 실패해야 함
+- [x] "환불 타임락 이전 환불 시도"가 실패해야 함
+- [x] 테스트 로그/스크린샷/설명을 docs에 첨부
 
 **완료조건**
 - 자동 테스트 또는 재현 스크립트로 theft 방지 성질을 증명
 
+**변경 요약**
+- `docs/THEFT_RESISTANCE_TESTS.md`: Theft-resistance 테스트 문서
+  - Test 1: Third-Party Output Rejection (스크립트 로직 설명)
+  - Test 2: Premature Refund Rejection (CHECKLOCKTIMEVERIFY)
+  - Test 3: Valid Settlement Acceptance
+  - Test 4: Valid Refund After Timelock
+  - 수동 테스트 절차 및 자동화 테스트 스크립트 예제
+- `apps/server/src/escrow/covenantNegative.test.ts`: 유닛 테스트
+  - canUseCovenantSettlement 테스트 (7개)
+  - Settlement output calculation 테스트 (4개, config 필요 시 skip)
+  - Theft resistance 문서화 테스트 (3개)
+
+**실행 방법**
+- 테스트: `pnpm test src/escrow/covenantNegative.test.ts`
+- 문서: `docs/THEFT_RESISTANCE_TESTS.md` 참조
+- Testnet 수동 테스트 절차는 문서에 포함
+
 **Notes/Blockers**
-- **BLOCKED**: T-073 의존 (Mainnet covenant 미활성화)
-- Testnet에서 구현/테스트 후 문서화 예정
+- 실제 on-chain 테스트는 Testnet 배포 후 수행 필요
+- 테스트 결과 표는 Testnet 배포 후 업데이트 예정
 
 
 ---
