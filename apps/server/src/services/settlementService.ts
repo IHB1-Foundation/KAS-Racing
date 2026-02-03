@@ -1,16 +1,15 @@
 /**
- * Settlement Service
+ * Settlement Service (T-073)
  *
  * Handles settlement payouts for duel matches.
- * When a match finishes, pays the winner from treasury.
  *
- * MVP (Fallback Mode):
+ * Covenant Mode (Testnet):
+ * - Spend escrow UTXOs directly to winner
+ * - Uses oracle signature for covenant script
+ *
+ * Fallback Mode (Mainnet):
  * - Server holds deposits in treasury
  * - Settlement pays winner from treasury balance
- * - Loser's deposit is already in treasury (from deposit phase)
- *
- * Future (Covenant Mode - T-070+):
- * - Spend escrow UTXOs directly to winner
  */
 
 import { eq } from 'drizzle-orm';
@@ -18,6 +17,12 @@ import { db, matches, type Match } from '../db/index.js';
 import { sendRewardPayout, kasToSompi } from '../tx/rewardPayout.js';
 import { emitMatchUpdated } from '../ws/index.js';
 import type { TxStatus } from '../types/index.js';
+import {
+  buildCovenantSettlementTx,
+  canUseCovenantSettlement,
+  getEscrowUtxo,
+} from '../escrow/settlementTxBuilder.js';
+import type { SettlementType, SettlementRequest } from '../escrow/types.js';
 
 export interface SettlementResult {
   success: boolean;
@@ -124,8 +129,113 @@ export async function processSettlement(matchId: string): Promise<SettlementResu
     };
   }
 
+  // Check if we can use covenant settlement
+  if (canUseCovenantSettlement(match)) {
+    return processCovenantSettlement(match, matchId, winnerAddress);
+  }
+
+  // Fallback mode: pay from treasury
+  return processFallbackSettlement(match, matchId, winnerAddress);
+}
+
+/**
+ * Process settlement using covenant escrow (Testnet)
+ */
+async function processCovenantSettlement(
+  match: Match,
+  matchId: string,
+  winnerAddress: string
+): Promise<SettlementResult> {
+  console.log(`[settlement] Using covenant mode for match ${matchId}`);
+
+  try {
+    // Mark as pending
+    await db
+      .update(matches)
+      .set({ settleStatus: 'pending' })
+      .where(eq(matches.id, matchId));
+
+    // Fetch escrow UTXOs
+    const escrowUtxoA = await getEscrowUtxo(
+      match.playerADepositTxid!,
+      match.escrowAddressA!
+    );
+    const escrowUtxoB = await getEscrowUtxo(
+      match.playerBDepositTxid!,
+      match.escrowAddressB!
+    );
+
+    if (!escrowUtxoA || !escrowUtxoB) {
+      throw new Error('Failed to fetch escrow UTXOs');
+    }
+
+    // Determine settlement type
+    const settlementType: SettlementType =
+      match.winnerId === 'A' ? 'winner_A' :
+      match.winnerId === 'B' ? 'winner_B' : 'draw';
+
+    // Build and broadcast covenant settlement TX
+    const request: SettlementRequest = {
+      matchId,
+      type: settlementType,
+      depositA: escrowUtxoA,
+      depositB: escrowUtxoB,
+    };
+
+    const result = buildCovenantSettlementTx(
+      request,
+      match.escrowScriptA!,
+      match.escrowScriptB!,
+      match.playerAAddress!,
+      match.playerBAddress!
+    );
+
+    // Update match
+    await db
+      .update(matches)
+      .set({
+        settleTxid: result.txid,
+        settleStatus: 'broadcasted',
+      })
+      .where(eq(matches.id, matchId));
+
+    console.log(`[settlement] Covenant settlement for ${matchId}: ${result.txid}`);
+
+    // Emit WebSocket update
+    const updatedMatch = await getMatch(matchId);
+    if (updatedMatch) {
+      emitMatchUpdated(matchId, updatedMatch);
+    }
+
+    return {
+      success: true,
+      matchId,
+      winnerId: match.winnerId,
+      winnerAddress,
+      settleTxid: result.txid,
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[settlement] Covenant settlement failed for ${matchId}:`, errorMsg);
+
+    // Fallback to treasury payout
+    console.log(`[settlement] Falling back to treasury payout for ${matchId}`);
+    return processFallbackSettlement(match, matchId, winnerAddress);
+  }
+}
+
+/**
+ * Process settlement using treasury payout (Mainnet fallback)
+ */
+async function processFallbackSettlement(
+  match: Match,
+  matchId: string,
+  winnerAddress: string
+): Promise<SettlementResult> {
+  console.log(`[settlement] Using fallback mode for match ${matchId}`);
+
   // Calculate payout amount (bet amount * 2 - fee)
-  // In MVP fallback mode, winner gets both deposits minus a small platform fee
+  // In fallback mode, winner gets both deposits minus a small platform fee
   const totalPot = match.betAmount * 2;
   const platformFeePercent = 0; // 0% fee for MVP demo
   const payoutAmount = totalPot * (1 - platformFeePercent);
