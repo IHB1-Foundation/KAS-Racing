@@ -50,7 +50,7 @@
 - 없음
 
 
-### - [~] T-002 CI Pipeline (Lint/Test/Build)
+### - [x] T-002 CI Pipeline (Lint/Test/Build)
 **의존**
 - T-001
 
