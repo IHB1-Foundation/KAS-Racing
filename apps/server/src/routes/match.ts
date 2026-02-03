@@ -3,7 +3,7 @@ import { randomUUID, randomBytes } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { db, matches, type NewMatch } from '../db/index.js';
 import type { Match } from '../db/schema.js';
-import { generateMatchEscrowAddresses, getEscrowMode } from '../services/escrowService.js';
+import { generateMatchEscrowAddresses } from '../services/escrowService.js';
 import { emitMatchUpdated } from '../ws/index.js';
 import { processSettlement } from '../services/settlementService.js';
 
@@ -37,16 +37,20 @@ function matchToResponse(match: Match) {
     betAmount: match.betAmount,
     playerA: match.playerAAddress ? {
       address: match.playerAAddress,
+      pubkey: match.playerAPubkey,
       depositTxid: match.playerADepositTxid,
       depositStatus: match.playerADepositStatus,
     } : null,
     playerB: match.playerBAddress ? {
       address: match.playerBAddress,
+      pubkey: match.playerBPubkey,
       depositTxid: match.playerBDepositTxid,
       depositStatus: match.playerBDepositStatus,
     } : null,
     escrowAddressA: match.escrowAddressA,
     escrowAddressB: match.escrowAddressB,
+    escrowMode: match.escrowMode,
+    refundLocktimeBlocks: match.refundLocktimeBlocks,
     winner: match.winnerId,
     playerAScore: match.playerAScore,
     playerBScore: match.playerBScore,
@@ -61,11 +65,13 @@ function matchToResponse(match: Match) {
 interface CreateMatchRequest {
   playerAddress: string;
   betAmount: number;
+  playerPubkey?: string; // x-only pubkey for covenant mode (optional)
 }
 
 interface JoinMatchRequest {
   joinCode: string;
   playerAddress: string;
+  playerPubkey?: string; // x-only pubkey for covenant mode (optional)
 }
 
 /**
@@ -96,14 +102,25 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
     const joinCode = generateJoinCode();
     const now = new Date();
 
-    // Generate escrow addresses
+    // Generate escrow addresses (fallback mode for now, covenant will be set when player B joins)
     let escrowAddressA: string | undefined;
     let escrowAddressB: string | undefined;
+    let escrowMode: 'covenant' | 'fallback' = 'fallback';
 
     try {
-      const escrowAddresses = await generateMatchEscrowAddresses(matchId);
+      // At match creation, only player A is known
+      // Generate fallback escrow addresses initially
+      // Covenant escrow will be generated when player B joins with their pubkey
+      const escrowAddresses = await generateMatchEscrowAddresses(
+        matchId,
+        body.playerAddress,
+        '', // Player B address not yet known
+        body.playerPubkey,
+        undefined // Player B pubkey not yet known
+      );
       escrowAddressA = escrowAddresses.escrowAddressA;
       escrowAddressB = escrowAddresses.escrowAddressB;
+      escrowMode = escrowAddresses.mode;
     } catch (error) {
       console.warn(`[match] Failed to generate escrow addresses:`, error);
       // Continue without escrow addresses - they can be set later
@@ -114,6 +131,7 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
       id: matchId,
       joinCode,
       playerAAddress: body.playerAddress,
+      playerAPubkey: body.playerPubkey, // Store pubkey for covenant escrow
       betAmount: body.betAmount,
       status: 'waiting',
       escrowAddressA,
@@ -123,7 +141,7 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
 
     await db.insert(matches).values(newMatch);
     console.log(`[match] Created match ${matchId} with code ${joinCode} by ${body.playerAddress}`);
-    console.log(`[match] Escrow mode: ${getEscrowMode()}, addresses: A=${escrowAddressA}, B=${escrowAddressB}`);
+    console.log(`[match] Escrow mode: ${escrowMode}, addresses: A=${escrowAddressA}, B=${escrowAddressB}`);
 
     res.json({
       matchId,
@@ -132,7 +150,7 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
       status: 'waiting',
       escrowAddressA,
       escrowAddressB,
-      escrowMode: getEscrowMode(),
+      escrowMode,
     });
   } catch (error) {
     console.error('[match] Failed to create match:', error);
@@ -186,12 +204,41 @@ router.post('/join', asyncHandler(async (req: Request, res: Response) => {
       return;
     }
 
+    // If both players have pubkeys, regenerate covenant escrow addresses
+    let escrowUpdate: Record<string, unknown> = {};
+    if (match.playerAPubkey && body.playerPubkey) {
+      try {
+        const escrowAddresses = await generateMatchEscrowAddresses(
+          match.id,
+          match.playerAAddress!,
+          body.playerAddress,
+          match.playerAPubkey,
+          body.playerPubkey
+        );
+        escrowUpdate = {
+          escrowAddressA: escrowAddresses.escrowAddressA,
+          escrowAddressB: escrowAddresses.escrowAddressB,
+          escrowMode: escrowAddresses.mode,
+          escrowScriptA: escrowAddresses.escrowScriptA,
+          escrowScriptB: escrowAddresses.escrowScriptB,
+          refundLocktimeBlocks: escrowAddresses.refundLocktimeBlocks,
+          oraclePublicKey: escrowAddresses.oraclePublicKey,
+        };
+        console.log(`[match] Generated ${escrowAddresses.mode} escrow for match ${match.id}`);
+      } catch (error) {
+        console.warn(`[match] Failed to generate covenant escrow:`, error);
+        // Continue with existing escrow addresses
+      }
+    }
+
     // Update match with player B
     await db
       .update(matches)
       .set({
         playerBAddress: body.playerAddress,
+        playerBPubkey: body.playerPubkey,
         status: 'deposits_pending',
+        ...escrowUpdate,
       })
       .where(eq(matches.id, match.id));
 

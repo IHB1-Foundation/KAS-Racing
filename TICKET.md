@@ -939,23 +939,47 @@ curl http://localhost:8787/api/match/{matchId}
 - Testnet 12에서만 테스트 가능 (Mainnet 미지원)
 
 
-### - [~] T-072 Escrow Address Generation (per match, per player)
+### - [x] T-072 Escrow Address Generation (per match, per player)
 **의존**
 - T-071, T-060
 
 **작업**
-- [ ] match 생성 시 escrowA/escrowB 주소 생성
-- [ ] client에 escrow 주소 전달
-- [ ] DB에 escrow 정보 저장
+- [x] match 생성 시 escrowA/escrowB 주소 생성
+- [x] client에 escrow 주소 전달
+- [x] DB에 escrow 정보 저장
 
 **완료조건**
 - 매치마다 고유한 escrow 주소 2개가 생성
 
+**변경 요약**
+- `apps/server/src/escrow/opcodes.ts`: Kaspa Script Opcodes 정의 (KIP-10 covenant opcodes 포함)
+- `apps/server/src/escrow/scriptBuilder.ts`: Covenant 스크립트 빌더
+  - buildEscrowScript: Oracle settlement + Timelock refund 브랜치
+  - scriptToP2SHAddress: 스크립트에서 P2SH 주소 생성
+  - generateMatchEscrows: 매치별 escrow 주소 쌍 생성
+- `apps/server/src/services/escrowService.ts`: Covenant 모드 지원 추가
+  - getEscrowMode: 네트워크에 따라 covenant/fallback 선택
+  - generateMatchEscrowAddresses: 양쪽 pubkey가 있으면 covenant 모드
+- `apps/server/src/db/schema.ts`: Escrow 관련 필드 추가
+  - escrowMode, escrowScriptA/B, refundLocktimeBlocks, oraclePublicKey
+  - playerAPubkey, playerBPubkey
+- `apps/server/src/routes/match.ts`: pubkey 수신 및 covenant escrow 지원
+- DB 마이그레이션: `drizzle/0001_jittery_winter_soldier.sql`
+
+**실행 방법**
+- Testnet에서 covenant 모드 자동 활성화
+- Mainnet에서는 fallback 모드 (treasury 주소) 사용
+- 매치 생성/참가 시 `playerPubkey` 옵션 파라미터 전달 가능
+```bash
+# 매치 생성 (pubkey 포함)
+curl -X POST http://localhost:8787/api/match/create \
+  -H "Content-Type: application/json" \
+  -d '{"playerAddress":"kaspa:...","betAmount":0.5,"playerPubkey":"<x-only-pubkey-hex>"}'
+```
+
 **Notes/Blockers**
-- **BLOCKED**: Mainnet에서 KIP-10 covenant 미활성화 (2026년 중 예정)
-- Testnet 12에서 구현 가능하나, 해커톤 데모는 Mainnet 사용 필요
-- 현재 Fallback 모드 (treasury 주소) 사용 중 (T-062에서 구현됨)
-- Mainnet covenant 활성화 후 진행 예정
+- Mainnet: fallback 모드 (treasury 주소) 사용
+- Testnet 12: covenant 모드 가능 (KIP-10 활성화)
 
 
 ### - [~] T-073 Settlement TX Builder for Escrow UTXOs

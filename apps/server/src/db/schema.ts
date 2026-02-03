@@ -63,10 +63,12 @@ export const matches = sqliteTable('matches', {
   // Players
   playerAId: text('player_a_id').references(() => users.id),
   playerAAddress: text('player_a_address'),
+  playerAPubkey: text('player_a_pubkey'), // x-only pubkey for covenant escrow
   playerASessionId: text('player_a_session_id').references(() => sessions.id),
 
   playerBId: text('player_b_id').references(() => users.id),
   playerBAddress: text('player_b_address'),
+  playerBPubkey: text('player_b_pubkey'), // x-only pubkey for covenant escrow
   playerBSessionId: text('player_b_session_id').references(() => sessions.id),
 
   // Bet details
@@ -86,6 +88,13 @@ export const matches = sqliteTable('matches', {
   // Escrow addresses
   escrowAddressA: text('escrow_address_a'),
   escrowAddressB: text('escrow_address_b'),
+
+  // Covenant escrow details (T-072)
+  escrowMode: text('escrow_mode', { enum: ['covenant', 'fallback'] }).default('fallback'),
+  escrowScriptA: text('escrow_script_a'), // Script hex for player A escrow
+  escrowScriptB: text('escrow_script_b'), // Script hex for player B escrow
+  refundLocktimeBlocks: integer('refund_locktime_blocks'), // DAA blocks until refund
+  oraclePublicKey: text('oracle_public_key'), // Oracle pubkey used for this match
 
   // Results
   winnerId: text('winner_id'), // 'A', 'B', 'draw', or null

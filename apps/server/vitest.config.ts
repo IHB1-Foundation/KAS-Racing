@@ -13,5 +13,10 @@ export default defineConfig({
     sequence: {
       shuffle: false,
     },
+    // Environment variables for testing
+    env: {
+      SKIP_KEY_VALIDATION: 'true',
+      NETWORK: 'mainnet',
+    },
   },
 });

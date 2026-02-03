@@ -6,9 +6,16 @@ import {
 
 describe('Escrow Service', () => {
   describe('getEscrowMode', () => {
-    it('returns fallback mode in MVP', () => {
-      const mode = getEscrowMode();
+    it('returns fallback mode for mainnet', () => {
+      // Mainnet doesn't support covenant yet
+      const mode = getEscrowMode('mainnet');
       expect(mode).toBe('fallback');
+    });
+
+    it('returns covenant mode for testnet', () => {
+      // Testnet supports covenant
+      const mode = getEscrowMode('testnet');
+      expect(mode).toBe('covenant');
     });
   });
 
