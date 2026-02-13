@@ -40,9 +40,6 @@ RUN pnpm install --frozen-lockfile --prod
 # Copy built files
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 
-# Create data directory for SQLite
-RUN mkdir -p /app/apps/server/data
-
 # Set working directory to server
 WORKDIR /app/apps/server
 

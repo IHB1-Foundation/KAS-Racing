@@ -204,12 +204,13 @@ Set `VITE_API_URL` in Vercel to your Railway server URL (example: `https://<serv
 ### Server (Railway)
 
 - This repo includes `railway.json` which deploys `apps/server/Dockerfile`.
-- Create a Railway service from this repo, then set Variables:
+- Create a Railway service from this repo, add Railway Postgres, then set Variables:
   - `NETWORK`
   - `TREASURY_PRIVATE_KEY`, `TREASURY_CHANGE_ADDRESS`
   - `ORACLE_PRIVATE_KEY`
   - `CORS_ORIGIN` (your Vercel URL)
-- For SQLite persistence, add a Railway Volume mounted to `/app/apps/server/data` (default DB path is `./data/kas-racing.db`).
+  - `DATABASE_URL` (Railway Postgres connection string)
+  - `DATABASE_SSL=true`
 - Verify health check: `GET /api/health` returns 200 on the Railway public URL.
 
 ### Server (Fly.io) (Legacy)

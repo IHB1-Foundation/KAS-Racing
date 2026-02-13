@@ -1,14 +1,14 @@
-import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { pgTable, text, integer, doublePrecision, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 // Users table
-export const users = sqliteTable('users', {
+export const users = pgTable('users', {
   id: text('id').primaryKey(), // UUID
   address: text('address').notNull().unique(), // Kaspa address
-  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
 });
 
 // Sessions table
-export const sessions = sqliteTable('sessions', {
+export const sessions = pgTable('sessions', {
   id: text('id').primaryKey(), // UUID
   userId: text('user_id').references(() => users.id),
   userAddress: text('user_address').notNull(),
@@ -21,22 +21,22 @@ export const sessions = sqliteTable('sessions', {
 
   // Counters
   eventCount: integer('event_count').notNull().default(0),
-  lastEventAt: integer('last_event_at', { mode: 'timestamp_ms' }),
+  lastEventAt: timestamp('last_event_at', { withTimezone: true, mode: 'date' }),
 
   // Timestamps
-  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
-  endedAt: integer('ended_at', { mode: 'timestamp_ms' }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  endedAt: timestamp('ended_at', { withTimezone: true, mode: 'date' }),
 });
 
 // Reward events table
-export const rewardEvents = sqliteTable('reward_events', {
+export const rewardEvents = pgTable('reward_events', {
   id: text('id').primaryKey(), // UUID
   sessionId: text('session_id').notNull().references(() => sessions.id),
   seq: integer('seq').notNull(), // Sequence number within session
   type: text('type').notNull().default('checkpoint'),
 
   // Reward details
-  rewardAmount: real('reward_amount').notNull(), // in KAS
+  rewardAmount: doublePrecision('reward_amount').notNull(), // in KAS
 
   // Transaction status
   txid: text('txid'),
@@ -45,18 +45,18 @@ export const rewardEvents = sqliteTable('reward_events', {
   }).notNull().default('pending'),
 
   // Timestamps for tx lifecycle
-  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
-  broadcastedAt: integer('broadcasted_at', { mode: 'timestamp_ms' }),
-  acceptedAt: integer('accepted_at', { mode: 'timestamp_ms' }),
-  includedAt: integer('included_at', { mode: 'timestamp_ms' }),
-  confirmedAt: integer('confirmed_at', { mode: 'timestamp_ms' }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  broadcastedAt: timestamp('broadcasted_at', { withTimezone: true, mode: 'date' }),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true, mode: 'date' }),
+  includedAt: timestamp('included_at', { withTimezone: true, mode: 'date' }),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true, mode: 'date' }),
 }, (table) => ({
   // Unique constraint: only one reward event per (sessionId, seq)
   sessionSeqIdx: uniqueIndex('reward_events_session_seq_idx').on(table.sessionId, table.seq),
 }));
 
 // Matches table (for duel mode)
-export const matches = sqliteTable('matches', {
+export const matches = pgTable('matches', {
   id: text('id').primaryKey(), // UUID
   joinCode: text('join_code').notNull().unique(),
 
@@ -72,7 +72,7 @@ export const matches = sqliteTable('matches', {
   playerBSessionId: text('player_b_session_id').references(() => sessions.id),
 
   // Bet details
-  betAmount: real('bet_amount').notNull(), // in KAS
+  betAmount: doublePrecision('bet_amount').notNull(), // in KAS
 
   // Match status
   status: text('status', {
@@ -106,9 +106,9 @@ export const matches = sqliteTable('matches', {
   settleStatus: text('settle_status'),
 
   // Timestamps
-  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
-  startedAt: integer('started_at', { mode: 'timestamp_ms' }),
-  finishedAt: integer('finished_at', { mode: 'timestamp_ms' }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true, mode: 'date' }),
+  finishedAt: timestamp('finished_at', { withTimezone: true, mode: 'date' }),
 });
 
 // Type exports for use in application code
