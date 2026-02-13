@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { WalletButton } from '../components';
+import logoSymbol from '../assets/logo-symbol.png';
 
 const GITHUB_URL = 'https://github.com/anthropics/kas-racing';
 const TWITTER_SHARE_TEXT = encodeURIComponent(
@@ -11,6 +12,7 @@ export function Home() {
     <div className="landing">
       {/* Hero Section */}
       <div className="hero">
+        <img className="hero-logo" src={logoSymbol} alt="KAS Racing logo symbol" />
         <h1 className="hero-title">KAS Racing</h1>
         <p className="hero-subtitle">
           Real-time blockchain gaming on Kaspa
