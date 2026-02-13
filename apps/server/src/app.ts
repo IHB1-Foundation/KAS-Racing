@@ -1,7 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import { createServer } from 'http';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import sessionRoutes from './routes/session.js';
 import txRoutes from './routes/tx.js';
@@ -86,7 +86,7 @@ const sessionEventLimiter = rateLimit({
   keyGenerator: (req) => {
     // Combine IP with session ID for per-session rate limiting
     const sessionId = (req.body as { sessionId?: string })?.sessionId || 'unknown';
-    const ip = req.ip || 'unknown';
+    const ip = ipKeyGenerator(req.ip ?? 'unknown');
     return `${ip}:${sessionId}`;
   },
 });
