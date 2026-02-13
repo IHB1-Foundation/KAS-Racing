@@ -1577,3 +1577,227 @@ const payload = generatePayload({
 
 **Notes/Blockers**
 - 없음
+
+---
+
+## 14) P13 — Re-Architecture v2 (Contract-first + Postgres + Ponder)
+
+> 이 섹션은 **신규 재설계 트랙**이다.  
+> 목표는 `컨트랙트(테스트넷)` 중심 구조로 전환하고, FE는 Vercel / BE+Indexer는 Railway / DB는 Postgres로 고정하는 것이다.
+
+### - [x] T-200 Redesign Freeze (ADR + Scope Lock)
+**의존**
+- 없음
+
+**작업**
+- [x] 신규 아키텍처 원칙 확정: `Contract-first`, `Server = Orchestrator`, `Postgres single source of truth`
+- [x] 범위 고정: Free Run, Duel, Settlement, Proof 화면 중 데모 필수 범위 명시
+- [x] 환경 매트릭스 확정: local / testnet / staging (Railway) / production
+- [x] `docs/ARCHITECTURE.md`에 v2 데이터플로우/시퀀스 반영
+
+**산출물**
+- `docs/ARCHITECTURE.md` v2 섹션
+- `docs/ADR-001-contract-first.md` (신규)
+
+**완료조건**
+- 팀원이 문서만 보고 구현 우선순위와 경계(컨트랙트/FE/BE/Indexer)를 이해 가능
+- 미정 항목(TBD) 0개
+
+**변경 요약**
+- `docs/ADR-001-contract-first.md` 생성: 아키텍처 원칙 5가지, 스코프 락(Free Run/Duel/Proof/Settlement), 환경 매트릭스 4단계, 구현 우선순위, 리스크/완화 전략
+- `docs/ARCHITECTURE.md` v2 섹션 대폭 보강: 토폴로지 다이어그램, 런타임 책임, 디렉토리 구조 v2, Postgres 스키마 v2 타깃, Free Run/Duel/Proof 시퀀스 다이어그램, 서비스 경계, 컨트랙트 상호작용, 트랜잭션 타입, 장애 모드/폴백, 보안 경계
+- TBD 항목 0개
+
+**실행 방법**
+- `docs/ADR-001-contract-first.md` 및 `docs/ARCHITECTURE.md` 참조
+- GitHub에서 mermaid 다이어그램 자동 렌더링 확인
+
+**Notes/Blockers**
+- 없음
+
+
+### - [ ] T-201 Contract Workspace Bootstrap (Testnet Target)
+**의존**
+- T-200
+
+**작업**
+- [ ] 컨트랙트 전용 워크스페이스(`apps/contracts` 또는 `packages/contracts`) 구성
+- [ ] 빌드/테스트/배포 스크립트 표준화 (`build`, `test`, `deploy:testnet`)
+- [ ] ABI/스크립트 산출물 버전 관리 정책 정의 (`deployments/*` JSON)
+
+**산출물**
+- 컨트랙트 패키지 + 기본 테스트
+- 배포 산출물 포맷 정의 문서
+
+**완료조건**
+- CI 또는 로컬에서 컨트랙트 테스트 1회 이상 성공
+- 배포 스크립트로 테스트넷 드라이런 가능
+
+
+### - [ ] T-202 Escrow/Settlement Contract 구현
+**의존**
+- T-201
+
+**작업**
+- [ ] 매치 상태 전이(생성/참가/입금/정산/환불) 온체인 규칙 구현
+- [ ] 승/패/무승부 정산 분기와 타임락 환불 분기 구현
+- [ ] 비정상 시나리오(중복 정산, 타인 수령 주소, 조기 환불) 방어 로직 구현
+- [ ] 컨트랙트 단위/통합 테스트 작성
+
+**산출물**
+- 핵심 컨트랙트 코드 + 테스트 스위트
+
+**완료조건**
+- 정상 플로우 테스트 통과
+- theft-resistant 관련 음성 테스트 통과
+
+
+### - [ ] T-203 Contract Testnet Deployment + Verification
+**의존**
+- T-202
+
+**작업**
+- [ ] 테스트넷 배포 파이프라인 구축
+- [ ] 배포 주소/버전/블록정보를 `deployments/testnet/*.json`으로 기록
+- [ ] 컨트랙트 검증(가능한 체인 익스플로러/검증 도구) 자동화
+- [ ] 서버/클라이언트에서 주소를 환경변수로 주입하는 방식 통일
+
+**산출물**
+- 테스트넷 배포 산출물(JSON)
+- 배포/검증 스크립트
+
+**완료조건**
+- 최신 테스트넷 주소 1세트가 재현 가능한 방식으로 생성됨
+- `create match → deposit → settle` 최소 1회 온체인 검증 완료
+
+
+### - [ ] T-204 Indexing Layer 구축 (Ponder + Postgres)
+**의존**
+- T-203
+
+**작업**
+- [ ] `apps/indexer`에 Ponder 프로젝트 구성
+- [ ] 컨트랙트 이벤트를 Postgres 테이블(`chain_events`, `match_state_snapshots`)로 적재
+- [ ] 백필(start block 지정) + 실시간 스트리밍 처리
+- [ ] 인덱서 장애 복구 전략(재시작/체인 리오그 허용 범위) 정의
+
+**산출물**
+- Ponder 인덱서 코드
+- 인덱싱 스키마/운영 가이드
+
+**완료조건**
+- 과거 블록 백필 + 신규 블록 실시간 반영 동작
+- API 서버가 인덱서 적재 데이터를 읽어 일관된 상태 제공
+
+
+### - [ ] T-205 Postgres Schema v2 + Migration Hardening
+**의존**
+- T-200
+
+**작업**
+- [ ] Drizzle 스키마를 컨트랙트 중심으로 재설계
+- [ ] 핵심 테이블: `contracts`, `matches`, `deposits`, `settlements`, `chain_events`, `idempotency_keys`
+- [ ] 마이그레이션/롤백 전략 정리
+- [ ] 코드베이스에서 SQLite 경로/의존 완전 제거
+
+**산출물**
+- `apps/server/src/db/schema.ts` v2
+- 마이그레이션 파일 + 데이터 사전
+
+**완료조건**
+- 신규 환경에서 마이그레이션 1회로 스키마 구성 성공
+- SQLite 관련 설정/코드가 런타임 경로에서 제거됨
+
+
+### - [ ] T-206 Backend Refactor (Contract Orchestrator API)
+**의존**
+- T-203, T-205
+
+**작업**
+- [ ] API를 컨트랙트 상태기반으로 재정의 (`/match/*`, `/session/*`, `/tx/*`)
+- [ ] 트랜잭션 제출/재시도/중복요청(idempotency) 처리 강화
+- [ ] 인덱서 데이터 미도착 시 fallback 조회 정책 구현
+- [ ] WebSocket 이벤트를 온체인 상태 변화 기준으로 표준화
+
+**산출물**
+- 서버 라우트/서비스 리팩토링
+- API 계약서(OpenAPI or 문서)
+
+**완료조건**
+- FE가 서버 API만으로 온체인 진행상태를 안정적으로 표시 가능
+- 중복 요청에도 상태 일관성 유지
+
+
+### - [ ] T-207 Frontend Web3 Refactor (Contract-first UX)
+**의존**
+- T-203, T-206
+
+**작업**
+- [ ] 지갑 네트워크 가드(테스트넷 강제/스위치 가이드) 추가
+- [ ] 매치 생성/참가/입금/정산 상태를 컨트랙트 기준으로 렌더링
+- [ ] 실패/지연/재시도 UX 일관화
+- [ ] Proof 화면에 컨트랙트 이벤트 출처를 명확히 표시
+
+**산출물**
+- `apps/client` 주요 페이지 업데이트 (Home/FreeRun/Duel/Proof)
+
+**완료조건**
+- 신규 유저가 FE만으로 입금~정산 흐름을 따라갈 수 있음
+- 상태가 새로고침 후에도 복구됨(서버/인덱서 조회)
+
+
+### - [ ] T-208 Frontend Realtime Integration (Indexer-fed)
+**의존**
+- T-204, T-207
+
+**작업**
+- [ ] Tx timeline/매치 상태를 indexer 데이터 소스로 통합
+- [ ] WebSocket + polling 하이브리드(연결 불안정 대비) 구성
+- [ ] Race/Settlement 이벤트 지연 시간 측정 UI 추가(디버그용)
+
+**산출물**
+- 실시간 상태 동기화 모듈
+- 지연 시간 표시(옵션) UI
+
+**완료조건**
+- 이벤트 유실 없이 상태 동기화
+- 목표 반영 지연(체인 포함) SLA 정의 및 측정 가능
+
+
+### - [ ] T-209 Deploy Blueprint (Vercel + Railway + Postgres)
+**의존**
+- T-204, T-206, T-207
+
+**작업**
+- [ ] Railway 서비스 분리: `api`, `indexer`, `postgres`
+- [ ] Vercel 환경변수: API URL / Network / Contract Address 반영
+- [ ] `deploy/*.template`와 체크리스트를 인턴 실행 기준으로 재작성
+- [ ] `DEPLOY.md`는 로컬 전용 runbook으로 유지(.gitignore 확인)
+
+**산출물**
+- 업데이트된 `deploy/INTERN_DEPLOY_CHECKLIST.md`
+- Railway/Vercel env template 최신화
+- 로컬 `DEPLOY.md` (git 미포함)
+
+**완료조건**
+- 새 인턴 1명이 문서만으로 `contract testnet + FE + BE + indexer` 배포 성공
+- `deploy/smoke-test.sh` 통과
+
+
+### - [ ] T-210 Demo Readiness Pack (Wallet/Token/Runbook)
+**의존**
+- T-209
+
+**작업**
+- [ ] 테스트넷 지갑 권장안(브라우저 확장/백업 지갑)과 준비 절차 문서화
+- [ ] 데모 전 필요 토큰/가스/펀딩 체크리스트 작성
+- [ ] 장애 대응 runbook(지갑 오류, RPC 장애, 인덱서 지연, 재배포) 정리
+- [ ] 데모 리허설 시나리오(15분/5분 버전) 준비
+
+**산출물**
+- `deploy/INTERN_DEPLOY_CHECKLIST.md`의 데모 섹션 강화
+- `docs/DEMO_SCRIPT.md` v2 업데이트
+
+**완료조건**
+- 인턴이 별도 구두 설명 없이 리허설 가능
+- 데모 중단 상황별 대응 절차가 문서에 명시됨
