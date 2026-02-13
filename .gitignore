@@ -19,3 +19,6 @@ coverage
 *.db-wal
 *.db-shm
 apps/server/data/
+
+# Local deployment runbook (do not commit)
+DEPLOY.md
