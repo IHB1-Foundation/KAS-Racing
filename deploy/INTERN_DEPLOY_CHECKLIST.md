@@ -1,58 +1,150 @@
-# Intern Deploy Checklist (Testnet)
+# KAS Racing — Intern Deploy Checklist (Testnet)
 
-## 1) 사전 준비
+> **Goal**: Deploy 4 services — **Postgres** + **API server** + **Chain Indexer** on Railway, and **Client (FE)** on Vercel — from scratch, using this document alone.
 
-- [ ] `deploy/railway.env.template` 값 준비
-- [ ] `deploy/vercel.env.template` 값 준비
-- [ ] 테스트넷 KAS를 `TREASURY_CHANGE_ADDRESS`로 송금
-- [ ] Railway 프로젝트 생성 + 이 레포 연결
-- [ ] Vercel 프로젝트 생성 + 이 레포 연결
+---
 
-## 2) Railway (Server)
+## 0) Prerequisites
 
-- [ ] Railway Service가 `railway.json` + `apps/server/Dockerfile`로 빌드되는지 확인
-- [ ] Railway Postgres를 프로젝트에 추가/연결
-- [ ] `DATABASE_URL=${{Postgres.DATABASE_URL}}` 형식으로 연결했는지 확인 (서비스명 다르면 `Postgres` 교체)
-- [ ] `deploy/railway.env.template`의 변수를 Railway Variables에 입력
-- [ ] 배포 후 `https://<railway-domain>/api/health`가 `200`인지 확인
+| Item | Where to get it |
+|------|----------------|
+| Railway account | <https://railway.com> (free Hobby tier is fine) |
+| Vercel account | <https://vercel.app> |
+| GitHub access | Fork or collaborator access to this repo |
+| Kaspa testnet faucet KAS | <https://faucet.kaspanet.io/> |
+| Treasury / Oracle private keys | Generate with `kaspa-wasm` or any Kaspa wallet (64 hex chars each) |
+| Treasury change address | The testnet address for the treasury wallet |
 
-## 3) Vercel (Client)
+---
 
-- [ ] `deploy/vercel.env.template`의 변수를 Vercel Variables에 입력
-- [ ] 프로덕션 배포 수행
-- [ ] Vercel 도메인을 Railway의 `CORS_ORIGIN`에 반영했는지 재확인
+## 1) Railway Project Setup
 
-## 4) 통합 확인
+### 1-A. Create Project
 
-- [ ] 브라우저에서 FE 접속 가능
-- [ ] 지갑 연결 가능 (testnet)
-- [ ] Free Run 시작 후 checkpoint에서 서버 호출 성공
-- [ ] `/proof` 페이지에서 txid 조회 가능
+- [ ] Log in to Railway → **New Project** → **Empty Project**
+- [ ] Give it a name (e.g. `kas-racing-testnet`)
 
-## 5) 자동 스모크 테스트
+### 1-B. Add Postgres
 
-배포가 끝나면 아래 실행:
+- [ ] Inside the project, click **+ New** → **Database** → **PostgreSQL**
+- [ ] Note the service name (default: `Postgres`). If you rename it, update `${{Postgres.DATABASE_URL}}` references in env templates accordingly.
+- [ ] No extra config needed — Railway provisions the DB automatically.
+
+### 1-C. Deploy API Service
+
+- [ ] **+ New** → **GitHub Repo** → select this repo
+- [ ] Service name: `api`
+- [ ] Settings → **Root Directory**: leave blank (root)
+- [ ] Settings → **Config path**: `railway.json` (already in repo root, points to `apps/server/Dockerfile`)
+- [ ] Go to **Variables** tab and paste every line from `deploy/railway.api.env.template`, replacing placeholders:
+  - `TREASURY_PRIVATE_KEY` — your 64 hex char key
+  - `TREASURY_CHANGE_ADDRESS` — `kaspatest:qz...`
+  - `ORACLE_PRIVATE_KEY` — your 64 hex char key
+  - `CORS_ORIGIN` — will be set after Vercel deploy (come back to fill this)
+  - `DATABASE_URL` — use `${{Postgres.DATABASE_URL}}` (Railway template variable)
+- [ ] Deploy and wait for health check: `GET /api/health` returns `200`
+- [ ] Copy the Railway public domain (e.g. `https://api-production-xxxx.up.railway.app`)
+
+### 1-D. Deploy Indexer Service
+
+- [ ] **+ New** → **GitHub Repo** → select this repo (same repo, second service)
+- [ ] Service name: `indexer`
+- [ ] Settings → **Root Directory**: leave blank
+- [ ] Settings → **Config path**: `deploy/railway.indexer.json`
+- [ ] Go to **Variables** tab and paste every line from `deploy/railway.indexer.env.template`, replacing placeholders:
+  - `DATABASE_URL` — use `${{Postgres.DATABASE_URL}}`
+  - `WATCH_ADDRESSES` — treasury address + any escrow addresses (comma-separated)
+- [ ] Deploy and check logs: should see `[indexer] Indexer running.`
+
+---
+
+## 2) Vercel (Client / FE)
+
+- [ ] Log in to Vercel → **Add New** → **Project** → **Import Git Repository** → select this repo
+- [ ] Framework Preset: **Vite** (should auto-detect from `vercel.json`)
+- [ ] Root Directory: leave as `/` (Vercel reads `vercel.json` from root)
+- [ ] Go to **Settings → Environment Variables** and add each variable from `deploy/vercel.env.template`:
+  - `VITE_API_URL` — paste the Railway API domain from step 1-C
+  - `VITE_NETWORK` — `testnet`
+  - `VITE_EXPLORER_URL` — `https://explorer-tn11.kaspa.org`
+  - `VITE_COVENANT_ENABLED` — `true`
+- [ ] Deploy
+- [ ] Copy the Vercel domain (e.g. `https://kas-racing.vercel.app`)
+
+---
+
+## 3) Post-deploy Wiring
+
+- [ ] Go back to Railway → `api` service → **Variables**
+- [ ] Set `CORS_ORIGIN` to the Vercel domain from step 2
+- [ ] Redeploy the `api` service (or it auto-deploys on variable change)
+
+---
+
+## 4) Integration Checks (Manual)
+
+- [ ] Open browser → Vercel URL → Home page loads
+- [ ] Connect wallet (testnet)
+- [ ] Start **Free Run** → collect checkpoint → server call succeeds (check Network tab / HUD)
+- [ ] Go to `/proof` → txid lookup works
+- [ ] (Optional) Start a **Duel** → deposit → settle → check HUD timeline
+
+---
+
+## 5) Automated Smoke Test
+
+After both services are up, run:
 
 ```bash
 bash deploy/smoke-test.sh \
-  https://<railway-domain> \
-  https://<vercel-domain>
+  https://<railway-api-domain> \
+  https://<vercel-domain> \
+  https://<railway-api-domain>
 ```
 
-모든 항목이 `PASS`여야 완료로 간주.
+> Third argument (indexer URL) is optional if indexer shares the same host.
+> All items must show `PASS`.
 
-## 6) 핸드오버 보고 템플릿
+---
 
-아래 형식으로 보고:
+## 6) Handover Report Template
+
+Copy-paste this and fill in:
 
 ```text
-[KAS Racing Deploy Report]
-- Railway URL: https://...
-- Vercel URL: https://...
-- Health Check: PASS/FAIL
-- Session API Smoke: PASS/FAIL
-- CORS Check: PASS/FAIL
-- FE Reachability: PASS/FAIL
-- Free Run Manual Test: PASS/FAIL
-- Proof Page Manual Test: PASS/FAIL
+[KAS Racing Deploy Report — Testnet]
+Date: YYYY-MM-DD
+Deployer: your-name
+
+Railway Project: https://railway.com/project/...
+- API URL:     https://...
+- Indexer:     (same project, check logs)
+- Postgres:    (managed by Railway)
+
+Vercel URL:    https://...
+
+Smoke Test Results:
+- Health Check:       PASS / FAIL
+- Session API:        PASS / FAIL
+- CORS:               PASS / FAIL
+- FE Reachability:    PASS / FAIL
+- Indexer Log Check:  PASS / FAIL
+
+Manual Tests:
+- Free Run:           PASS / FAIL
+- Proof Page:         PASS / FAIL
+- Duel (optional):    PASS / FAIL
 ```
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| API `/health` returns 500 | Check `DATABASE_URL` is correctly linked. Check Railway logs for migration errors. |
+| CORS error in browser | Ensure `CORS_ORIGIN` in API service matches exact Vercel domain (include `https://`). |
+| Indexer exits immediately | Check `DATABASE_URL` and `WATCH_ADDRESSES` env vars are set. |
+| FE shows "connecting..." | Verify `VITE_API_URL` points to Railway API domain. Redeploy Vercel after changing env vars. |
+| Wallet won't connect | Ensure wallet is on **testnet**. Check `VITE_NETWORK=testnet`. |
+| No tx events in Proof page | Ensure indexer is running and `WATCH_ADDRESSES` includes the relevant address. |

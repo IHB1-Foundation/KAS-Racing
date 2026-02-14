@@ -1932,15 +1932,15 @@ pnpm --filter @kas-racing/client dev
 - 없음
 
 
-### - [ ] T-209 Deploy Blueprint (Vercel + Railway + Postgres)
+### - [x] T-209 Deploy Blueprint (Vercel + Railway + Postgres)
 **의존**
 - T-204, T-206, T-207
 
 **작업**
-- [ ] Railway 서비스 분리: `api`, `indexer`, `postgres`
-- [ ] Vercel 환경변수: API URL / Network / Contract Address 반영
-- [ ] `deploy/*.template`와 체크리스트를 인턴 실행 기준으로 재작성
-- [ ] `DEPLOY.md`는 로컬 전용 runbook으로 유지(.gitignore 확인)
+- [x] Railway 서비스 분리: `api`, `indexer`, `postgres`
+- [x] Vercel 환경변수: API URL / Network / Contract Address 반영
+- [x] `deploy/*.template`와 체크리스트를 인턴 실행 기준으로 재작성
+- [x] `DEPLOY.md`는 로컬 전용 runbook으로 유지(.gitignore 확인)
 
 **산출물**
 - 업데이트된 `deploy/INTERN_DEPLOY_CHECKLIST.md`
@@ -1950,6 +1950,29 @@ pnpm --filter @kas-racing/client dev
 **완료조건**
 - 새 인턴 1명이 문서만으로 `contract testnet + FE + BE + indexer` 배포 성공
 - `deploy/smoke-test.sh` 통과
+
+**변경 요약**
+- `apps/indexer/Dockerfile`: 멀티 스테이지 Node 20-alpine 빌드 (indexer 전용)
+- `deploy/railway.api.env.template`: API 서비스 전용 환경변수 (contract config 포함)
+- `deploy/railway.indexer.env.template`: Indexer 서비스 전용 환경변수
+- `deploy/railway.indexer.json`: Indexer Railway 서비스 설정 (Dockerfile 경로)
+- `deploy/vercel.env.template`: `VITE_EXPLORER_URL`, `VITE_COVENANT_ENABLED` 추가
+- `deploy/INTERN_DEPLOY_CHECKLIST.md`: 3-service 기준 전면 재작성 (Prerequisites, Railway setup, Vercel, Post-deploy wiring, Troubleshooting)
+- `deploy/smoke-test.sh`: 5-step 체크 (indexer optional), 결과 집계, `rg` → `grep` 호환성 개선
+- `deploy/railway.env.template`: deprecated 안내로 교체
+- `DEPLOY.md`: 로컬 전용 runbook 생성 (git-ignored)
+
+**실행 방법**
+```bash
+# Smoke test (배포 후)
+bash deploy/smoke-test.sh https://<railway-api> https://<vercel> [https://<indexer>]
+
+# 전체 배포 절차
+cat deploy/INTERN_DEPLOY_CHECKLIST.md
+```
+
+**Notes/Blockers**
+- 인덱서는 HTTP 엔드포인트 없는 백그라운드 워커 → smoke test에서 수동 로그 확인 필요
 
 
 ### - [ ] T-210 Demo Readiness Pack (Wallet/Token/Runbook)
