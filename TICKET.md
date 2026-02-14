@@ -1616,14 +1616,14 @@ const payload = generatePayload({
 - 없음
 
 
-### - [ ] T-201 Contract Workspace Bootstrap (Testnet Target)
+### - [x] T-201 Contract Workspace Bootstrap (Testnet Target)
 **의존**
 - T-200
 
 **작업**
-- [ ] 컨트랙트 전용 워크스페이스(`apps/contracts` 또는 `packages/contracts`) 구성
-- [ ] 빌드/테스트/배포 스크립트 표준화 (`build`, `test`, `deploy:testnet`)
-- [ ] ABI/스크립트 산출물 버전 관리 정책 정의 (`deployments/*` JSON)
+- [x] 컨트랙트 전용 워크스페이스(`apps/contracts` 또는 `packages/contracts`) 구성
+- [x] 빌드/테스트/배포 스크립트 표준화 (`build`, `test`, `deploy:testnet`)
+- [x] ABI/스크립트 산출물 버전 관리 정책 정의 (`deployments/*` JSON)
 
 **산출물**
 - 컨트랙트 패키지 + 기본 테스트
@@ -1632,6 +1632,30 @@ const payload = generatePayload({
 **완료조건**
 - CI 또는 로컬에서 컨트랙트 테스트 1회 이상 성공
 - 배포 스크립트로 테스트넷 드라이런 가능
+
+**변경 요약**
+- `apps/contracts/` 워크스페이스 생성: `@kas-racing/contracts` 패키지
+- 서버 escrow 도메인 로직 마이그레이션: types, opcodes, scriptBuilder, settlementTxBuilder
+- settlementTxBuilder를 서버 config 의존 제거 (SettlementConfig 파라미터 주입 방식)
+- 18개 유닛 테스트: opcodes, defaults, canUseCovenantSettlement, calculateOutputs, theft-resistance
+- `deploy:testnet` 스크립트: 키 검증 + 배포 산출물 생성 (dry-run 기본)
+- `deployments/` 디렉터리: 네트워크별 `latest.json` + 스키마 v1 문서
+
+**실행 방법**
+```bash
+# 테스트
+cd apps/contracts && pnpm test
+
+# 빌드
+pnpm build
+
+# 테스트넷 드라이런
+ORACLE_PRIVATE_KEY=... TREASURY_PRIVATE_KEY=... TREASURY_CHANGE_ADDRESS=kaspatest:... \
+  pnpm deploy:testnet
+```
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-202 Escrow/Settlement Contract 구현
