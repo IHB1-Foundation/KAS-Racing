@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "network": "mainnet",
+  "oraclePubkey": "",
+  "treasuryAddress": "",
+  "refundLocktimeBlocks": 1000,
+  "covenantEnabled": false,
+  "apiBaseUrl": "https://api.kaspa.org",
+  "explorerBaseUrl": "https://explorer.kaspa.org",
+  "deployedAt": "",
+  "gitCommit": "",
+  "notes": "Mainnet covenant not yet active. Fallback mode only."
+}

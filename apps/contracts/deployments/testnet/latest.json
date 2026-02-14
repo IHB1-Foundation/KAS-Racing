@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "network": "testnet",
+  "oraclePubkey": "",
+  "treasuryAddress": "",
+  "refundLocktimeBlocks": 1000,
+  "covenantEnabled": true,
+  "apiBaseUrl": "https://api-tn11.kaspa.org",
+  "explorerBaseUrl": "https://explorer-tn11.kaspa.org",
+  "deployedAt": "",
+  "gitCommit": "",
+  "notes": "Not yet deployed. Run `pnpm deploy:testnet` to populate."
+}
