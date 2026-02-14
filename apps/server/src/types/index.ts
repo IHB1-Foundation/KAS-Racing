@@ -51,15 +51,50 @@ export interface TxStatusInfo {
   confirmations: number;
 }
 
+// On-chain state change event (standardized for all entity types)
+export interface ChainStateEvent {
+  entityType: 'reward' | 'deposit' | 'settlement';
+  entityId: string; // sessionId, matchId, or depositId
+  txid: string;
+  oldStatus: TxStatus;
+  newStatus: TxStatus;
+  timestamps: {
+    broadcasted?: number;
+    accepted?: number;
+    included?: number;
+    confirmed?: number;
+  };
+  confirmations: number;
+  source: 'indexer' | 'api' | 'db';
+}
+
+// Match state change event (high-level match lifecycle)
+export interface MatchStateEvent {
+  matchId: string;
+  oldStatus: string;
+  newStatus: string;
+  deposits: {
+    A: { txid: string | null; status: string | null };
+    B: { txid: string | null; status: string | null };
+  };
+  settlement: { txid: string | null; status: string | null } | null;
+  winner: string | null;
+  scores: { A: number | null; B: number | null };
+}
+
 // WebSocket event types
 export interface WsEvents {
   // Server -> Client
   txStatusUpdated: (data: TxStatusInfo) => void;
   sessionEventAck: (data: SessionEventResult & { seq: number }) => void;
+  chainStateChanged: (data: ChainStateEvent) => void;
+  matchStateChanged: (data: MatchStateEvent) => void;
 
   // Client -> Server
   subscribe: (data: { sessionId: string }) => void;
   unsubscribe: (data: { sessionId: string }) => void;
+  subscribeMatch: (data: { matchId: string }) => void;
+  unsubscribeMatch: (data: { matchId: string }) => void;
 }
 
 // API Request/Response types

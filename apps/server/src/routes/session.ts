@@ -2,7 +2,8 @@ import { Router, type Request, type Response, type RequestHandler } from 'expres
 import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { db, sessions, type NewSession } from '../db/index.js';
-import { processRewardRequest } from '../services/rewardService.js';
+import { processRewardRequest, getSessionEvents } from '../services/rewardService.js';
+import { getChainEventsBySessionId } from '../services/chainQueryService.js';
 import type {
   SessionPolicy,
   StartSessionRequest,
@@ -249,6 +250,68 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('[session] Failed to get session:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}));
+
+/**
+ * GET /api/session/:id/events
+ * Get all reward events for a session with on-chain status
+ */
+router.get('/:id/events', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'Session ID is required' });
+      return;
+    }
+
+    // Get reward events from DB
+    const events = await getSessionEvents(id);
+
+    // Get chain events from indexer for this session
+    const chainEvents = await getChainEventsBySessionId(id);
+
+    // Build chain event lookup by txid for enrichment
+    const chainEventMap = new Map<string, typeof chainEvents[0]>();
+    for (const ce of chainEvents) {
+      chainEventMap.set(ce.txid, ce);
+    }
+
+    // Enrich reward events with chain data
+    const enrichedEvents = events.map(event => {
+      const chainEvent = event.txid ? chainEventMap.get(event.txid) : null;
+      return {
+        id: event.id,
+        seq: event.seq,
+        type: event.type,
+        rewardAmount: event.rewardAmount,
+        txid: event.txid,
+        txStatus: event.txStatus,
+        timestamps: {
+          created: event.createdAt instanceof Date ? event.createdAt.getTime() : event.createdAt,
+          broadcasted: event.broadcastedAt instanceof Date ? event.broadcastedAt.getTime() : event.broadcastedAt,
+          accepted: event.acceptedAt instanceof Date ? event.acceptedAt.getTime() : event.acceptedAt,
+          included: event.includedAt instanceof Date ? event.includedAt.getTime() : event.includedAt,
+          confirmed: event.confirmedAt instanceof Date ? event.confirmedAt.getTime() : event.confirmedAt,
+        },
+        chain: chainEvent ? {
+          source: 'indexer' as const,
+          daaScore: chainEvent.daaScore?.toString() ?? null,
+          confirmations: chainEvent.confirmations,
+          payload: chainEvent.payload,
+          indexedAt: chainEvent.indexedAt instanceof Date ? chainEvent.indexedAt.getTime() : chainEvent.indexedAt,
+        } : null,
+      };
+    });
+
+    res.json({
+      sessionId: id,
+      events: enrichedEvents,
+      total: enrichedEvents.length,
+    });
+  } catch (error) {
+    console.error('[session] Failed to get session events:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }));

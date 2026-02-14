@@ -1,6 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import type { TxStatusInfo, SessionEventResult } from '../types/index.js';
+import type { TxStatusInfo, SessionEventResult, ChainStateEvent, MatchStateEvent } from '../types/index.js';
 import type { Match } from '../db/schema.js';
 
 let io: Server | null = null;
@@ -165,6 +165,30 @@ export function emitMatchUpdated(
     settleTxid: match.settleTxid,
     settleStatus: match.settleStatus,
   });
+}
+
+/**
+ * Emit chainStateChanged to clients subscribed to a session or match.
+ * Routes to the appropriate room based on entityType.
+ */
+export function emitChainStateChanged(event: ChainStateEvent): void {
+  if (!io) return;
+
+  if (event.entityType === 'reward') {
+    // Reward events belong to sessions
+    io.to(`session:${event.entityId}`).emit('chainStateChanged', event);
+  } else {
+    // Deposit/settlement events belong to matches
+    io.to(`match:${event.entityId}`).emit('chainStateChanged', event);
+  }
+}
+
+/**
+ * Emit matchStateChanged to clients subscribed to a match.
+ */
+export function emitMatchStateChanged(event: MatchStateEvent): void {
+  if (!io) return;
+  io.to(`match:${event.matchId}`).emit('matchStateChanged', event);
 }
 
 /**

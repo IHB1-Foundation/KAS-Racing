@@ -69,6 +69,7 @@ vi.mock('../db/index.js', async () => {
 // Mock the WebSocket emit
 vi.mock('../ws/index.js', () => ({
   emitTxStatusUpdated: vi.fn(),
+  emitChainStateChanged: vi.fn(),
 }));
 
 // Mock the config

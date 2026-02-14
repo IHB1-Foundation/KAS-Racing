@@ -1812,15 +1812,15 @@ DATABASE_URL=postgres://... pnpm --filter @kas-racing/server dev
 - 테스트 파일(txStatusService.test.ts)에 SQLite 참조 잔존 → 런타임엔 영향 없음, 테스트 리팩토링은 T-206에서 처리
 
 
-### - [ ] T-206 Backend Refactor (Contract Orchestrator API)
+### - [x] T-206 Backend Refactor (Contract Orchestrator API)
 **의존**
 - T-203, T-205
 
 **작업**
-- [ ] API를 컨트랙트 상태기반으로 재정의 (`/match/*`, `/session/*`, `/tx/*`)
-- [ ] 트랜잭션 제출/재시도/중복요청(idempotency) 처리 강화
-- [ ] 인덱서 데이터 미도착 시 fallback 조회 정책 구현
-- [ ] WebSocket 이벤트를 온체인 상태 변화 기준으로 표준화
+- [x] API를 컨트랙트 상태기반으로 재정의 (`/match/*`, `/session/*`, `/tx/*`)
+- [x] 트랜잭션 제출/재시도/중복요청(idempotency) 처리 강화
+- [x] 인덱서 데이터 미도착 시 fallback 조회 정책 구현
+- [x] WebSocket 이벤트를 온체인 상태 변화 기준으로 표준화
 
 **산출물**
 - 서버 라우트/서비스 리팩토링
@@ -1829,6 +1829,38 @@ DATABASE_URL=postgres://... pnpm --filter @kas-racing/server dev
 **완료조건**
 - FE가 서버 API만으로 온체인 진행상태를 안정적으로 표시 가능
 - 중복 요청에도 상태 일관성 유지
+
+**변경 요약**
+- `services/idempotencyService.ts`: idempotency_keys 테이블 기반 중복 TX 제출 방지 서비스
+- `services/chainQueryService.ts`: chain_events(indexer) 우선, REST API fallback 조회 통합 서비스
+- `routes/match.ts`: v2 deposits/settlements 테이블 연동, matchToEnrichedResponse, idempotency 적용, `/chain-events` 엔드포인트 추가
+- `routes/session.ts`: `GET /:id/events` 엔드포인트 추가 (reward events + chain 상태 enrichment)
+- `routes/tx.ts`: chain_events(indexer) → REST API fallback 순서로 조회, source 필드 포함
+- `ws/index.ts`: `chainStateChanged`, `matchStateChanged` 표준 이벤트 추가
+- `types/index.ts`: `ChainStateEvent`, `MatchStateEvent` 타입 정의, WsEvents 확장
+- `services/txStatusService.ts`: reward 상태 변경 시 chainStateChanged emit
+- `services/depositTrackingService.ts`: deposit/settlement 변경 시 v2 테이블 동기화 + chainStateChanged/matchStateChanged emit
+- `services/txStatusService.test.ts`: emitChainStateChanged mock 추가
+
+**실행 방법**
+```bash
+# 빌드
+pnpm --filter @kas-racing/server build
+
+# 테스트
+pnpm --filter @kas-racing/server test
+
+# 주요 API 엔드포인트
+GET  /api/match/:id              # enriched (deposits[], settlement 포함)
+GET  /api/match/:id/chain-events # 인덱서 chain events
+GET  /api/session/:id/events     # reward events + chain enrichment
+GET  /api/tx/:txid/status        # source: db|indexer|api|stub
+POST /api/match/:id/deposit      # idempotency key 적용
+```
+
+**Notes/Blockers**
+- DB 연결 필요한 테스트(session/match/deposit/settlement routes)는 DATABASE_URL 없이 실패 — 기존 문제, 테스트 DB mock 리팩토링은 별도 처리
+- API 문서(OpenAPI)는 별도 티켓에서 자동생성 가능
 
 
 ### - [ ] T-207 Frontend Web3 Refactor (Contract-first UX)

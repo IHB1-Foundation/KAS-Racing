@@ -6,9 +6,9 @@
  */
 
 import { eq, and, inArray, or, isNotNull } from 'drizzle-orm';
-import { db, matches, type Match } from '../db/index.js';
+import { db, matches, deposits, type Match } from '../db/index.js';
 import { fetchTxStatus } from './txStatusService.js';
-import { emitMatchUpdated } from '../ws/index.js';
+import { emitMatchUpdated, emitChainStateChanged, emitMatchStateChanged } from '../ws/index.js';
 import type { TxStatus } from '../types/index.js';
 
 // Minimum status required for a deposit to be considered "confirmed enough"
@@ -132,13 +132,63 @@ export async function updateMatchDepositStatus(
 
   console.log(`[depositTracking] Match ${matchId} player ${player} deposit: ${oldStatus} → ${newStatus}`);
 
+  // Also update v2 deposits table if it has a row
+  try {
+    await db
+      .update(deposits)
+      .set({
+        txStatus: newStatus,
+        ...(newStatus === 'accepted' ? { acceptedAt: new Date() } : {}),
+        ...(newStatus === 'included' ? { includedAt: new Date() } : {}),
+        ...(newStatus === 'confirmed' ? { confirmedAt: new Date() } : {}),
+      })
+      .where(
+        and(
+          eq(deposits.matchId, matchId),
+          eq(deposits.player, player)
+        )
+      );
+  } catch {
+    // v2 deposit row may not exist yet — that's fine
+  }
+
   // Check if match should transition to 'ready'
   const matchReadyChanged = await checkAndUpdateMatchReady(matchId);
 
-  // Emit WebSocket update
+  // Emit WebSocket updates
   const updatedMatch = await getMatch(matchId);
   if (updatedMatch) {
     emitMatchUpdated(matchId, updatedMatch);
+
+    // Emit standardized chain state event
+    emitChainStateChanged({
+      entityType: 'deposit',
+      entityId: matchId,
+      txid,
+      oldStatus: (oldStatus ?? 'broadcasted') as TxStatus,
+      newStatus,
+      timestamps: {
+        broadcasted: Date.now(),
+      },
+      confirmations: newStatus === 'confirmed' ? 10 : 0,
+      source: 'db',
+    });
+
+    // If match state changed (ready), emit match state change
+    if (matchReadyChanged) {
+      emitMatchStateChanged({
+        matchId,
+        oldStatus: 'deposits_pending',
+        newStatus: 'ready',
+        deposits: {
+          A: { txid: updatedMatch.playerADepositTxid, status: updatedMatch.playerADepositStatus },
+          B: { txid: updatedMatch.playerBDepositTxid, status: updatedMatch.playerBDepositStatus },
+        },
+        settlement: null,
+        winner: null,
+        scores: { A: null, B: null },
+      });
+    }
   }
 
   return {
@@ -339,10 +389,24 @@ export async function updateMatchSettlementStatus(
 
   console.log(`[settlementTracking] Match ${matchId} settle status: ${oldStatus} → ${newStatus}`);
 
-  // Emit WebSocket update
+  // Emit WebSocket updates
   const updatedMatch = await getMatch(matchId);
   if (updatedMatch) {
     emitMatchUpdated(matchId, updatedMatch);
+
+    // Emit standardized chain state event
+    emitChainStateChanged({
+      entityType: 'settlement',
+      entityId: matchId,
+      txid,
+      oldStatus: (oldStatus ?? 'broadcasted') as TxStatus,
+      newStatus,
+      timestamps: {
+        broadcasted: Date.now(),
+      },
+      confirmations: newStatus === 'confirmed' ? 10 : 0,
+      source: 'db',
+    });
   }
 
   return {

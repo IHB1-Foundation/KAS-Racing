@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type RequestHandler } from 'express';
 import type { TxStatus, TxStatusResponse } from '../types/index.js';
-import { getTxStatusFromDb, fetchTxStatus } from '../services/txStatusService.js';
+import { getTxStatusFromDb } from '../services/txStatusService.js';
+import { getChainTxInfo } from '../services/chainQueryService.js';
 import { getKaspaRestClient } from '../tx/kaspaRestClient.js';
 import { getConfig } from '../config/index.js';
 
@@ -26,11 +27,10 @@ router.get('/:txid/status', asyncHandler(async (req: Request, res: Response) => 
     return;
   }
 
-  // First, check if we have this tx in database
+  // 1) Check reward_events table (DB tracking)
   const dbEvent = await getTxStatusFromDb(txid);
 
   if (dbEvent) {
-    // Return status from database
     const response: TxStatusResponse = {
       txid,
       status: dbEvent.txStatus as TxStatus,
@@ -42,48 +42,38 @@ router.get('/:txid/status', asyncHandler(async (req: Request, res: Response) => 
       },
       confirmations: dbEvent.txStatus === 'confirmed' ? 10 : 0,
     };
-    res.json(response);
+    res.json({ ...response, source: 'db' });
     return;
   }
 
-  // For stub txids (test mode), simulate progression
+  // 2) For stub txids (test mode), simulate progression
   if (txid.startsWith('stub_') || txid.startsWith('test-txid-')) {
     const stubResponse = getStubTxStatus(txid);
     if (stubResponse) {
-      res.json(stubResponse);
+      res.json({ ...stubResponse, source: 'stub' });
       return;
     }
   }
 
-  // If not in DB and not a stub, try fetching from REST API
+  // 3) Check chain_events (indexer) then fall back to REST API
   try {
-    const apiResult = await fetchTxStatus(txid);
+    const chainInfo = await getChainTxInfo(txid);
 
-    if (apiResult.error && !apiResult.accepted) {
+    if (!chainInfo) {
       res.status(404).json({ error: 'Transaction not found' });
       return;
     }
 
-    // Determine status from API result
-    let status: TxStatus = 'broadcasted';
-    if (apiResult.confirmations && apiResult.confirmations >= 10) {
-      status = 'confirmed';
-    } else if (apiResult.included) {
-      status = 'included';
-    } else if (apiResult.accepted) {
-      status = 'accepted';
-    }
-
     const response: TxStatusResponse = {
       txid,
-      status,
+      status: chainInfo.status,
       timestamps: {
-        broadcasted: Date.now(), // Unknown, use current
+        broadcasted: Date.now(),
       },
-      confirmations: apiResult.confirmations ?? 0,
+      confirmations: chainInfo.confirmations,
     };
 
-    res.json(response);
+    res.json({ ...response, source: chainInfo.source });
 
   } catch (error) {
     console.error(`[tx] Error fetching status for ${txid}:`, error);

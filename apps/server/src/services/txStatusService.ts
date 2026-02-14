@@ -9,7 +9,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { db, rewardEvents, type RewardEvent } from '../db/index.js';
 import { getKaspaRestClient } from '../tx/kaspaRestClient.js';
 import { getConfig } from '../config/index.js';
-import { emitTxStatusUpdated } from '../ws/index.js';
+import { emitTxStatusUpdated, emitChainStateChanged } from '../ws/index.js';
 import type { TxStatus } from '../types/index.js';
 
 // Minimum confirmations to consider a tx fully confirmed
@@ -210,15 +210,35 @@ export async function updateTxStatus(event: RewardEvent): Promise<{
 
   console.log(`[txStatus] Updated ${event.txid}: ${oldStatus} → ${newStatus}`);
 
-  // Emit WebSocket event
+  const timestamps = {
+    broadcasted: event.broadcastedAt?.getTime(),
+    accepted: updateData.acceptedAt?.getTime() ?? event.acceptedAt?.getTime(),
+    included: updateData.includedAt?.getTime() ?? event.includedAt?.getTime(),
+    confirmed: updateData.confirmedAt?.getTime() ?? event.confirmedAt?.getTime(),
+  };
+  const confirmations = newStatus === 'confirmed' ? 10 : 0;
+
+  // Emit legacy txStatusUpdated event
   emitTxStatusUpdated(event.sessionId, {
     txid: event.txid,
     status: newStatus,
-    broadcastedAt: event.broadcastedAt?.getTime(),
-    acceptedAt: updateData.acceptedAt?.getTime() ?? event.acceptedAt?.getTime(),
-    includedAt: updateData.includedAt?.getTime() ?? event.includedAt?.getTime(),
-    confirmedAt: updateData.confirmedAt?.getTime() ?? event.confirmedAt?.getTime(),
-    confirmations: newStatus === 'confirmed' ? 10 : 0,
+    broadcastedAt: timestamps.broadcasted,
+    acceptedAt: timestamps.accepted,
+    includedAt: timestamps.included,
+    confirmedAt: timestamps.confirmed,
+    confirmations,
+  });
+
+  // Emit standardized chainStateChanged event
+  emitChainStateChanged({
+    entityType: 'reward',
+    entityId: event.sessionId,
+    txid: event.txid,
+    oldStatus,
+    newStatus,
+    timestamps,
+    confirmations,
+    source: 'db',
   });
 
   return { updated: true, oldStatus, newStatus };
