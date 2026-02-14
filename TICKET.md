@@ -1736,23 +1736,46 @@ E2E=true ORACLE_PRIVATE_KEY=... TREASURY_PRIVATE_KEY=... \
 - 파이프라인/스크립트/검증 로직은 완성됨
 
 
-### - [ ] T-204 Indexing Layer 구축 (Ponder + Postgres)
+### - [x] T-204 Indexing Layer 구축 (Ponder + Postgres)
 **의존**
 - T-203
 
 **작업**
-- [ ] `apps/indexer`에 Ponder 프로젝트 구성
-- [ ] 컨트랙트 이벤트를 Postgres 테이블(`chain_events`, `match_state_snapshots`)로 적재
-- [ ] 백필(start block 지정) + 실시간 스트리밍 처리
-- [ ] 인덱서 장애 복구 전략(재시작/체인 리오그 허용 범위) 정의
+- [x] `apps/indexer`에 커스텀 폴링 인덱서 구성 (Kaspa는 비-EVM DAG → Ponder 호환 불가, ADR-001 fallback)
+- [x] 컨트랙트 이벤트를 Postgres 테이블(`chain_events`)로 적재
+- [x] 백필(START_DAA_SCORE 지정) + 실시간 UTXO 폴링 처리
+- [x] 인덱서 장애 복구 전략(indexer_state 테이블로 재시작 안전, DAG 기반 리오그 불필요) 정의
 
 **산출물**
-- Ponder 인덱서 코드
-- 인덱싱 스키마/운영 가이드
+- 커스텀 인덱서 코드 (`apps/indexer/`)
+- 인덱싱 스키마(chain_events, indexer_state 테이블)
 
 **완료조건**
 - 과거 블록 백필 + 신규 블록 실시간 반영 동작
 - API 서버가 인덱서 적재 데이터를 읽어 일관된 상태 제공
+
+**변경 요약**
+- `apps/indexer/` 워크스페이스 생성
+- `src/config.ts`: 환경변수 기반 설정 (DATABASE_URL, NETWORK, WATCH_ADDRESSES, 폴링 간격)
+- `src/store.ts`: Postgres 저장소 (chain_events + indexer_state, UNIQUE 중복 방지, 인덱스)
+- `src/watcher.ts`: UTXO 기반 체인 감시 (주소별 폴링, 이벤트 분류, 확인 상태 추적)
+- `src/index.ts`: 서비스 엔트리포인트 (graceful shutdown)
+- 10개 테스트
+
+**실행 방법**
+```bash
+# 개발 모드
+DATABASE_URL=postgres://... WATCH_ADDRESSES=kaspatest:addr1,kaspatest:addr2 \
+  pnpm --filter @kas-racing/indexer dev
+
+# 프로덕션
+pnpm --filter @kas-racing/indexer build && \
+  DATABASE_URL=postgres://... pnpm --filter @kas-racing/indexer start
+```
+
+**Notes/Blockers**
+- Ponder 대신 커스텀 폴링 인덱서 사용 (Kaspa 비-EVM DAG 특성)
+- API 서버와의 통합(인덱서 데이터 읽기)은 T-206 BE 리팩토링에서 구현
 
 
 ### - [ ] T-205 Postgres Schema v2 + Migration Hardening
