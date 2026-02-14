@@ -13,6 +13,13 @@ export type {
   Network,
   SettlementConfig,
   DeploymentArtifact,
+  MatchState,
+  MatchAction,
+  MatchContext,
+  TransitionResult,
+  ValidationResult,
+  RefundRequest,
+  RefundResult,
 } from './types.js';
 
 export { ESCROW_DEFAULTS } from './types.js';
@@ -38,3 +45,26 @@ export {
   canUseCovenantSettlement,
   getEscrowUtxo,
 } from './settlementTxBuilder.js';
+
+// Match State Machine
+export {
+  transition,
+  getValidActions,
+  isTerminal,
+  createMatchContext,
+} from './matchStateMachine.js';
+
+// Validation
+export {
+  validateSettlementOutputs,
+  validateSettlementRequest,
+  validateDeposit,
+  validateRefundEligibility,
+  validateCovenantMode,
+} from './validation.js';
+
+// Refund TX Builder
+export {
+  buildRefundTx,
+  isRefundEligible,
+} from './refundTxBuilder.js';

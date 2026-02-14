@@ -108,3 +108,85 @@ export const ESCROW_DEFAULTS = {
   /** Priority fee in sompi */
   PRIORITY_FEE_SOMPI: BigInt(5000),
 } as const;
+
+// ── Match State Machine ──
+
+export type MatchState =
+  | 'created'
+  | 'waiting_for_opponent'
+  | 'deposits_pending'
+  | 'deposits_confirmed'
+  | 'racing'
+  | 'settling'
+  | 'settled'
+  | 'refunded'
+  | 'cancelled';
+
+export type MatchAction =
+  | 'join'
+  | 'deposit_a'
+  | 'deposit_b'
+  | 'confirm_deposit_a'
+  | 'confirm_deposit_b'
+  | 'start_race'
+  | 'submit_result'
+  | 'settle'
+  | 'request_refund'
+  | 'cancel';
+
+export interface MatchContext {
+  matchId: string;
+  state: MatchState;
+  playerAAddress: string | null;
+  playerBAddress: string | null;
+  playerAPubkey: string | null;
+  playerBPubkey: string | null;
+  betAmountSompi: bigint;
+  depositATxid: string | null;
+  depositBTxid: string | null;
+  depositAConfirmed: boolean;
+  depositBConfirmed: boolean;
+  settleTxid: string | null;
+  refundATxid: string | null;
+  refundBTxid: string | null;
+  escrowMode: EscrowMode;
+  escrowScriptA: string | null;
+  escrowScriptB: string | null;
+  escrowAddressA: string | null;
+  escrowAddressB: string | null;
+  winnerAddress: string | null;
+  createdAtBlock: number;
+  refundLocktimeBlocks: number;
+}
+
+export interface TransitionResult {
+  ok: boolean;
+  newState: MatchState;
+  error?: string;
+}
+
+// ── Validation ──
+
+export interface ValidationResult {
+  valid: boolean;
+  error?: string;
+}
+
+// ── Refund ──
+
+export interface RefundRequest {
+  matchId: string;
+  forPlayer: 'A' | 'B';
+  depositTxid: string;
+  depositIndex: number;
+  depositAmount: bigint;
+  currentDaaScore: number;
+}
+
+export interface RefundResult {
+  txid: string;
+  forPlayer: 'A' | 'B';
+  refundAddress: string;
+  amount: bigint;
+  feeSompi: bigint;
+}

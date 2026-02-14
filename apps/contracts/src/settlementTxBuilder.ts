@@ -13,8 +13,10 @@ import type {
   SettlementRequest,
   SettlementResult,
   SettlementType,
+  MatchContext,
 } from './types.js';
 import { ESCROW_DEFAULTS } from './types.js';
+import { validateSettlementOutputs, validateSettlementRequest } from './validation.js';
 
 const PRIORITY_FEE = ESCROW_DEFAULTS.PRIORITY_FEE_SOMPI;
 
@@ -26,6 +28,7 @@ const API_BASE: Record<string, string> = {
 
 /**
  * Build and broadcast a covenant settlement transaction.
+ * Includes full validation of outputs and match state before building.
  *
  * @param config - Settlement configuration (network, oraclePrivateKey)
  * @param request - Settlement request with escrow UTXOs
@@ -33,6 +36,7 @@ const API_BASE: Record<string, string> = {
  * @param escrowScriptB - Script hex for player B's escrow
  * @param playerAAddress - Player A's address
  * @param playerBAddress - Player B's address
+ * @param ctx - Optional match context for full validation
  */
 export function buildCovenantSettlementTx(
   config: SettlementConfig,
@@ -40,10 +44,19 @@ export function buildCovenantSettlementTx(
   escrowScriptA: string,
   escrowScriptB: string,
   playerAAddress: string,
-  playerBAddress: string
+  playerBAddress: string,
+  ctx?: MatchContext
 ): SettlementResult {
   if (config.network !== 'testnet') {
     throw new Error('Covenant settlement only available on testnet');
+  }
+
+  // Validate match state if context provided
+  if (ctx) {
+    const stateValidation = validateSettlementRequest(request, ctx);
+    if (!stateValidation.valid) {
+      throw new Error(`Settlement validation failed: ${stateValidation.error}`);
+    }
   }
 
   const outputs = calculateOutputs(
@@ -53,6 +66,12 @@ export function buildCovenantSettlementTx(
     playerAAddress,
     playerBAddress
   );
+
+  // Validate outputs only go to match participants (theft resistance)
+  const outputValidation = validateSettlementOutputs(outputs, playerAAddress, playerBAddress);
+  if (!outputValidation.valid) {
+    throw new Error(`Output validation failed: ${outputValidation.error}`);
+  }
 
   const txid = broadcastCovenantTx(
     config,
