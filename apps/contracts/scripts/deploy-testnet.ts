@@ -2,20 +2,20 @@
 /**
  * Testnet Deployment Script
  *
- * Validates configuration, generates deployment artifact, and optionally
- * performs a dry-run escrow address generation to verify the pipeline works.
+ * Validates configuration, generates a sample escrow address pair as proof,
+ * and writes the deployment artifact.
  *
  * Usage:
- *   # Dry run (default) — validates keys + generates artifact
+ *   # Dry run (default) — validates keys + generates artifact + sample escrow
  *   pnpm deploy:testnet
  *
- *   # With actual escrow generation (requires funded wallet)
+ *   # Live mode — also verifies testnet API connectivity
  *   DEPLOY_LIVE=true pnpm deploy:testnet
  *
  * Required env vars:
- *   ORACLE_PRIVATE_KEY    — 64-char hex
- *   TREASURY_PRIVATE_KEY  — 64-char hex
- *   TREASURY_CHANGE_ADDRESS — kaspatest:q... address
+ *   ORACLE_PRIVATE_KEY       — 64-char hex
+ *   TREASURY_PRIVATE_KEY     — 64-char hex
+ *   TREASURY_CHANGE_ADDRESS  — kaspatest:q... address
  */
 
 import * as kaspa from 'kaspa-wasm';
@@ -23,6 +23,7 @@ import { execSync } from 'child_process';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { generateMatchEscrows } from '../src/scriptBuilder.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -39,6 +40,12 @@ interface DeploymentArtifact {
   deployedAt: string;
   gitCommit: string;
   notes: string;
+  sampleEscrow?: {
+    matchId: string;
+    escrowAddressA: string;
+    escrowAddressB: string;
+    generatedAt: string;
+  };
 }
 
 const NETWORK = 'testnet' as const;
@@ -90,14 +97,48 @@ async function main() {
 
   const treasuryPriv = new kaspa.PrivateKey(treasuryKey);
   const treasuryKeypair = treasuryPriv.toKeypair();
+  const treasuryPubkey = treasuryKeypair.publicKey as string;
   const derivedTreasuryAddr = kaspa.createAddress(
-    treasuryKeypair.publicKey as string,
+    treasuryPubkey,
     kaspa.NetworkType.Testnet
   ).toString();
 
   log(`Oracle pubkey: ${oraclePubkey}`);
   log(`Treasury address (config): ${treasuryAddress}`);
   log(`Treasury address (derived): ${derivedTreasuryAddr}`);
+
+  // Generate sample escrow addresses as proof of pipeline
+  log('Generating sample escrow addresses...');
+  let sampleEscrow: DeploymentArtifact['sampleEscrow'];
+  try {
+    const sampleMatchId = `deploy-proof-${Date.now()}`;
+    // Use treasury pubkey as fake playerA and a dummy playerB for sample
+    const dummyPlayerBKey = '0'.repeat(62) + '01';
+    const dummyPlayerBAddr = 'kaspatest:qq0000000000000000000000000000000000000000000000000000001';
+
+    const result = await generateMatchEscrows(
+      sampleMatchId,
+      treasuryPubkey,
+      derivedTreasuryAddr,
+      dummyPlayerBKey,
+      dummyPlayerBAddr,
+      oraclePubkey,
+      'testnet'
+    );
+
+    sampleEscrow = {
+      matchId: sampleMatchId,
+      escrowAddressA: result.escrowA.address,
+      escrowAddressB: result.escrowB.address,
+      generatedAt: new Date().toISOString(),
+    };
+
+    log(`Sample escrow A: ${result.escrowA.address}`);
+    log(`Sample escrow B: ${result.escrowB.address}`);
+  } catch (err) {
+    log(`Warning: Sample escrow generation failed: ${err}`);
+    log('Continuing without sample escrow...');
+  }
 
   if (!isDryRun) {
     // Verify REST API is reachable
@@ -107,8 +148,11 @@ async function main() {
       if (!resp.ok) {
         fail(`Testnet API returned ${resp.status}`);
       }
-      const info = await resp.json() as { tipHashes: string[] };
+      const info = await resp.json() as { tipHashes: string[]; virtualDaaScore: number };
       log(`Testnet API OK — tip hashes: ${(info.tipHashes ?? []).length}`);
+      if (info.virtualDaaScore) {
+        log(`Current DAA score: ${info.virtualDaaScore}`);
+      }
     } catch (err) {
       fail(`Testnet API unreachable: ${err}`);
     }
@@ -127,8 +171,9 @@ async function main() {
     deployedAt: new Date().toISOString(),
     gitCommit: getGitCommit(),
     notes: isDryRun
-      ? 'Dry-run deployment — keys validated, no on-chain actions.'
+      ? 'Dry-run deployment — keys validated, escrow addresses generated, no on-chain actions.'
       : 'Live testnet deployment.',
+    sampleEscrow,
   };
 
   const outDir = resolve(__dirname, '..', 'deployments', 'testnet');
@@ -143,13 +188,17 @@ async function main() {
   // Summary
   log('');
   log('=== Deployment Summary ===');
-  log(`  Network:    ${artifact.network}`);
-  log(`  Covenant:   ${artifact.covenantEnabled ? 'enabled' : 'disabled'}`);
-  log(`  Oracle:     ${artifact.oraclePubkey.substring(0, 16)}...`);
-  log(`  Treasury:   ${artifact.treasuryAddress}`);
-  log(`  Locktime:   ${artifact.refundLocktimeBlocks} DAA blocks`);
-  log(`  Git commit: ${artifact.gitCommit.substring(0, 8)}`);
-  log(`  Mode:       ${isDryRun ? 'DRY RUN' : 'LIVE'}`);
+  log(`  Network:        ${artifact.network}`);
+  log(`  Covenant:       ${artifact.covenantEnabled ? 'enabled' : 'disabled'}`);
+  log(`  Oracle:         ${artifact.oraclePubkey.substring(0, 16)}...`);
+  log(`  Treasury:       ${artifact.treasuryAddress}`);
+  log(`  Locktime:       ${artifact.refundLocktimeBlocks} DAA blocks`);
+  log(`  Git commit:     ${artifact.gitCommit.substring(0, 8)}`);
+  log(`  Mode:           ${isDryRun ? 'DRY RUN' : 'LIVE'}`);
+  if (sampleEscrow) {
+    log(`  Sample escrow A: ${sampleEscrow.escrowAddressA}`);
+    log(`  Sample escrow B: ${sampleEscrow.escrowAddressB}`);
+  }
   log('==========================');
   log('Done.');
 }

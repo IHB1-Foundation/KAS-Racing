@@ -68,3 +68,11 @@ export {
   buildRefundTx,
   isRefundEligible,
 } from './refundTxBuilder.js';
+
+// Deployment Loader
+export {
+  loadDeployment,
+  hasDeployment,
+  getServerEnvFromDeployment,
+  getClientEnvFromDeployment,
+} from './deploymentLoader.js';

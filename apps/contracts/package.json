@@ -20,7 +20,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "pnpm -w eslint apps/contracts/src",
-    "deploy:testnet": "tsx scripts/deploy-testnet.ts"
+    "deploy:testnet": "tsx scripts/deploy-testnet.ts",
+    "verify:testnet": "tsx scripts/verify-deployment.ts"
   },
   "dependencies": {
     "kaspa-wasm": "^0.13.0"
