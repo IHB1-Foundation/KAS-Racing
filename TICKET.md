@@ -1778,15 +1778,15 @@ pnpm --filter @kas-racing/indexer build && \
 - API 서버와의 통합(인덱서 데이터 읽기)은 T-206 BE 리팩토링에서 구현
 
 
-### - [ ] T-205 Postgres Schema v2 + Migration Hardening
+### - [x] T-205 Postgres Schema v2 + Migration Hardening
 **의존**
 - T-200
 
 **작업**
-- [ ] Drizzle 스키마를 컨트랙트 중심으로 재설계
-- [ ] 핵심 테이블: `contracts`, `matches`, `deposits`, `settlements`, `chain_events`, `idempotency_keys`
-- [ ] 마이그레이션/롤백 전략 정리
-- [ ] 코드베이스에서 SQLite 경로/의존 완전 제거
+- [x] Drizzle 스키마를 컨트랙트 중심으로 재설계
+- [x] 핵심 테이블: `contracts`, `matches`, `deposits`, `settlements`, `chain_events`, `idempotency_keys`
+- [x] 마이그레이션/롤백 전략 정리
+- [x] 코드베이스에서 SQLite 경로/의존 완전 제거
 
 **산출물**
 - `apps/server/src/db/schema.ts` v2
@@ -1795,6 +1795,21 @@ pnpm --filter @kas-racing/indexer build && \
 **완료조건**
 - 신규 환경에서 마이그레이션 1회로 스키마 구성 성공
 - SQLite 관련 설정/코드가 런타임 경로에서 제거됨
+
+**변경 요약**
+- `apps/server/src/db/schema.ts`: deposits, settlements, chain_events, idempotency_keys 테이블 추가 (Drizzle pgTable)
+- `apps/server/src/db/index.ts`: CREATE TABLE/INDEX IF NOT EXISTS로 idempotent 마이그레이션, pg Pool 기반
+- `apps/server/package.json`: better-sqlite3 / @types/better-sqlite3 제거
+- `apps/server/.env.example`: DATABASE_PATH → DATABASE_URL (Postgres)
+
+**실행 방법**
+```bash
+# 서버 시작 시 자동 마이그레이션 (SKIP_DB_MIGRATIONS=true로 비활성화 가능)
+DATABASE_URL=postgres://... pnpm --filter @kas-racing/server dev
+```
+
+**Notes/Blockers**
+- 테스트 파일(txStatusService.test.ts)에 SQLite 참조 잔존 → 런타임엔 영향 없음, 테스트 리팩토링은 T-206에서 처리
 
 
 ### - [ ] T-206 Backend Refactor (Contract Orchestrator API)
