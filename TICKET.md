@@ -1863,15 +1863,15 @@ POST /api/match/:id/deposit      # idempotency key 적용
 - API 문서(OpenAPI)는 별도 티켓에서 자동생성 가능
 
 
-### - [ ] T-207 Frontend Web3 Refactor (Contract-first UX)
+### - [x] T-207 Frontend Web3 Refactor (Contract-first UX)
 **의존**
 - T-203, T-206
 
 **작업**
-- [ ] 지갑 네트워크 가드(테스트넷 강제/스위치 가이드) 추가
-- [ ] 매치 생성/참가/입금/정산 상태를 컨트랙트 기준으로 렌더링
-- [ ] 실패/지연/재시도 UX 일관화
-- [ ] Proof 화면에 컨트랙트 이벤트 출처를 명확히 표시
+- [x] 지갑 네트워크 가드(테스트넷 강제/스위치 가이드) 추가
+- [x] 매치 생성/참가/입금/정산 상태를 컨트랙트 기준으로 렌더링
+- [x] 실패/지연/재시도 UX 일관화
+- [x] Proof 화면에 컨트랙트 이벤트 출처를 명확히 표시
 
 **산출물**
 - `apps/client` 주요 페이지 업데이트 (Home/FreeRun/Duel/Proof)
@@ -1879,6 +1879,24 @@ POST /api/match/:id/deposit      # idempotency key 적용
 **완료조건**
 - 신규 유저가 FE만으로 입금~정산 흐름을 따라갈 수 있음
 - 상태가 새로고침 후에도 복구됨(서버/인덱서 조회)
+
+**변경 요약**
+- `components/NetworkGuard.tsx`: 지갑 네트워크 불일치 시 경고 배너 (VITE_NETWORK 기반)
+- `api/client.ts`: DepositInfo, SettlementInfo, SessionEventsResponse 타입 추가, getSessionEvents/getMatchChainEvents 함수 추가
+- `pages/DuelLobby.tsx`: URL 파라미터 기반 매치 상태 복구(새로고침 대응), v2 deposits/settlements 렌더링, 에러 재시도 버튼, 연결 지연 표시
+- `pages/FreeRun.tsx`: wallet network 사용(하드코딩 mainnet 제거), NetworkGuard 추가
+- `pages/Proof.tsx`: 데이터 소스 표시(indexer/db/api)
+- `components/index.ts`: NetworkGuard export
+
+**실행 방법**
+```bash
+pnpm --filter @kas-racing/client build
+pnpm --filter @kas-racing/client dev
+# Duel 상태 복구: /duel?matchId=xxx&player=A
+```
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-208 Frontend Realtime Integration (Indexer-fed)

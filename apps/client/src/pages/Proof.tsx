@@ -8,7 +8,7 @@ const NETWORK = (import.meta.env.VITE_NETWORK as string | undefined) ?? 'mainnet
 
 interface VerificationResult {
   txDetails: TxDetails;
-  txStatus: TxStatusInfo;
+  txStatus: TxStatusInfo & { source?: string };
   parsedPayload: ParsedPayload | null;
   isValid: boolean;
   error?: string;
@@ -215,6 +215,17 @@ export function Proof() {
                 network={NETWORK as 'mainnet' | 'testnet'}
               />
             </div>
+
+            {result.txStatus.source && (
+              <div style={{ marginTop: '16px', fontSize: '11px', color: '#888' }}>
+                Data source: <span style={{ color: result.txStatus.source === 'indexer' ? '#4ecdc4' : '#ccc' }}>
+                  {result.txStatus.source === 'indexer' ? 'Chain Indexer' :
+                   result.txStatus.source === 'db' ? 'Server DB' :
+                   result.txStatus.source === 'api' ? 'REST API' :
+                   result.txStatus.source}
+                </span>
+              </div>
+            )}
 
             <div style={{ marginTop: '24px' }}>
               <h3>Block Info</h3>

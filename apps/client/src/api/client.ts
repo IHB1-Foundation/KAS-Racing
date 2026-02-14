@@ -124,6 +124,40 @@ export interface MatchPlayer {
   depositStatus: string | null;
 }
 
+export interface DepositInfo {
+  id: string;
+  matchId: string;
+  player: 'A' | 'B';
+  playerAddress: string;
+  escrowAddress: string;
+  amountSompi: string;
+  txid: string | null;
+  txStatus: string;
+  daaScore: string | null;
+  createdAt: number;
+  broadcastedAt: number | null;
+  acceptedAt: number | null;
+  includedAt: number | null;
+  confirmedAt: number | null;
+}
+
+export interface SettlementInfo {
+  id: string;
+  matchId: string;
+  settlementType: string;
+  txid: string | null;
+  txStatus: string;
+  winnerAddress: string | null;
+  totalAmountSompi: string;
+  feeSompi: string;
+  daaScore: string | null;
+  createdAt: number;
+  broadcastedAt: number | null;
+  acceptedAt: number | null;
+  includedAt: number | null;
+  confirmedAt: number | null;
+}
+
 export interface MatchInfo {
   id: string;
   joinCode: string;
@@ -141,6 +175,51 @@ export interface MatchInfo {
   createdAt: number;
   startedAt: number | null;
   finishedAt: number | null;
+  // v2 enriched fields
+  deposits?: DepositInfo[];
+  settlement?: SettlementInfo | null;
+}
+
+export interface SessionEventInfo {
+  id: string;
+  seq: number;
+  type: string;
+  rewardAmount: number;
+  txid: string | null;
+  txStatus: string;
+  timestamps: {
+    created: number;
+    broadcasted: number | null;
+    accepted: number | null;
+    included: number | null;
+    confirmed: number | null;
+  };
+  chain: {
+    source: 'indexer';
+    daaScore: string | null;
+    confirmations: number;
+    payload: string | null;
+    indexedAt: number;
+  } | null;
+}
+
+export interface SessionEventsResponse {
+  sessionId: string;
+  events: SessionEventInfo[];
+  total: number;
+}
+
+export interface ChainEventInfo {
+  id: string;
+  txid: string;
+  eventType: string;
+  fromAddress: string;
+  toAddress: string;
+  amountSompi: string;
+  daaScore: string | null;
+  confirmations: number;
+  payload: string | null;
+  indexedAt: number;
 }
 
 export interface CreateMatchResponse {
@@ -269,6 +348,34 @@ export async function submitScore(
   }
 
   return (await response.json()) as MatchInfo;
+}
+
+/**
+ * Get session events with chain enrichment
+ */
+export async function getSessionEvents(sessionId: string): Promise<SessionEventsResponse> {
+  const response = await fetch(`${API_BASE}/api/session/${sessionId}/events`);
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as SessionEventsResponse;
+}
+
+/**
+ * Get chain events for a match
+ */
+export async function getMatchChainEvents(matchId: string): Promise<{ matchId: string; events: ChainEventInfo[] }> {
+  const response = await fetch(`${API_BASE}/api/match/${matchId}/chain-events`);
+
+  if (!response.ok) {
+    const errorMsg = await parseErrorResponse(response);
+    throw new Error(errorMsg);
+  }
+
+  return (await response.json()) as { matchId: string; events: ChainEventInfo[] };
 }
 
 // ============ Transaction API ============

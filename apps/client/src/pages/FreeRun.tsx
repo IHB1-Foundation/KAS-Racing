@@ -4,6 +4,7 @@ import { GameCanvas, type GameStats, type CheckpointEvent, type GameOverEvent } 
 import { useWallet } from '../wallet';
 import { startSession, sendEvent, endSession, type SessionPolicy } from '../api/client';
 import { TxLifecycleTimeline, KaspaRPMGauge, type TxStatus } from '@kas-racing/speed-visualizer-sdk';
+import { NetworkGuard } from '../components/NetworkGuard';
 
 const MAX_CHECKPOINTS = 10;
 
@@ -22,7 +23,7 @@ interface SessionState {
 }
 
 export function FreeRun() {
-  const { address, isConnected, connect } = useWallet();
+  const { address, isConnected, connect, network } = useWallet();
 
   const [stats, setStats] = useState<GameStats>({
     distance: 0,
@@ -208,6 +209,7 @@ export function FreeRun() {
       <aside className="panel">
         <h2>Free Run</h2>
         <p className="muted">Collect checkpoints to earn KAS rewards.</p>
+        <NetworkGuard />
 
         {/* Wallet Status */}
         {!isConnected && (
@@ -290,7 +292,7 @@ export function FreeRun() {
                       txid={tx.txid}
                       status={tx.status}
                       timestamps={{ broadcasted: tx.timestamp }}
-                      network="mainnet"
+                      network={network ?? 'testnet'}
                     />
                   ) : (
                     <div className={`tx-status tx-status-${tx.status}`}>
