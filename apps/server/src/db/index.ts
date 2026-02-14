@@ -21,9 +21,10 @@ export const pool = new Pool({
 // Create Drizzle ORM instance
 export const db = drizzle(pool, { schema });
 
-// Ensure schema exists for fresh Railway environments.
-// This keeps deploys zero-touch for first boot.
+// Ensure schema exists for fresh environments.
+// Uses CREATE TABLE IF NOT EXISTS for idempotent schema creation.
 async function ensureSchema(): Promise<void> {
+  // v1 tables
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -101,10 +102,88 @@ async function ensureSchema(): Promise<void> {
     );
   `);
 
+  // v1 indexes
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS reward_events_session_seq_idx
     ON reward_events (session_id, seq);
   `);
+
+  // v2 tables
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS deposits (
+      id TEXT PRIMARY KEY,
+      match_id TEXT NOT NULL REFERENCES matches(id),
+      player TEXT NOT NULL,
+      player_address TEXT NOT NULL,
+      escrow_address TEXT NOT NULL,
+      amount_sompi BIGINT NOT NULL,
+      txid TEXT,
+      tx_status TEXT NOT NULL DEFAULT 'pending',
+      daa_score BIGINT,
+      created_at TIMESTAMPTZ NOT NULL,
+      broadcasted_at TIMESTAMPTZ,
+      accepted_at TIMESTAMPTZ,
+      included_at TIMESTAMPTZ,
+      confirmed_at TIMESTAMPTZ
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS settlements (
+      id TEXT PRIMARY KEY,
+      match_id TEXT NOT NULL REFERENCES matches(id) UNIQUE,
+      settlement_type TEXT NOT NULL,
+      txid TEXT,
+      tx_status TEXT NOT NULL DEFAULT 'pending',
+      winner_address TEXT,
+      total_amount_sompi BIGINT NOT NULL,
+      fee_sompi BIGINT NOT NULL,
+      daa_score BIGINT,
+      created_at TIMESTAMPTZ NOT NULL,
+      broadcasted_at TIMESTAMPTZ,
+      accepted_at TIMESTAMPTZ,
+      included_at TIMESTAMPTZ,
+      confirmed_at TIMESTAMPTZ
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS chain_events (
+      id TEXT PRIMARY KEY,
+      txid TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      match_id TEXT REFERENCES matches(id),
+      session_id TEXT REFERENCES sessions(id),
+      from_address TEXT NOT NULL,
+      to_address TEXT NOT NULL,
+      amount_sompi BIGINT NOT NULL,
+      daa_score BIGINT,
+      confirmations INTEGER NOT NULL DEFAULT 0,
+      payload TEXT,
+      indexed_at TIMESTAMPTZ NOT NULL
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS idempotency_keys (
+      key TEXT PRIMARY KEY,
+      txid TEXT,
+      result TEXT,
+      created_at TIMESTAMPTZ NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL
+    );
+  `);
+
+  // v2 indexes
+  await pool.query(`CREATE INDEX IF NOT EXISTS reward_events_tx_status_idx ON reward_events(tx_status);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS matches_status_idx ON matches(status);`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS deposits_match_player_idx ON deposits(match_id, player);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS deposits_tx_status_idx ON deposits(tx_status);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS settlements_tx_status_idx ON settlements(tx_status);`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS chain_events_txid_to_addr_idx ON chain_events(txid, to_address);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS chain_events_event_type_idx ON chain_events(event_type);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS chain_events_match_id_idx ON chain_events(match_id);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS chain_events_daa_score_idx ON chain_events(daa_score);`);
 }
 
 const shouldAutoMigrate = process.env.SKIP_DB_MIGRATIONS !== 'true';
@@ -119,4 +198,3 @@ export * from './schema.js';
 export async function closeDb(): Promise<void> {
   await pool.end();
 }
-
