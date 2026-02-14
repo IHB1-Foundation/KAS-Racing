@@ -1658,15 +1658,15 @@ ORACLE_PRIVATE_KEY=... TREASURY_PRIVATE_KEY=... TREASURY_CHANGE_ADDRESS=kaspates
 - 없음
 
 
-### - [ ] T-202 Escrow/Settlement Contract 구현
+### - [x] T-202 Escrow/Settlement Contract 구현
 **의존**
 - T-201
 
 **작업**
-- [ ] 매치 상태 전이(생성/참가/입금/정산/환불) 온체인 규칙 구현
-- [ ] 승/패/무승부 정산 분기와 타임락 환불 분기 구현
-- [ ] 비정상 시나리오(중복 정산, 타인 수령 주소, 조기 환불) 방어 로직 구현
-- [ ] 컨트랙트 단위/통합 테스트 작성
+- [x] 매치 상태 전이(생성/참가/입금/정산/환불) 온체인 규칙 구현
+- [x] 승/패/무승부 정산 분기와 타임락 환불 분기 구현
+- [x] 비정상 시나리오(중복 정산, 타인 수령 주소, 조기 환불) 방어 로직 구현
+- [x] 컨트랙트 단위/통합 테스트 작성
 
 **산출물**
 - 핵심 컨트랙트 코드 + 테스트 스위트
@@ -1674,6 +1674,23 @@ ORACLE_PRIVATE_KEY=... TREASURY_PRIVATE_KEY=... TREASURY_CHANGE_ADDRESS=kaspates
 **완료조건**
 - 정상 플로우 테스트 통과
 - theft-resistant 관련 음성 테스트 통과
+
+**변경 요약**
+- `apps/contracts/src/matchStateMachine.ts`: 매치 상태 머신 (9개 상태, 10개 액션, 전이 규칙 + precondition guards)
+- `apps/contracts/src/validation.ts`: 검증 모듈 (출력 제약, 정산 요청, 입금, 환불, covenant 모드 검증)
+- `apps/contracts/src/refundTxBuilder.ts`: 타임락 환불 TX 빌더 (Branch B 사용)
+- `apps/contracts/src/settlementTxBuilder.ts`: 정산 TX에 출력 검증 및 상태 검증 통합
+- `apps/contracts/src/types.ts`: MatchState, MatchAction, MatchContext, RefundRequest 등 타입 추가
+- 106개 테스트 (4개 테스트 파일)
+
+**실행 방법**
+```bash
+cd apps/contracts && pnpm test
+# 106 tests passing (31 state machine + 34 validation + 23 theft resistance + 18 escrow)
+```
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-203 Contract Testnet Deployment + Verification
