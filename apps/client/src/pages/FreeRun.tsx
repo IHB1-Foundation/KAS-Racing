@@ -2,9 +2,11 @@ import { useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { GameCanvas, type GameStats, type CheckpointEvent, type GameOverEvent } from '../components/GameCanvas';
 import { useWallet } from '../wallet';
-import { startSession, sendEvent, endSession, type SessionPolicy } from '../api/client';
+import { startSession, sendEvent, endSession, type SessionPolicy, type TxStatusInfo } from '../api/client';
 import { TxLifecycleTimeline, KaspaRPMGauge, type TxStatus } from '@kas-racing/speed-visualizer-sdk';
 import { NetworkGuard } from '../components/NetworkGuard';
+import { LatencyDebugPanel } from '../components/LatencyDebugPanel';
+import { useRealtimeSync, type ChainStateEvent } from '../realtime';
 
 const MAX_CHECKPOINTS = 10;
 
@@ -15,6 +17,8 @@ interface TxRecord {
   rewardAmount?: number;
   timestamp: number;
   error?: string;
+  chainTimestamps?: Record<string, number | undefined>;
+  confirmations?: number;
 }
 
 interface SessionState {
@@ -37,11 +41,53 @@ export function FreeRun() {
   const [session, setSession] = useState<SessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [showDebug, setShowDebug] = useState(false);
+
   // Ref to track pending requests (prevent duplicate sends)
   const pendingSeqs = useRef<Set<number>>(new Set());
   // Ref to store session for use in callbacks (avoid stale closure)
   const sessionRef = useRef<SessionState | null>(null);
   sessionRef.current = session;
+
+  // Real-time sync via WebSocket
+  const handleTxStatusUpdate = useCallback((data: TxStatusInfo) => {
+    setTxRecords(prev =>
+      prev.map(tx =>
+        tx.txid === data.txid
+          ? {
+              ...tx,
+              status: data.status as TxStatus,
+              chainTimestamps: data.timestamps,
+              confirmations: data.confirmations,
+            }
+          : tx
+      )
+    );
+  }, []);
+
+  // Indexer-fed chain state updates
+  const handleChainStateChanged = useCallback((data: ChainStateEvent) => {
+    if (data.entityType !== 'reward') return;
+    setTxRecords(prev =>
+      prev.map(tx =>
+        tx.txid === data.txid
+          ? {
+              ...tx,
+              status: data.newStatus as TxStatus,
+              chainTimestamps: data.timestamps,
+              confirmations: data.confirmations,
+            }
+          : tx
+      )
+    );
+  }, []);
+
+  const { connectionState, latencyRecords, avgLatencyMs } = useRealtimeSync({
+    sessionId: session?.sessionId ?? null,
+    enabled: !!session,
+    onTxStatusUpdate: handleTxStatusUpdate,
+    onChainStateChanged: handleChainStateChanged,
+  });
 
   const handleStatsUpdate = useCallback((newStats: GameStats) => {
     setStats(newStats);
@@ -291,7 +337,7 @@ export function FreeRun() {
                     <TxLifecycleTimeline
                       txid={tx.txid}
                       status={tx.status}
-                      timestamps={{ broadcasted: tx.timestamp }}
+                      timestamps={tx.chainTimestamps ?? { broadcasted: tx.timestamp }}
                       network={network ?? 'testnet'}
                     />
                   ) : (
@@ -309,6 +355,25 @@ export function FreeRun() {
             </div>
           )}
         </div>
+
+        {session && (
+          <div style={{ marginTop: '16px' }}>
+            <button
+              className="btn"
+              style={{ fontSize: '11px', padding: '4px 8px', opacity: 0.6 }}
+              onClick={() => setShowDebug(prev => !prev)}
+            >
+              {showDebug ? 'Hide' : 'Show'} Debug
+            </button>
+            {showDebug && (
+              <LatencyDebugPanel
+                connectionState={connectionState}
+                avgLatencyMs={avgLatencyMs}
+                latencyRecords={latencyRecords}
+              />
+            )}
+          </div>
+        )}
 
         <div style={{ marginTop: 'auto' }}>
           <Link className="btn" to="/">

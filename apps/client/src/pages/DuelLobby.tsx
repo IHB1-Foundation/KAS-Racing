@@ -4,10 +4,13 @@ import { useWallet } from '../wallet';
 import { createMatch, joinMatch, getMatch, registerDeposit, type MatchInfo } from '../api/client';
 import { TxLifecycleTimeline } from '@kas-racing/speed-visualizer-sdk';
 import { NetworkGuard } from '../components/NetworkGuard';
+import { LatencyDebugPanel } from '../components/LatencyDebugPanel';
+import { useRealtimeSync, type ChainStateEvent, type MatchStateEvent } from '../realtime';
 
 type View = 'lobby' | 'create' | 'join' | 'waiting' | 'deposits' | 'game' | 'finished';
 
 const BET_AMOUNTS = [0.1, 0.5, 1.0, 5.0];
+const RECONCILE_INTERVAL_MS = 10_000;
 
 // Map match status to view
 function statusToView(status: string): View {
@@ -34,7 +37,49 @@ export function DuelLobby() {
   const [loading, setLoading] = useState(false);
   const [depositLoading, setDepositLoading] = useState(false);
   const [myPlayer, setMyPlayer] = useState<'A' | 'B' | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+  const [showDebug, setShowDebug] = useState(false);
+
+  // Real-time sync via WebSocket + reconciliation polling
+  const handleMatchUpdate = useCallback((data: MatchInfo) => {
+    setMatch(data);
+
+    // Auto-transition views based on status
+    setView(currentView => {
+      if (data.status === 'deposits_pending' && currentView === 'waiting') return 'deposits';
+      if ((data.status === 'ready' || data.status === 'playing') && currentView === 'deposits') return 'game';
+      if (data.status === 'finished' && currentView === 'game') return 'finished';
+      if (data.status === 'cancelled') return 'lobby';
+      return currentView;
+    });
+  }, []);
+
+  // Indexer-fed chain state changes — latency is tracked by useRealtimeSync;
+  // match data arrives via matchUpdated/polling so we forward to hook only.
+  const handleChainStateChanged = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (_: ChainStateEvent) => { /* tracked by hook */ },
+    [],
+  );
+
+  // Match state machine transitions
+  const handleMatchStateChanged = useCallback((data: MatchStateEvent) => {
+    setView(currentView => {
+      if (data.newStatus === 'deposits_pending' && currentView === 'waiting') return 'deposits';
+      if ((data.newStatus === 'ready' || data.newStatus === 'playing') && currentView === 'deposits') return 'game';
+      if (data.newStatus === 'finished' && currentView === 'game') return 'finished';
+      if (data.newStatus === 'cancelled') return 'lobby';
+      return currentView;
+    });
+  }, []);
+
+  const { connectionState, latencyRecords, avgLatencyMs } = useRealtimeSync({
+    matchId: match?.id ?? null,
+    enabled: !!match,
+    reconcileIntervalMs: RECONCILE_INTERVAL_MS,
+    onMatchUpdate: handleMatchUpdate,
+    onChainStateChanged: handleChainStateChanged,
+    onMatchStateChanged: handleMatchStateChanged,
+  });
 
   // Restore match from URL on mount
   useEffect(() => {
@@ -70,38 +115,6 @@ export function DuelLobby() {
       setSearchParams({ matchId: match.id, player: myPlayer }, { replace: true });
     }
   }, [match?.id, myPlayer]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Poll match status when in active views
-  useEffect(() => {
-    if (!match || (view !== 'waiting' && view !== 'deposits' && view !== 'game' && view !== 'finished')) return;
-
-    const pollMatch = async () => {
-      try {
-        const updated = await getMatch(match.id);
-        setMatch(updated);
-        setRetryCount(0);
-
-        // Auto-transition views based on status
-        if (updated.status === 'deposits_pending' && view === 'waiting') {
-          setView('deposits');
-        } else if ((updated.status === 'ready' || updated.status === 'playing') && view === 'deposits') {
-          setView('game');
-        } else if (updated.status === 'finished' && view === 'game') {
-          setView('finished');
-        }
-      } catch (e) {
-        console.error('Failed to poll match:', e);
-        setRetryCount(prev => prev + 1);
-      }
-    };
-
-    // Slower polling after errors
-    const interval = setInterval(() => {
-      void pollMatch();
-    }, retryCount > 3 ? 5000 : 2000);
-
-    return () => clearInterval(interval);
-  }, [match, view, retryCount]);
 
   const handleCreateMatch = useCallback(() => {
     if (!address) return;
@@ -403,9 +416,9 @@ export function DuelLobby() {
               </div>
             </div>
 
-            {retryCount > 3 && (
-              <p className="muted" style={{ marginTop: '12px', fontSize: '12px', color: '#ffd93d' }}>
-                Connection slow. Still polling...
+            {connectionState === 'polling' && (
+              <p className="muted" style={{ marginTop: '12px', fontSize: '12px', color: '#ffa94d' }}>
+                WS disconnected. Polling for updates...
               </p>
             )}
 
@@ -756,6 +769,26 @@ export function DuelLobby() {
       </main>
       <aside className="panel">
         {renderSidebar()}
+
+        {match && (
+          <div style={{ marginTop: '16px' }}>
+            <button
+              className="btn"
+              style={{ fontSize: '11px', padding: '4px 8px', opacity: 0.6 }}
+              onClick={() => setShowDebug(prev => !prev)}
+            >
+              {showDebug ? 'Hide' : 'Show'} Debug
+            </button>
+            {showDebug && (
+              <LatencyDebugPanel
+                connectionState={connectionState}
+                avgLatencyMs={avgLatencyMs}
+                latencyRecords={latencyRecords}
+              />
+            )}
+          </div>
+        )}
+
         <div style={{ marginTop: 'auto' }}>
           <Link className="btn" to="/">
             Back Home

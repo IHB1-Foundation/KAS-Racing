@@ -1899,14 +1899,14 @@ pnpm --filter @kas-racing/client dev
 - 없음
 
 
-### - [ ] T-208 Frontend Realtime Integration (Indexer-fed)
+### - [x] T-208 Frontend Realtime Integration (Indexer-fed)
 **의존**
 - T-204, T-207
 
 **작업**
-- [ ] Tx timeline/매치 상태를 indexer 데이터 소스로 통합
-- [ ] WebSocket + polling 하이브리드(연결 불안정 대비) 구성
-- [ ] Race/Settlement 이벤트 지연 시간 측정 UI 추가(디버그용)
+- [x] Tx timeline/매치 상태를 indexer 데이터 소스로 통합
+- [x] WebSocket + polling 하이브리드(연결 불안정 대비) 구성
+- [x] Race/Settlement 이벤트 지연 시간 측정 UI 추가(디버그용)
 
 **산출물**
 - 실시간 상태 동기화 모듈
@@ -1915,6 +1915,21 @@ pnpm --filter @kas-racing/client dev
 **완료조건**
 - 이벤트 유실 없이 상태 동기화
 - 목표 반영 지연(체인 포함) SLA 정의 및 측정 가능
+
+**변경 요약**
+- `useRealtimeSync` hook 강화: reconciliation polling (WS 연결 중에도 10초 주기 polling), reconnect 시 즉시 상태 조회, chainStateChanged 이벤트 레이턴시 계산 (chain timestamp 기반)
+- FreeRun: `onChainStateChanged` 연결 — indexer-fed reward tx 상태/타임스탬프/confirmations 실시간 반영
+- DuelLobby: `onChainStateChanged` + `onMatchStateChanged` 연결 — 매치 상태 전환 자동화, 중복 polling 제거 (hook의 reconciliation으로 통합)
+- DuelLobby: LatencyDebugPanel 추가 (Show/Hide Debug 토글)
+- SLA 정의: accepted <3s, included <10s, confirmed <60s
+- LatencyDebugPanel: SLA 준수 상태 (OK/WARN/BREACH) 표시, chain 이벤트 레이턴시 color-coded
+
+**실행 방법**
+- `pnpm dev` → FreeRun/DuelLobby 페이지에서 Debug 패널로 연결 상태/레이턴시/SLA 확인
+- WS 끊김 시 자동 polling fallback, 재연결 시 자동 reconciliation
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-209 Deploy Blueprint (Vercel + Railway + Postgres)
