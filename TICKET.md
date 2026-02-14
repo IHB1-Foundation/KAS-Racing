@@ -1975,15 +1975,15 @@ cat deploy/INTERN_DEPLOY_CHECKLIST.md
 - 인덱서는 HTTP 엔드포인트 없는 백그라운드 워커 → smoke test에서 수동 로그 확인 필요
 
 
-### - [ ] T-210 Demo Readiness Pack (Wallet/Token/Runbook)
+### - [x] T-210 Demo Readiness Pack (Wallet/Token/Runbook)
 **의존**
 - T-209
 
 **작업**
-- [ ] 테스트넷 지갑 권장안(브라우저 확장/백업 지갑)과 준비 절차 문서화
-- [ ] 데모 전 필요 토큰/가스/펀딩 체크리스트 작성
-- [ ] 장애 대응 runbook(지갑 오류, RPC 장애, 인덱서 지연, 재배포) 정리
-- [ ] 데모 리허설 시나리오(15분/5분 버전) 준비
+- [x] 테스트넷 지갑 권장안(브라우저 확장/백업 지갑)과 준비 절차 문서화
+- [x] 데모 전 필요 토큰/가스/펀딩 체크리스트 작성
+- [x] 장애 대응 runbook(지갑 오류, RPC 장애, 인덱서 지연, 재배포) 정리
+- [x] 데모 리허설 시나리오(15분/5분 버전) 준비
 
 **산출물**
 - `deploy/INTERN_DEPLOY_CHECKLIST.md`의 데모 섹션 강화
@@ -1992,3 +1992,17 @@ cat deploy/INTERN_DEPLOY_CHECKLIST.md
 **완료조건**
 - 인턴이 별도 구두 설명 없이 리허설 가능
 - 데모 중단 상황별 대응 절차가 문서에 명시됨
+
+**변경 요약**
+- `deploy/INTERN_DEPLOY_CHECKLIST.md`: 섹션 7(Demo Wallet & Funding Preparation) + 섹션 8(Incident Response Runbook) 추가 — 지갑 권장안(Kasware/KaspaNet/CLI), 펀딩 체크리스트, 환경변수 검증, 장애 대응 테이블(Wallet/RPC/Indexer/Emergency), 데모 피벗 전략
+- `docs/DEMO_SCRIPT.md` v2: Wallet & Funding Preparation 섹션, 15분/5분 리허설 시나리오(타임라인+체크리스트), FAQ 준비표, Incident Response Decision Tree + Recovery Scripts 추가
+
+**실행 방법**
+```bash
+# 데모 준비 문서 확인
+cat deploy/INTERN_DEPLOY_CHECKLIST.md
+cat docs/DEMO_SCRIPT.md
+```
+
+**Notes/Blockers**
+- 없음

@@ -138,6 +138,111 @@ Manual Tests:
 
 ---
 
+## 7) Demo Wallet & Funding Preparation
+
+### 7-A. Recommended Wallets
+
+| Wallet | Type | Notes |
+|--------|------|-------|
+| **Kasware** (primary) | Chrome extension | Best supported; install from Chrome Web Store |
+| **KaspaNet Web Wallet** | Web-based (backup) | Use if Kasware has issues; <https://wallet.kaspanet.io/> |
+| **CLI wallet** (fallback) | kaspa-wasm Node script | For manual tx if all GUI wallets fail |
+
+**Setup Steps:**
+- [ ] Install Kasware extension in Chrome/Brave
+- [ ] Create or import a **testnet** wallet
+- [ ] Verify network setting: Kasware → Settings → Network → **Testnet**
+- [ ] Note down the wallet address (`kaspatest:qz...`)
+- [ ] Back up seed phrase securely (do NOT store digitally on demo machine)
+
+### 7-B. Funding Checklist
+
+| Item | Minimum | Recommended | How |
+|------|---------|-------------|-----|
+| Treasury wallet | 1 KAS | 5 KAS | Faucet: <https://faucet.kaspanet.io/> |
+| Demo player wallet | 0.5 KAS | 2 KAS | Faucet or transfer from treasury |
+| Second player wallet (Duel) | 0.5 KAS | 1 KAS | Faucet or transfer |
+
+**Pre-Demo Funding Verification:**
+- [ ] Treasury address has sufficient balance: check via `https://explorer-tn11.kaspa.org/addresses/<address>`
+- [ ] Player wallet(s) funded and confirmed on-chain
+- [ ] Faucet is working (request a small amount as test)
+- [ ] `MIN_REWARD_KAS` env var matches expected payout (default: 0.02 KAS)
+- [ ] Calculate: `MIN_REWARD_KAS × rewardMaxPerSession (10) = 0.2 KAS` minimum per full session
+
+### 7-C. Environment Variable Verification
+
+Before demo, confirm all services have correct env vars:
+
+```bash
+# API service — check via Railway dashboard or:
+curl -s https://<api-url>/api/health | grep -q '"status":"ok"' && echo "API OK" || echo "API FAIL"
+
+# Client — open browser console:
+# > import.meta.env.VITE_API_URL   → should show API URL
+# > import.meta.env.VITE_NETWORK   → should show "testnet"
+
+# Indexer — check Railway logs for:
+# "[indexer] Indexer running."
+```
+
+---
+
+## 8) Incident Response Runbook
+
+### 8-A. Wallet Errors
+
+| Symptom | Diagnosis | Resolution |
+|---------|-----------|------------|
+| Kasware not connecting | Extension disabled or wrong network | 1. Check extension is enabled 2. Switch to testnet 3. Refresh page |
+| "Insufficient balance" on deposit | Wallet underfunded | Transfer KAS from treasury or use faucet |
+| Kasware popup doesn't appear | Browser popup blocker | Allow popups for the Vercel domain |
+| Wallet shows wrong address | Multiple accounts | Switch to correct account in Kasware |
+| **Kasware completely broken** | Extension crash | Switch to KaspaNet Web Wallet (backup) |
+
+### 8-B. RPC / Network Failures
+
+| Symptom | Diagnosis | Resolution |
+|---------|-----------|------------|
+| TX stuck at "Broadcasted" | RPC node unreachable | 1. Check Kaspa testnet status 2. Wait 30s and retry 3. If persistent, restart API service |
+| API returns 500 on reward | Treasury UTXO spent or locked | 1. Check treasury balance via explorer 2. Wait for pending tx to confirm 3. Restart API to refresh UTXO set |
+| "Network error" in browser | API service down | 1. Check Railway dashboard 2. Check API logs 3. Redeploy if needed |
+| Slow block times (>10s) | Testnet congestion | Acknowledge to audience; show "Included" step may take longer; this demonstrates the timeline's value |
+
+### 8-C. Indexer Issues
+
+| Symptom | Diagnosis | Resolution |
+|---------|-----------|------------|
+| TX timeline not updating | Indexer not running | 1. Check Railway logs 2. Verify `DATABASE_URL` and `WATCH_ADDRESSES` 3. Redeploy indexer |
+| Stale data / old txids | Indexer fell behind | 1. Restart indexer service 2. It will catch up from last checkpoint |
+| DB connection error | Postgres unreachable | 1. Check Railway Postgres status 2. Verify `DATABASE_URL` template variable |
+
+### 8-D. Emergency Redeployment (< 5 minutes)
+
+If a service is completely broken during demo:
+
+```bash
+# 1. Railway — redeploy specific service:
+#    Railway Dashboard → service → Deployments → Redeploy (latest)
+
+# 2. Vercel — redeploy client:
+#    Vercel Dashboard → project → Deployments → Redeploy
+
+# 3. Smoke test after redeploy:
+bash deploy/smoke-test.sh https://<api-url> https://<vercel-url>
+```
+
+### 8-E. Demo Pivot Strategies
+
+If a critical system is down and cannot be recovered quickly:
+
+1. **TX not broadcasting** → Show a previously completed tx on Explorer; explain the flow using Proof page
+2. **Wallet broken** → Use SKIP_KEY_VALIDATION mode; demonstrate UI flow without on-chain tx
+3. **Indexer down** → Free Run still works (server-side tx); skip real-time timeline updates
+4. **Full outage** → Switch to pre-recorded backup video (keep one ready)
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |
