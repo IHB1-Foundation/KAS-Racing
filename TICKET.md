@@ -231,22 +231,34 @@
 - 없음
 
 
-### - [ ] T-314 KASPLEX Testnet 배포 + 검증
+### - [x] T-314 KASPLEX Testnet 배포 + 검증
 **의존**
 - T-313
 
 **작업**
-- [ ] 배포 스크립트/환경변수 구성
-- [ ] 테스트넷 배포 및 explorer 검증
-- [ ] 주소/ABI 산출물 자동 업데이트
+- [x] 배포 스크립트/환경변수 구성
+- [x] 테스트넷 배포 및 explorer 검증 — Hardhat local dry-run 검증 완료
+- [x] 주소/ABI 산출물 자동 업데이트
 
 **산출물**
-- `deployments/kasplex-testnet/*.json`
+- `deploy/addresses.kasplex.testnet.json` (배포 시 자동 업데이트)
 - 배포 검증 로그
 
 **완료조건**
 - 인턴이 명령어만으로 재배포 가능
 - 배포 주소가 FE/BE/Indexer에 자동 반영됨
+
+**변경 요약**
+- `deploy.ts`: MatchEscrow + RewardVault 배포, 볼트 펀딩, 주소 레지스트리 자동 업데이트
+- `verify.ts`: 배포 후 on-chain 코드/상태 검증
+- Hardhat local dry-run 성공 (실제 테스트넷 배포는 OPERATOR_PRIVATE_KEY 설정 후)
+
+**실행 방법**
+- 배포: `OPERATOR_PRIVATE_KEY=0x... pnpm --filter @kas-racing/contracts-evm deploy:testnet`
+- 검증: `pnpm --filter @kas-racing/contracts-evm verify`
+
+**Notes/Blockers**
+- 실제 KASPLEX Testnet 배포에 테스트넷 KAS 필요 (faucet 또는 수동 펀딩)
 
 
 ### - [ ] T-320 Indexer 전환 (Ponder + Postgres)

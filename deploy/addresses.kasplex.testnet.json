@@ -7,6 +7,13 @@
     "MatchEscrow": "0x_TO_BE_DEPLOYED",
     "RewardVault": "0x_TO_BE_DEPLOYED"
   },
+  "config": {
+    "minDeposit": "0.001",
+    "timeoutBlocks": 300,
+    "minReward": "0.001",
+    "maxReward": "0.1"
+  },
   "deployedAt": null,
-  "blockNumber": null
+  "blockNumber": null,
+  "_note": "Run: OPERATOR_PRIVATE_KEY=0x... pnpm --filter @kas-racing/contracts-evm deploy:testnet"
 }
