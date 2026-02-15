@@ -7,7 +7,7 @@
 
 import { type Address, type Hash, keccak256, toBytes } from "viem";
 import { sendContractTx, getPublicClient, type TxResult } from "./evmClient.js";
-import { matchEscrowAbi, rewardVaultAbi } from "./evmAbis.js";
+import { matchEscrowAbi, rewardVaultAbi, fuelTokenAbi } from "./evmAbis.js";
 import { isE2EEnabled, nextMockTxHash } from "../utils/e2e.js";
 
 // ─── Contract Addresses ──────────────────────────────────────
@@ -24,6 +24,14 @@ function getRewardAddress(): Address {
   const addr = process.env.REWARD_CONTRACT_ADDRESS;
   if (!addr || addr === "0x_TO_BE_DEPLOYED") {
     throw new Error("REWARD_CONTRACT_ADDRESS not configured");
+  }
+  return addr as Address;
+}
+
+function getFuelTokenAddress(): Address {
+  const addr = process.env.FUEL_TOKEN_ADDRESS;
+  if (!addr || addr === "0x_TO_BE_DEPLOYED") {
+    throw new Error("FUEL_TOKEN_ADDRESS not configured");
   }
   return addr as Address;
 }
@@ -177,6 +185,24 @@ export async function getVaultBalance(): Promise<bigint> {
     functionName: "vaultBalance",
   });
   return typeof result === "bigint" ? result : BigInt(result as string);
+}
+
+/**
+ * Mint kFUEL to a recipient (faucet)
+ */
+export async function mintFuel(params: {
+  to: Address;
+  amountWei: bigint;
+}): Promise<TxResult> {
+  if (isE2EEnabled()) {
+    return { hash: nextMockTxHash(), receipt: null, success: true };
+  }
+  return sendContractTx({
+    address: getFuelTokenAddress(),
+    abi: fuelTokenAbi,
+    functionName: "mint",
+    args: [params.to, params.amountWei],
+  });
 }
 
 // ─── Utility ─────────────────────────────────────────────────

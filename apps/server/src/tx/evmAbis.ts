@@ -117,3 +117,16 @@ export const rewardVaultAbi = [
     stateMutability: "view",
   },
 ] as const;
+
+export const fuelTokenAbi = [
+  {
+    type: "function",
+    name: "mint",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+] as const;

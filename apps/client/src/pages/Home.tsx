@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EvmWalletButton } from '../evm';
+import { formatEther } from 'viem';
+import { EvmWalletButton, useEvmWallet } from '../evm';
+import { requestFaucet } from '../api/v3client';
 import logoSymbol from '../assets/logo-symbol.png';
 
 const GITHUB_URL = 'https://github.com/anthropics/kas-racing';
@@ -8,6 +11,26 @@ const TWITTER_SHARE_TEXT = encodeURIComponent(
 );
 
 export function Home() {
+  const { address, isConnected, isCorrectChain } = useEvmWallet();
+  const [faucetLoading, setFaucetLoading] = useState(false);
+  const [faucetMessage, setFaucetMessage] = useState<string | null>(null);
+
+  const handleFaucet = async () => {
+    if (!address || faucetLoading) return;
+    setFaucetLoading(true);
+    setFaucetMessage(null);
+
+    try {
+      const result = await requestFaucet(address);
+      const amount = formatEther(BigInt(result.amountWei));
+      setFaucetMessage(`Faucet sent ${amount} kFUEL`);
+    } catch (err) {
+      setFaucetMessage(err instanceof Error ? err.message : 'Faucet request failed');
+    } finally {
+      setFaucetLoading(false);
+    }
+  };
+
   return (
     <div className="landing">
       {/* Hero Section */}
@@ -24,7 +47,25 @@ export function Home() {
 
       {/* Wallet Connection */}
       <div className="wallet-section">
-        <EvmWalletButton />
+        <div className="wallet-actions">
+          <EvmWalletButton />
+          <button
+            className="faucet-btn"
+            onClick={() => { void handleFaucet(); }}
+            disabled={!isConnected || !isCorrectChain || faucetLoading}
+          >
+            {faucetLoading ? 'Requesting kFUEL...' : 'Get kFUEL (Faucet)'}
+          </button>
+          {!isConnected && (
+            <span className="faucet-hint">Connect your wallet to claim kFUEL.</span>
+          )}
+          {isConnected && !isCorrectChain && (
+            <span className="faucet-hint">Switch to KASPLEX Testnet to use the faucet.</span>
+          )}
+          {faucetMessage && (
+            <span className="faucet-status">{faucetMessage}</span>
+          )}
+        </div>
       </div>
 
       {/* Game Modes */}

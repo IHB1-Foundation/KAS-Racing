@@ -5,7 +5,10 @@
  * Data types mirror server V3MatchResponse.
  */
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8787';
+const PROD_API_BASE = 'https://api-kasracing.ihb1.xyz';
+const API_BASE = import.meta.env.DEV
+  ? ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8787')
+  : PROD_API_BASE;
 
 // ── Types ──
 
@@ -203,6 +206,11 @@ export interface V3SessionInfo {
   eventCount: number;
   policy: V3SessionPolicy;
   createdAt: number;
+}
+
+export interface V3FaucetResponse {
+  txHash: string;
+  amountWei: string;
 }
 
 export interface V3RewardEvent {
@@ -554,4 +562,24 @@ export async function getProofV3(
   }
 
   return (await response.json()) as V3ProofResponse;
+}
+
+/**
+ * Request kFUEL from faucet
+ */
+export async function requestFaucet(
+  address: string,
+  amountWei?: string,
+): Promise<V3FaucetResponse> {
+  const response = await fetch(`${API_BASE}/api/v3/faucet`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address, amountWei }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+
+  return (await response.json()) as V3FaucetResponse;
 }

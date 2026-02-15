@@ -13,13 +13,17 @@ const httpServer = createServer(app);
 // CORS Configuration
 // In production, restrict to specific origins
 const rawCorsOrigin = process.env.CORS_ORIGIN?.trim();
+const fallbackCorsOrigin =
+  process.env.NODE_ENV === 'production' ? 'https://kasracing.ihb1.xyz' : '';
 const parsedCorsOrigins =
   rawCorsOrigin && rawCorsOrigin.length > 0
     ? rawCorsOrigin
         .split(',')
         .map((origin) => origin.trim())
         .filter(Boolean)
-    : [];
+    : fallbackCorsOrigin
+      ? [fallbackCorsOrigin]
+      : [];
 
 const corsOptions = {
   origin:

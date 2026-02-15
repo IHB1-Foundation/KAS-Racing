@@ -11,7 +11,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { getMatchV3, type V3MatchResponse } from '../api/v3client';
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8787';
+const PROD_API_BASE = 'https://api-kasracing.ihb1.xyz';
+const API_BASE = import.meta.env.DEV
+  ? ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8787')
+  : PROD_API_BASE;
 const POLL_INTERVAL_FALLBACK_MS = 3000;
 const RECONNECT_DELAY_MS = 2000;
 
