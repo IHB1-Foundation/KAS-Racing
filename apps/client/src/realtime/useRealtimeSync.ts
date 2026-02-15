@@ -49,6 +49,29 @@ export interface MatchStateEvent {
   scores: { A: number | null; B: number | null };
 }
 
+interface EvmChainEventInfo {
+  id: number;
+  blockNumber: string;
+  txHash: string;
+  logIndex: number;
+  contract: string;
+  eventName: string;
+  args: Record<string, unknown>;
+  createdAt: number;
+}
+
+interface EvmMatchUpdateEvent {
+  matchId: string;
+  eventName: string;
+  chainEvent: EvmChainEventInfo;
+}
+
+interface EvmRewardUpdateEvent {
+  txHash: string;
+  eventName: string;
+  chainEvent: EvmChainEventInfo;
+}
+
 interface UseRealtimeSyncOptions {
   sessionId?: string | null;
   matchId?: string | null;
@@ -59,6 +82,20 @@ interface UseRealtimeSyncOptions {
   onMatchUpdate?: (data: MatchInfo) => void;
   onChainStateChanged?: (data: ChainStateEvent) => void;
   onMatchStateChanged?: (data: MatchStateEvent) => void;
+}
+
+function mapEvmEventToTxStatus(eventName: string): TxStatusInfo['status'] {
+  switch (eventName) {
+    case 'MatchFunded':
+    case 'Settled':
+    case 'Draw':
+    case 'Deposited':
+    case 'RewardPaid':
+    case 'ProofRecorded':
+      return 'included';
+    default:
+      return 'accepted';
+  }
 }
 
 export function useRealtimeSync(options: UseRealtimeSyncOptions) {
@@ -244,6 +281,70 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions) {
         event: `match:${data.newStatus}`,
         entityId: data.matchId,
         latencyMs: 0,
+        timestamp: Date.now(),
+        source: 'ws',
+      });
+    });
+
+    // Handle EVM match updates (v3)
+    socket.on('evmMatchUpdate', (data: EvmMatchUpdateEvent) => {
+      const status = mapEvmEventToTxStatus(data.eventName);
+      const entityType = data.eventName === 'Settled' || data.eventName === 'Draw'
+        ? 'settlement'
+        : 'deposit';
+
+      callbacksRef.current.onChainStateChanged?.({
+        entityType,
+        entityId: data.matchId,
+        txid: data.chainEvent.txHash,
+        oldStatus: status,
+        newStatus: status,
+        timestamps: { included: data.chainEvent.createdAt },
+        confirmations: 1,
+        source: 'indexer',
+      });
+
+      callbacksRef.current.onMatchStateChanged?.({
+        matchId: data.matchId,
+        oldStatus: data.eventName,
+        newStatus: data.eventName,
+        deposits: {
+          A: { txid: null, status: null },
+          B: { txid: null, status: null },
+        },
+        settlement: null,
+        winner: null,
+        scores: { A: null, B: null },
+      });
+
+      addLatencyRecord({
+        event: `evm:${data.eventName}`,
+        entityId: data.matchId,
+        latencyMs: Math.max(0, Date.now() - data.chainEvent.createdAt),
+        timestamp: Date.now(),
+        source: 'ws',
+      });
+    });
+
+    // Handle EVM reward updates (v3)
+    socket.on('evmRewardUpdate', (data: EvmRewardUpdateEvent) => {
+      const status = mapEvmEventToTxStatus(data.eventName);
+
+      callbacksRef.current.onChainStateChanged?.({
+        entityType: 'reward',
+        entityId: String(data.chainEvent.args.sessionId ?? ''),
+        txid: data.txHash,
+        oldStatus: status,
+        newStatus: status,
+        timestamps: { included: data.chainEvent.createdAt },
+        confirmations: 1,
+        source: 'indexer',
+      });
+
+      addLatencyRecord({
+        event: `evm:${data.eventName}`,
+        entityId: data.txHash.slice(0, 12),
+        latencyMs: Math.max(0, Date.now() - data.chainEvent.createdAt),
         timestamp: Date.now(),
         source: 'ws',
       });

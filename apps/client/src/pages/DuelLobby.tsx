@@ -5,8 +5,10 @@ import {
   createMatchV3,
   joinMatchV3,
   getMatchV3,
+  submitScoreV3,
   type V3MatchResponse,
 } from '../api/v3client';
+import { GameCanvas, type GameStats, type RaceEndEvent } from '../components/GameCanvas';
 import { TxLifecycleTimeline } from '@kas-racing/speed-visualizer-sdk';
 import { LatencyDebugPanel } from '../components/LatencyDebugPanel';
 import { useRealtimeSync, type ChainStateEvent, type MatchStateEvent } from '../realtime';
@@ -17,6 +19,7 @@ type View = 'lobby' | 'create' | 'join' | 'waiting' | 'deposits' | 'game' | 'fin
 const BET_AMOUNTS_KAS = [0.1, 0.5, 1.0, 5.0];
 const RECONCILE_INTERVAL_MS = 10_000;
 const DEPOSIT_POLL_INTERVAL_MS = 5_000;
+const DUEL_TIME_LIMIT_SECONDS = 30;
 
 // Map V3 match state to view
 function stateToView(state: string): View {
@@ -43,6 +46,16 @@ export function DuelLobby() {
   const [loading, setLoading] = useState(false);
   const [myRole, setMyRole] = useState<'player1' | 'player2' | null>(null);
   const [showDebug, setShowDebug] = useState(false);
+  const [duelStats, setDuelStats] = useState<GameStats>({
+    distance: 0,
+    speed: 0,
+    checkpoints: 0,
+    isPlaying: false,
+    isGameOver: false,
+    timeRemaining: DUEL_TIME_LIMIT_SECONDS,
+  });
+  const [scoreSubmitting, setScoreSubmitting] = useState(false);
+  const [scoreSubmitted, setScoreSubmitted] = useState(false);
 
   // Contract deposit hook
   const escrowAddress = (match?.contract.escrowAddress || null) as Address | null;
@@ -103,6 +116,32 @@ export function DuelLobby() {
       }).catch(() => {});
     }, DEPOSIT_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
+  }, [view, match?.id]);
+
+  // Poll for settlement updates while race is in progress
+  useEffect(() => {
+    if (view !== 'game' || !match?.id) return;
+    const interval = setInterval(() => {
+      void getMatchV3(match.id, { sync: true }).then((updated) => {
+        setMatch(updated);
+        setView(stateToView(updated.state));
+      }).catch(() => {});
+    }, DEPOSIT_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [view, match?.id]);
+
+  useEffect(() => {
+    if (view !== 'game') return;
+    setDuelStats({
+      distance: 0,
+      speed: 0,
+      checkpoints: 0,
+      isPlaying: false,
+      isGameOver: false,
+      timeRemaining: DUEL_TIME_LIMIT_SECONDS,
+    });
+    setScoreSubmitting(false);
+    setScoreSubmitted(false);
   }, [view, match?.id]);
 
   // ── Restore match from URL ──
@@ -198,6 +237,38 @@ export function DuelLobby() {
     }
   }, [match, resetDeposit]);
 
+  const handleDuelStatsUpdate = useCallback((stats: GameStats) => {
+    setDuelStats(stats);
+  }, []);
+
+  const handleRaceEnd = useCallback((event: RaceEndEvent) => {
+    if (!match?.id || !address || !myRole) return;
+
+    const myCurrentScore = myRole === 'player1'
+      ? match.players.player1.score
+      : match.players.player2.score;
+
+    if (myCurrentScore !== null || scoreSubmitting || scoreSubmitted) {
+      return;
+    }
+
+    setError(null);
+    setScoreSubmitting(true);
+
+    void submitScoreV3(match.id, address, Math.max(0, Math.floor(event.distance)))
+      .then((updated) => {
+        setMatch(updated);
+        setScoreSubmitted(true);
+        setView(stateToView(updated.state));
+      })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : 'Failed to submit score');
+      })
+      .finally(() => {
+        setScoreSubmitting(false);
+      });
+  }, [address, match, myRole, scoreSubmitted, scoreSubmitting]);
+
   const resetMatch = () => {
     setMatch(null);
     setView('lobby');
@@ -235,6 +306,12 @@ export function DuelLobby() {
   const betDisplayKas = match
     ? formatEther(BigInt(match.depositAmountWei))
     : betAmountKas.toString();
+
+  const myScore = match
+    ? myRole === 'player1'
+      ? match.players.player1.score
+      : match.players.player2.score
+    : null;
 
   // Map EVM tx status to TxLifecycleTimeline status
   const mapTxStatus = (s: string): 'broadcasted' | 'accepted' | 'included' | 'confirmed' => {
@@ -514,17 +591,38 @@ export function DuelLobby() {
 
       case 'game':
         return (
-          <div className="lobby-content">
-            <h1>Race in Progress</h1>
-            <p className="muted">Both deposits confirmed. Race is running...</p>
-
-            <div style={{ marginTop: '24px' }}>
-              <p className="muted">Navigate to game scene or check match status.</p>
+          <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+            <GameCanvas
+              mode="duel"
+              onStatsUpdate={handleDuelStatsUpdate}
+              onRaceEnd={handleRaceEnd}
+            />
+            <div className="lobby-content" style={{ position: 'absolute', top: '16px', left: '16px', maxWidth: '360px', background: 'rgba(0,0,0,0.45)', borderRadius: '8px', padding: '12px' }}>
+              <h1 style={{ fontSize: '18px', marginBottom: '8px' }}>Race in Progress</h1>
+              <p className="muted" style={{ marginBottom: '6px', fontSize: '13px' }}>
+                {scoreSubmitting
+                  ? 'Submitting your score...'
+                  : (myScore !== null || scoreSubmitted)
+                    ? 'Your score submitted. Waiting for opponent...'
+                    : duelStats.isPlaying
+                      ? 'Racing now...'
+                      : duelStats.isGameOver
+                        ? 'Race ended. Finalizing score...'
+                        : 'Race auto-starting...'}
+              </p>
+              <p className="muted" style={{ marginBottom: '2px', fontSize: '12px' }}>
+                Distance: {duelStats.distance.toLocaleString()} m
+              </p>
+              <p className="muted" style={{ marginBottom: '2px', fontSize: '12px' }}>
+                Time Left: {Math.max(0, Math.ceil(duelStats.timeRemaining ?? DUEL_TIME_LIMIT_SECONDS))}s
+              </p>
+              <p className="muted" style={{ marginBottom: 0, fontSize: '12px' }}>
+                Submitted Score: {myScore ?? '-'}
+              </p>
+              {displayError && (
+                <p className="error" style={{ marginTop: '8px', fontSize: '12px' }}>{displayError}</p>
+              )}
             </div>
-
-            <button className="btn" onClick={resetMatch} style={{ marginTop: '24px' }}>
-              Back to Lobby
-            </button>
           </div>
         );
 
@@ -748,6 +846,22 @@ export function DuelLobby() {
               <div className="stat-item">
                 <span className="stat-label">State</span>
                 <span className="stat-value">{match?.state}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Time Left</span>
+                <span className="stat-value">{Math.max(0, Math.ceil(duelStats.timeRemaining ?? DUEL_TIME_LIMIT_SECONDS))}s</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Your Distance</span>
+                <span className="stat-value">{duelStats.distance.toLocaleString()} m</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Your Score</span>
+                <span className="stat-value">
+                  {scoreSubmitting
+                    ? 'Submitting...'
+                    : myScore ?? '-'}
+                </span>
               </div>
             </div>
           </>

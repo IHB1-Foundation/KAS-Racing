@@ -13,7 +13,7 @@
 import { gt, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { chainEventsEvm, rewardEventsV3, matchesV3 } from '../db/schema.js';
-import { syncMatchFromEvents } from '../services/evmMatchService.js';
+import { syncMatchFromEvents, maybeAutoSettleMatch } from '../services/evmMatchService.js';
 import { emitEvmChainEvent, emitEvmMatchUpdate, emitEvmRewardUpdate } from '../ws/index.js';
 import { recordLatencyMetric, type LatencyMetric } from '../services/metricsService.js';
 import type { EvmChainEventInfo } from '../types/evm.js';
@@ -125,6 +125,18 @@ async function processMatchEvent(
 
   // Sync match state from all events
   await syncMatchFromEvents(match.id);
+
+  // Auto-settle immediately when funding is confirmed and both scores are already submitted
+  if (eventName === 'MatchFunded') {
+    try {
+      const settled = await maybeAutoSettleMatch(match.id);
+      if (settled) {
+        console.log(`[evmBridge] Auto-settled funded match ${match.id}`);
+      }
+    } catch (error) {
+      console.error(`[evmBridge] Auto-settlement failed for ${match.id}:`, error);
+    }
+  }
 
   // Record latency metrics for key events
   if (eventName === 'MatchFunded' || eventName === 'Settled' || eventName === 'Draw') {

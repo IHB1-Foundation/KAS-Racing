@@ -235,8 +235,8 @@ export async function submitScore(
   if (!updated) throw new MatchError('Match disappeared', 'INTERNAL');
 
   if (updated.player1Score !== null && updated.player2Score !== null) {
-    // Both scores in — trigger settlement
-    await processSettlement(matchId);
+    // Both scores in — settle immediately if funded, otherwise defer
+    await maybeAutoSettleMatch(matchId);
   }
 
   return getMatchResponse(matchId);
@@ -316,6 +316,26 @@ export async function processSettlement(matchId: string): Promise<void> {
     console.error(`[evm-match] Settlement failed for ${matchId}: ${msg}`);
     throw new MatchError(`Settlement failed: ${msg}`, 'TX_FAILED');
   }
+}
+
+/**
+ * Auto-settle a match when prerequisites are satisfied.
+ * Returns true when settlement was triggered.
+ */
+export async function maybeAutoSettleMatch(matchId: string): Promise<boolean> {
+  const match = await getMatchById(matchId);
+  if (!match) return false;
+
+  const bothScoresReady = match.player1Score !== null && match.player2Score !== null;
+  if (!bothScoresReady) return false;
+  if (match.state !== 'funded') {
+    console.log(`[evm-match] Auto-settle deferred for ${matchId}: state=${match.state}`);
+    return false;
+  }
+  if (match.settleTxHash) return false;
+
+  await processSettlement(matchId);
+  return true;
 }
 
 /**

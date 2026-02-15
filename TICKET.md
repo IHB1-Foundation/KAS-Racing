@@ -51,6 +51,244 @@
 
 ---
 
+## 15) P14 — 실시간 레이스 마켓 (Live Odds + Bet/Cancel)
+
+### - [x] T-390 Duel Realtime Baseline v1 (자동 레이스 + 자동 점수제출 + 자동정산 트리거)
+**목표**
+- 듀얼 모드를 "입금 후 자동 진행" 기반으로 정리하고, 실시간 상태 반영의 최소 동작을 확보.
+
+**작업**
+- [x] 듀얼 씬 자동 시작(수동 SPACE 입력 없이 레이스 시작)
+- [x] 레이스 종료 이벤트(`raceEnd`) 시 점수 자동 제출
+- [x] `MatchFunded` 이벤트 수신 시 자동 정산 재시도 훅 추가
+- [x] V3 매치 라우트에서 join/submit-score 이후 WS 스냅샷 이벤트 전송 보강
+
+**산출물**
+- `apps/client/src/game/scenes/DuelScene.ts`
+- `apps/client/src/pages/DuelLobby.tsx`
+- `apps/server/src/services/evmMatchService.ts`
+- `apps/server/src/workers/evmEventBridge.ts`
+- `apps/server/src/routes/v3/match.ts`
+
+**완료조건**
+- 듀얼 매치가 `funded` 이후 자동으로 플레이 상태로 진입
+- 플레이어 점수가 별도 버튼 없이 자동 제출됨
+- 양측 점수 제출 후 자동 정산 트리거가 동작
+
+**변경 요약**
+- DuelScene auto-start + DuelLobby 점수 자동 제출 흐름 추가
+- `maybeAutoSettleMatch()` 도입 및 bridge 이벤트 연동
+- v3 match 라우트에서 `matchStateChanged` WS emission 보강
+
+**실행 방법**
+- `pnpm --filter @kas-racing/client typecheck`
+- `pnpm --filter @kas-racing/server typecheck`
+- `pnpm --filter @kas-racing/server test -- src/routes/v3/v3.test.ts`
+
+**Notes/Blockers**
+- 현재는 "실시간 레이스 베팅 마켓"이 아니라 "듀얼 자동 진행" 레벨까지만 완료됨
+
+
+### - [ ] T-400 Live Market ADR + Rules Freeze (확률/베팅/취소 규칙 고정)
+**의존**
+- T-390
+
+**작업**
+- [ ] 실시간 마켓 상태머신 확정: `OPEN -> LOCKED -> SETTLED -> CANCELLED`
+- [ ] 취소 허용 경계 정의(예: lock 이전만 취소 가능)
+- [ ] 확률/배당 업데이트 주기 정의(예: 100~500ms)
+- [ ] "체결 소스(오프체인 엔진) + 온체인 정산 경계" 문서화
+
+**산출물**
+- `docs/ADR-003-live-market.md`
+- `docs/ARCHITECTURE.md` 실시간 마켓 시퀀스 업데이트
+
+**완료조건**
+- FE/BE/운영이 동일 규칙으로 구현 가능한 수준으로 명세 고정
+- "취소 가능/불가능" 경계가 예시와 함께 명확히 문서화
+
+**Notes/Blockers**
+- 없음
+
+
+### - [ ] T-401 Realtime Market Schema + Migration
+**의존**
+- T-400
+
+**작업**
+- [ ] 테이블 설계: `race_markets`, `odds_ticks`, `bet_orders`, `bet_cancels`, `market_settlements`
+- [ ] idempotency key + sequence index 설계(중복 요청 방지)
+- [ ] 고빈도 조회용 인덱스 설계(시장별 최신 odds, 사용자 미정산 포지션)
+- [ ] 마이그레이션/롤백 스크립트 추가
+
+**산출물**
+- `apps/server/src/db/schema.ts` 확장
+- `apps/server/drizzle/*.sql` 마이그레이션
+
+**완료조건**
+- 로컬/스테이징 모두 migrate 성공
+- 최신 odds 조회/오더 조회 쿼리 P95가 목표 내(문서화된 기준)
+
+**Notes/Blockers**
+- 없음
+
+
+### - [ ] T-402 Live Odds Engine (실시간 확률/배당 계산기)
+**의존**
+- T-401
+
+**작업**
+- [ ] 레이스 텔레메트리 입력값 정의(거리, 속도, 남은시간, 이벤트)
+- [ ] 확률 계산기(초기 모델) 구현 및 odds 정규화
+- [ ] 변화량 임계치 기반 tick 발행(불필요한 과다 broadcast 방지)
+- [ ] 배당 업데이트 시 DB 저장 + WS 브로드캐스트
+
+**산출물**
+- `apps/server/src/services/oddsEngineService.ts` (신규)
+- `apps/server/src/workers/oddsTickWorker.ts` (신규)
+
+**완료조건**
+- 실시간 odds tick이 설정 주기 내에서 안정적으로 발행
+- 동일 입력 시 재현 가능한 계산 결과(테스트 보장)
+
+**Notes/Blockers**
+- 없음
+
+
+### - [ ] T-403 Bet/Cancel API + Matching Guard
+**의존**
+- T-402
+
+**작업**
+- [ ] `POST /api/v3/market/:id/bet` 구현(place)
+- [ ] `POST /api/v3/market/:id/cancel` 구현(cancel)
+- [ ] 취소 허용 조건/락 조건/중복요청(idempotency) 적용
+- [ ] 잔고/한도/노출(exposure) 검증 로직 추가
+
+**산출물**
+- `apps/server/src/routes/v3/market.ts` (신규)
+- `apps/server/src/services/marketOrderService.ts` (신규)
+- API 테스트 코드
+
+**완료조건**
+- 베팅/취소가 규칙 위반 시 정확한 에러 코드로 거절
+- 동시 요청에서도 중복 주문/중복 취소가 발생하지 않음
+
+**Notes/Blockers**
+- 없음
+
+
+### - [ ] T-404 WebSocket Protocol v3-Market (진짜 실시간 체감)
+**의존**
+- T-403
+
+**작업**
+- [ ] 이벤트 정의: `marketTick`, `betAccepted`, `betCancelled`, `marketLocked`, `marketSettled`
+- [ ] 구독 모델 정의: `subscribeMarket`, `unsubscribeMarket`
+- [ ] 재연결 시 snapshot + sequence replay 적용
+- [ ] WS fallback polling과 정합성 체크
+
+**산출물**
+- `apps/server/src/ws/index.ts` market channel 확장
+- `apps/client/src/realtime/useRealtimeSync.ts` market 이벤트 핸들러 확장
+
+**완료조건**
+- 브라우저 새로고침 없이 배당/베팅/취소 상태가 즉시 갱신
+- 재연결 후 상태 누락 없이 최신 스냅샷 복구
+
+**Notes/Blockers**
+- 없음
+
+
+### - [ ] T-405 Frontend Live Betting UI (배당 변화 + 즉시 베팅/취소)
+**의존**
+- T-404
+
+**작업**
+- [ ] 실시간 배당 패널(상승/하락 표시, 최근 tick 시각화)
+- [ ] 베팅 입력/확정/취소 UI 및 체결 상태 뱃지
+- [ ] 내 오더/포지션/미체결/취소내역 패널 추가
+- [ ] 낙관적 UI + 서버 거절 시 롤백 처리
+
+**산출물**
+- `apps/client/src/pages/` 실시간 마켓 화면 추가/개편
+- `apps/client/src/components/` market UI 컴포넌트
+
+**완료조건**
+- 사용자 관점에서 배당 변동과 주문 상태가 실시간으로 보임
+- 취소 가능 시간 내 취소가 즉시 UI에 반영됨
+
+**Notes/Blockers**
+- 없음
+
+
+### - [ ] T-406 Market Lock/Settlement + On-chain Bridge
+**의존**
+- T-405
+
+**작업**
+- [ ] 레이스 종료 시점 lock 처리(신규 베팅/취소 차단)
+- [ ] 공식 결과 확정 후 승/패 산출 및 정산 레코드 생성
+- [ ] 온체인 정산 트랜잭션 브리지(단건/배치 전략 확정)
+- [ ] 정산 tx lifecycle을 UI timeline에 반영
+
+**산출물**
+- market settlement 서비스 + 정산 워커
+- 정산 API/WS 이벤트
+
+**완료조건**
+- lock 이후 주문 상태가 변조되지 않음
+- 결과 확정 후 정산 데이터/온체인 tx가 일관되게 연결됨
+
+**Notes/Blockers**
+- 온체인 배치 정산 전략은 컨트랙트 제약에 따라 하위 티켓 분리 가능
+
+
+### - [ ] T-407 Risk Controls + Abuse Prevention (운영 안전장치)
+**의존**
+- T-406
+
+**작업**
+- [ ] per-user/per-market 주문 속도 제한
+- [ ] 최대 베팅 금액/노출 한도/시장별 circuit breaker
+- [ ] 비정상 배당 급변 감지(모델 오류/입력 이상치 방어)
+- [ ] 운영자 강제 lock/cancel 절차 및 감사 로그 추가
+
+**산출물**
+- 리스크 정책 모듈 + 운영 runbook
+- 보안/악용 시나리오 테스트
+
+**완료조건**
+- 스팸/폭주 상황에서 서비스가 안정적으로 보호됨
+- 운영자가 수동 개입할 때 모든 액션이 로그로 추적 가능
+
+**Notes/Blockers**
+- 없음
+
+
+### - [ ] T-408 Realtime Load Test + SLO
+**의존**
+- T-407
+
+**작업**
+- [ ] 부하 시나리오 정의(동시 시청/주문/취소 사용자 수)
+- [ ] WS 이벤트 지연/손실/재연결 복구 지표 수집
+- [ ] SLO 정의 및 경보 임계치 설정
+- [ ] 병목 구간 튜닝(DB 인덱스, 브로드캐스트 fanout, worker 주기)
+
+**산출물**
+- 부하 테스트 스크립트 + 리포트
+- SLO 대시보드/알람 기준 문서
+
+**완료조건**
+- 목표 부하에서 실시간 UI 체감이 유지됨(P95 지연 목표 충족)
+- 장애 징후를 사전에 감지할 수 있는 알람 체계가 준비됨
+
+**Notes/Blockers**
+- 없음
+
+---
+
 ## 1-A) P0 — EVM 전환 재설계 백로그 (KASPLEX Testnet)
 
 > 현 상태는 Kaspa UTXO 경로(`kaspa-wasm`) 기반이므로, 아래 티켓은 **KASPLEX zkEVM Testnet 기준으로 재설계/재구현**하는 신규 트랙이다.

@@ -16,7 +16,8 @@ import {
   MatchError,
 } from '../../services/evmMatchService.js';
 import { getEvmEventsByMatchId } from '../../services/evmChainQueryService.js';
-import type { V3CreateMatchRequest, V3JoinMatchRequest, V3SubmitScoreRequest } from '../../types/evm.js';
+import type { V3CreateMatchRequest, V3JoinMatchRequest, V3SubmitScoreRequest, V3MatchResponse } from '../../types/evm.js';
+import { emitMatchStateChanged } from '../../ws/index.js';
 
 const router = Router();
 
@@ -32,6 +33,31 @@ function handleMatchError(res: Response, error: unknown): void {
     console.error('[v3/match] Unexpected error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+}
+
+function emitV3MatchSnapshot(match: V3MatchResponse, oldStatus?: string): void {
+  const p1Addr = match.players.player1.address.toLowerCase();
+  const p2Addr = match.players.player2.address?.toLowerCase() ?? '';
+  const dep1 = match.deposits.find((d) => d.playerAddress.toLowerCase() === p1Addr);
+  const dep2 = match.deposits.find((d) => d.playerAddress.toLowerCase() === p2Addr);
+
+  emitMatchStateChanged({
+    matchId: match.id,
+    oldStatus: oldStatus ?? match.state,
+    newStatus: match.state,
+    deposits: {
+      A: { txid: dep1?.txHash ?? null, status: dep1?.txStatus ?? null },
+      B: { txid: dep2?.txHash ?? null, status: dep2?.txStatus ?? null },
+    },
+    settlement: match.settlement
+      ? { txid: match.settlement.txHash ?? null, status: match.settlement.txStatus ?? null }
+      : null,
+    winner: match.winner?.address ?? null,
+    scores: {
+      A: match.players.player1.score,
+      B: match.players.player2.score,
+    },
+  });
 }
 
 /**
@@ -75,7 +101,9 @@ router.post('/join', asyncHandler(async (req: Request, res: Response) => {
       return;
     }
 
+    const before = await getMatchByJoinCode(body.joinCode).catch(() => null);
     const result = await joinMatch(body.joinCode, body.playerAddress);
+    emitV3MatchSnapshot(result, before?.state);
     res.json(result);
   } catch (error) {
     handleMatchError(res, error);
@@ -148,7 +176,9 @@ router.post('/:id/submit-score', asyncHandler(async (req: Request, res: Response
       return;
     }
 
+    const before = await getMatchResponse(id).catch(() => null);
     const result = await submitScore(id, body.playerAddress, body.score);
+    emitV3MatchSnapshot(result, before?.state);
     res.json(result);
   } catch (error) {
     handleMatchError(res, error);

@@ -40,6 +40,7 @@ export class DuelScene extends Phaser.Scene {
   private statusText!: Phaser.GameObjects.Text;
   private lastLaneChange = 0;
   private touchStartX = 0;
+  private autoStartTimer?: Phaser.Time.TimerEvent;
 
   constructor() {
     super({ key: 'DuelScene' });
@@ -70,6 +71,7 @@ export class DuelScene extends Phaser.Scene {
     this.setupInput();
 
     this.showStartPrompt();
+    this.scheduleAutoStart();
   }
 
   private createBackground() {
@@ -168,6 +170,8 @@ export class DuelScene extends Phaser.Scene {
     // Space to start
     this.input.keyboard!.on('keydown-SPACE', () => {
       if (!this.state.isPlaying && !this.state.isGameOver) {
+        this.autoStartTimer?.destroy();
+        this.autoStartTimer = undefined;
         this.startGame();
       } else if (this.state.isGameOver) {
         this.restartGame();
@@ -179,6 +183,8 @@ export class DuelScene extends Phaser.Scene {
       this.touchStartX = pointer.x;
 
       if (!this.state.isPlaying && !this.state.isGameOver) {
+        this.autoStartTimer?.destroy();
+        this.autoStartTimer = undefined;
         this.startGame();
       } else if (this.state.isGameOver) {
         this.restartGame();
@@ -200,10 +206,20 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private showStartPrompt() {
-    this.statusText.setText('30-Second Race!\n\nPress SPACE to Start\n\nLEFT/RIGHT or Swipe to Move');
+    this.statusText.setText('30-Second Race!\n\nAuto-starting...\n\nLEFT/RIGHT or Swipe to Move');
+  }
+
+  private scheduleAutoStart() {
+    this.autoStartTimer?.destroy();
+    this.autoStartTimer = this.time.delayedCall(800, () => {
+      if (!this.state.isPlaying && !this.state.isGameOver) {
+        this.startGame();
+      }
+    });
   }
 
   private startGame() {
+    if (this.state.isPlaying) return;
     this.state.isPlaying = true;
     this.state.startTime = Date.now();
     this.statusText.setText('');
@@ -385,6 +401,7 @@ export class DuelScene extends Phaser.Scene {
     this.timerText.setColor('#ffffff');
     this.timerText.setText('30');
     this.showStartPrompt();
+    this.scheduleAutoStart();
   }
 
   // Public method to get current game state
