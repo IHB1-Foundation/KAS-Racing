@@ -281,6 +281,102 @@ async function ensureSchema(): Promise<void> {
   await pool.query(`CREATE INDEX IF NOT EXISTS chain_events_event_type_idx ON chain_events(event_type);`);
   await pool.query(`CREATE INDEX IF NOT EXISTS chain_events_match_id_idx ON chain_events(match_id);`);
   await pool.query(`CREATE INDEX IF NOT EXISTS chain_events_daa_score_idx ON chain_events(daa_score);`);
+
+  // v3 EVM tables (KASPLEX zkEVM)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS chain_events_evm (
+      id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      block_number BIGINT NOT NULL,
+      tx_hash TEXT NOT NULL,
+      log_index INTEGER NOT NULL,
+      contract TEXT NOT NULL,
+      event_name TEXT NOT NULL,
+      args TEXT NOT NULL DEFAULT '{}',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(tx_hash, log_index)
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS matches_v3 (
+      id TEXT PRIMARY KEY,
+      match_id_onchain TEXT NOT NULL UNIQUE,
+      player1_address TEXT NOT NULL,
+      player2_address TEXT NOT NULL,
+      deposit_amount_wei TEXT NOT NULL,
+      timeout_block BIGINT NOT NULL,
+      state TEXT NOT NULL DEFAULT 'created',
+      player1_deposited INTEGER NOT NULL DEFAULT 0,
+      player2_deposited INTEGER NOT NULL DEFAULT 0,
+      winner_address TEXT,
+      settle_tx_hash TEXT,
+      player1_score INTEGER,
+      player2_score INTEGER,
+      created_at TIMESTAMPTZ NOT NULL,
+      funded_at TIMESTAMPTZ,
+      settled_at TIMESTAMPTZ
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS deposits_v3 (
+      id TEXT PRIMARY KEY,
+      match_id_onchain TEXT NOT NULL,
+      player_address TEXT NOT NULL,
+      amount_wei TEXT NOT NULL,
+      tx_hash TEXT,
+      tx_status TEXT NOT NULL DEFAULT 'pending',
+      block_number BIGINT,
+      created_at TIMESTAMPTZ NOT NULL,
+      mined_at TIMESTAMPTZ,
+      confirmed_at TIMESTAMPTZ
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS settlements_v3 (
+      id TEXT PRIMARY KEY,
+      match_id_onchain TEXT NOT NULL UNIQUE,
+      settlement_type TEXT NOT NULL,
+      winner_address TEXT,
+      payout_wei TEXT NOT NULL,
+      tx_hash TEXT,
+      tx_status TEXT NOT NULL DEFAULT 'pending',
+      block_number BIGINT,
+      created_at TIMESTAMPTZ NOT NULL,
+      mined_at TIMESTAMPTZ,
+      confirmed_at TIMESTAMPTZ
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS reward_events_v3 (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES sessions(id),
+      seq INTEGER NOT NULL,
+      recipient_address TEXT NOT NULL,
+      amount_wei TEXT NOT NULL,
+      proof_hash TEXT,
+      tx_hash TEXT,
+      tx_status TEXT NOT NULL DEFAULT 'pending',
+      block_number BIGINT,
+      created_at TIMESTAMPTZ NOT NULL,
+      mined_at TIMESTAMPTZ,
+      confirmed_at TIMESTAMPTZ
+    );
+  `);
+
+  // v3 indexes
+  await pool.query(`CREATE INDEX IF NOT EXISTS chain_events_evm_contract_event_idx ON chain_events_evm(contract, event_name);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS chain_events_evm_block_idx ON chain_events_evm(block_number);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS matches_v3_state_idx ON matches_v3(state);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS matches_v3_player1_idx ON matches_v3(player1_address);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS matches_v3_player2_idx ON matches_v3(player2_address);`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS deposits_v3_match_player_idx ON deposits_v3(match_id_onchain, player_address);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS deposits_v3_tx_status_idx ON deposits_v3(tx_status);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS settlements_v3_tx_status_idx ON settlements_v3(tx_status);`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS reward_events_v3_session_seq_idx ON reward_events_v3(session_id, seq);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS reward_events_v3_tx_status_idx ON reward_events_v3(tx_status);`);
 }
 
 const shouldAutoMigrate = process.env.SKIP_DB_MIGRATIONS !== 'true';

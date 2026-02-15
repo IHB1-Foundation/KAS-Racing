@@ -291,14 +291,14 @@
 - Ponder 대신 viem 직접 사용 (KASPLEX zkEVM이 커스텀 체인이라 Ponder 네이티브 지원 미확인)
 
 
-### - [ ] T-321 Postgres Schema v3 (EVM 이벤트 모델)
+### - [x] T-321 Postgres Schema v3 (EVM 이벤트 모델)
 **의존**
 - T-320
 
 **작업**
-- [ ] `chain_events_evm`, `matches_v3`, `deposits_v3`, `settlements_v3` 설계
-- [ ] 마이그레이션 + 인덱스 + idempotency 키 정리
-- [ ] 기존 v2와 공존 가능한 읽기 전략 설계
+- [x] `chain_events_evm`, `matches_v3`, `deposits_v3`, `settlements_v3` 설계
+- [x] 마이그레이션 + 인덱스 + idempotency 키 정리
+- [x] 기존 v2와 공존 가능한 읽기 전략 설계
 
 **산출물**
 - DB 마이그레이션 + ERD 업데이트
@@ -306,6 +306,20 @@
 **완료조건**
 - API 질의가 full table scan 없이 동작
 - 롤백 가능한 migration 계획 포함
+
+**변경 요약**
+- Drizzle schema: chain_events_evm, matches_v3, deposits_v3, settlements_v3, reward_events_v3 테이블 추가
+- v2 테이블과 공존: v3 테이블은 _v3 접미사, v2는 그대로 유지
+- 인덱스: state/player/tx_status/block 기반 12개 인덱스
+- EVM 전용: amountWei(string), txHash, blockNumber 등 EVM 타입 적용
+- 서버 빌드 + 107 tests 통과
+
+**실행 방법**
+- 서버 시작 시 자동 마이그레이션 (CREATE TABLE IF NOT EXISTS)
+- 롤백: v3 테이블만 DROP (v2 영향 없음)
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-330 Backend Tx Engine EVM화

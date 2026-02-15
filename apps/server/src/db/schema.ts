@@ -169,6 +169,114 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
   expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
 });
 
+// ── EVM Chain Events (v3: indexed from KASPLEX zkEVM contracts) ──
+
+export const chainEventsEvm = pgTable('chain_events_evm', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  blockNumber: bigint('block_number', { mode: 'bigint' }).notNull(),
+  txHash: text('tx_hash').notNull(),
+  logIndex: integer('log_index').notNull(),
+  contract: text('contract').notNull(),
+  eventName: text('event_name').notNull(),
+  args: text('args').notNull().default('{}'), // JSON stringified
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+}, (table) => ({
+  txLogIdx: uniqueIndex('chain_events_evm_tx_log_idx').on(table.txHash, table.logIndex),
+  contractEventIdx: index('chain_events_evm_contract_event_idx').on(table.contract, table.eventName),
+  blockIdx: index('chain_events_evm_block_idx').on(table.blockNumber),
+}));
+
+// ── Matches v3 (EVM: contract-backed matches) ──
+
+export const matchesV3 = pgTable('matches_v3', {
+  id: text('id').primaryKey(), // bytes32 matchId hex
+  matchIdOnchain: text('match_id_onchain').notNull().unique(), // bytes32 from contract
+  player1Address: text('player1_address').notNull(),
+  player2Address: text('player2_address').notNull(),
+  depositAmountWei: text('deposit_amount_wei').notNull(), // stored as string for precision
+  timeoutBlock: bigint('timeout_block', { mode: 'bigint' }).notNull(),
+  state: text('state', {
+    enum: ['created', 'funded', 'settled', 'refunded', 'cancelled']
+  }).notNull().default('created'),
+  player1Deposited: integer('player1_deposited').notNull().default(0), // 0/1 boolean
+  player2Deposited: integer('player2_deposited').notNull().default(0),
+  winnerAddress: text('winner_address'),
+  settleTxHash: text('settle_tx_hash'),
+  player1Score: integer('player1_score'),
+  player2Score: integer('player2_score'),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  fundedAt: timestamp('funded_at', { withTimezone: true, mode: 'date' }),
+  settledAt: timestamp('settled_at', { withTimezone: true, mode: 'date' }),
+}, (table) => ({
+  stateIdx: index('matches_v3_state_idx').on(table.state),
+  player1Idx: index('matches_v3_player1_idx').on(table.player1Address),
+  player2Idx: index('matches_v3_player2_idx').on(table.player2Address),
+}));
+
+// ── Deposits v3 (EVM: individual deposit tracking) ──
+
+export const depositsV3 = pgTable('deposits_v3', {
+  id: text('id').primaryKey(),
+  matchIdOnchain: text('match_id_onchain').notNull(),
+  playerAddress: text('player_address').notNull(),
+  amountWei: text('amount_wei').notNull(),
+  txHash: text('tx_hash'),
+  txStatus: text('tx_status', {
+    enum: ['pending', 'submitted', 'mined', 'confirmed', 'failed']
+  }).notNull().default('pending'),
+  blockNumber: bigint('block_number', { mode: 'bigint' }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  minedAt: timestamp('mined_at', { withTimezone: true, mode: 'date' }),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true, mode: 'date' }),
+}, (table) => ({
+  matchPlayerIdx: uniqueIndex('deposits_v3_match_player_idx').on(table.matchIdOnchain, table.playerAddress),
+  txStatusIdx: index('deposits_v3_tx_status_idx').on(table.txStatus),
+}));
+
+// ── Settlements v3 (EVM: settlement tracking) ──
+
+export const settlementsV3 = pgTable('settlements_v3', {
+  id: text('id').primaryKey(),
+  matchIdOnchain: text('match_id_onchain').notNull().unique(),
+  settlementType: text('settlement_type', {
+    enum: ['winner', 'draw', 'refund']
+  }).notNull(),
+  winnerAddress: text('winner_address'),
+  payoutWei: text('payout_wei').notNull(),
+  txHash: text('tx_hash'),
+  txStatus: text('tx_status', {
+    enum: ['pending', 'submitted', 'mined', 'confirmed', 'failed']
+  }).notNull().default('pending'),
+  blockNumber: bigint('block_number', { mode: 'bigint' }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  minedAt: timestamp('mined_at', { withTimezone: true, mode: 'date' }),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true, mode: 'date' }),
+}, (table) => ({
+  txStatusIdx: index('settlements_v3_tx_status_idx').on(table.txStatus),
+}));
+
+// ── Reward Events v3 (EVM: contract-backed reward payouts) ──
+
+export const rewardEventsV3 = pgTable('reward_events_v3', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').notNull().references(() => sessions.id),
+  seq: integer('seq').notNull(),
+  recipientAddress: text('recipient_address').notNull(),
+  amountWei: text('amount_wei').notNull(),
+  proofHash: text('proof_hash'),
+  txHash: text('tx_hash'),
+  txStatus: text('tx_status', {
+    enum: ['pending', 'submitted', 'mined', 'confirmed', 'failed']
+  }).notNull().default('pending'),
+  blockNumber: bigint('block_number', { mode: 'bigint' }),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  minedAt: timestamp('mined_at', { withTimezone: true, mode: 'date' }),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true, mode: 'date' }),
+}, (table) => ({
+  sessionSeqIdx: uniqueIndex('reward_events_v3_session_seq_idx').on(table.sessionId, table.seq),
+  txStatusIdx: index('reward_events_v3_tx_status_idx').on(table.txStatus),
+}));
+
 // ── Type Exports ──
 
 export type User = typeof users.$inferSelect;
@@ -194,3 +302,19 @@ export type NewChainEvent = typeof chainEvents.$inferInsert;
 
 export type IdempotencyKey = typeof idempotencyKeys.$inferSelect;
 export type NewIdempotencyKey = typeof idempotencyKeys.$inferInsert;
+
+// v3 EVM types
+export type ChainEventEvm = typeof chainEventsEvm.$inferSelect;
+export type NewChainEventEvm = typeof chainEventsEvm.$inferInsert;
+
+export type MatchV3 = typeof matchesV3.$inferSelect;
+export type NewMatchV3 = typeof matchesV3.$inferInsert;
+
+export type DepositV3 = typeof depositsV3.$inferSelect;
+export type NewDepositV3 = typeof depositsV3.$inferInsert;
+
+export type SettlementV3 = typeof settlementsV3.$inferSelect;
+export type NewSettlementV3 = typeof settlementsV3.$inferInsert;
+
+export type RewardEventV3 = typeof rewardEventsV3.$inferSelect;
+export type NewRewardEventV3 = typeof rewardEventsV3.$inferInsert;
