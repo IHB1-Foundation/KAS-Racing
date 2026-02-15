@@ -387,14 +387,14 @@
 - 기존 파일(evmClient.ts, evmContracts.ts)의 pre-existing lint 에러는 이번 티켓 범위 밖
 
 
-### - [ ] T-332 Realtime Bridge (WS + Indexer events)
+### - [x] T-332 Realtime Bridge (WS + Indexer events)
 **의존**
 - T-320, T-331
 
 **작업**
-- [ ] indexer 이벤트를 WS payload로 브리지
-- [ ] polling fallback + reconnect reconciliation 유지
-- [ ] latency metrics (submitted/mined/finalized) 수집
+- [x] indexer 이벤트를 WS payload로 브리지
+- [x] polling fallback + reconnect reconciliation 유지
+- [x] latency metrics (submitted/mined/finalized) 수집
 
 **산출물**
 - 실시간 이벤트 파이프라인
@@ -403,21 +403,56 @@
 - 이벤트 유실 없이 UI 상태 동기화
 - SLA 지표가 패널에서 확인 가능
 
+**변경 요약**
+- `evmEventBridge.ts`: chain_events_evm 폴링 → v3 테이블 동기화 → WS 이벤트 emit
+- `metricsService.ts`: 링버퍼 기반 latency 수집 (p50/p95/max), entity 타입별 분류
+- WS 이벤트 3종 추가: `evmChainEvent`, `evmMatchUpdate`, `evmRewardUpdate`
+- SLA API: `GET /api/v3/metrics/sla`, `GET /api/v3/metrics/events`
+- 서버 시작 시 자동으로 EVM Event Bridge 워커 실행
+- 9개 신규 테스트 (총 143개, 전체 통과)
 
-### - [ ] T-340 Frontend Wallet Stack EVM 전환
+**실행 방법**
+- `pnpm --filter @kas-racing/server test` (143 tests)
+- SLA 확인: `curl http://localhost:8787/api/v3/metrics/sla`
+
+**Notes/Blockers**
+- 없음
+
+
+### - [x] T-340 Frontend Wallet Stack EVM 전환
 **의존**
 - T-301
 
 **작업**
-- [ ] `wagmi + viem` 도입, 네트워크 `167012` 강제
-- [ ] wallet connect/disconnect/error 표준 UX 정리
-- [ ] 기존 Kasware 전용 코드 제거 또는 legacy 분리
+- [x] `wagmi + viem` 도입, 네트워크 `167012` 강제
+- [x] wallet connect/disconnect/error 표준 UX 정리
+- [x] 기존 Kasware 전용 코드 제거 또는 legacy 분리
 
 **산출물**
 - FE 지갑 모듈 v2
 
 **완료조건**
 - 지원 지갑으로 연결/체인스위치/서명 정상 동작
+
+**변경 요약**
+- `src/evm/` 모듈: wagmi + viem 기반 EVM 지갑 스택
+- `chains.ts`: KASPLEX Testnet 커스텀 체인 정의 (Chain ID 167012)
+- `config.ts`: wagmi 설정 (MetaMask + injected 커넥터)
+- `EvmWalletProvider.tsx`: wagmi + react-query 프로바이더
+- `useEvmWallet.ts`: 연결/해제/체인전환/잔고 훅
+- `EvmWalletButton.tsx`: 연결/해제/네트워크전환 UI
+- `EvmNetworkGuard.tsx`: 잘못된 네트워크 경고 배너
+- App.tsx에 EvmWalletProvider 래핑 (기존 Kasware와 공존)
+- 기존 `src/wallet/`은 legacy로 유지 (하위호환)
+
+**실행 방법**
+- `pnpm --filter @kas-racing/client build` (빌드 성공)
+- `pnpm --filter @kas-racing/client typecheck` (타입체크 통과)
+- `pnpm --filter @kas-racing/client test` (19 tests 통과)
+
+**Notes/Blockers**
+- 기존 Kasware 지갑 코드(`src/wallet/`)는 삭제하지 않고 legacy로 유지
+- FE 페이지의 Kasware → EVM 전환은 T-341, T-342에서 처리
 
 
 ### - [ ] T-341 Duel UX 전환 (Approve/Deposit/Settle)
