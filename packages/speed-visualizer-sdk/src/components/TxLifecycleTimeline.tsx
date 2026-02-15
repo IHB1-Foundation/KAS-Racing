@@ -22,6 +22,7 @@ const EXPLORER_URLS: Record<string, string> = {
   mainnet: 'https://explorer.kaspa.org/txs/',
   testnet: 'https://explorer-tn11.kaspa.org/txs/',
 };
+const EVM_TX_HASH_RE = /^0x[a-fA-F0-9]{64}$/;
 
 function getStageIndex(status: TxStatus): number {
   const idx = STAGES.indexOf(status);
@@ -44,6 +45,7 @@ export function TxLifecycleTimeline({
   onStatusClick,
 }: TxLifecycleTimelineProps): React.ReactElement {
   const currentStageIndex = getStageIndex(status);
+  const isValidTxid = EVM_TX_HASH_RE.test(txid);
 
   const stageTimings = useMemo(() => {
     if (!timestamps) return {};
@@ -75,15 +77,21 @@ export function TxLifecycleTimeline({
   return (
     <div className="svs-timeline" data-status={status}>
       <div className="svs-timeline-header">
-        <a
-          href={explorerLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="svs-txid"
-          title={txid}
-        >
-          {txid.slice(0, 8)}...{txid.slice(-6)}
-        </a>
+        {isValidTxid ? (
+          <a
+            href={explorerLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="svs-txid"
+            title={txid}
+          >
+            {txid.slice(0, 8)}...{txid.slice(-6)}
+          </a>
+        ) : (
+          <span className="svs-txid svs-txid-invalid" title={txid}>
+            invalid-tx
+          </span>
+        )}
         {status === 'confirmed' && confirmations > 0 && (
           <span className="svs-confirmations">{confirmations} conf</span>
         )}
@@ -142,6 +150,12 @@ export function TxLifecycleTimeline({
 
         .svs-txid:hover {
           text-decoration: underline;
+        }
+
+        .svs-txid-invalid {
+          color: #ef4444;
+          text-decoration: none;
+          cursor: default;
         }
 
         .svs-confirmations {

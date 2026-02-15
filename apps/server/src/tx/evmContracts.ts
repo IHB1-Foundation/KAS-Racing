@@ -11,6 +11,18 @@ import { matchEscrowAbi, rewardVaultAbi } from "./evmAbis.js";
 import { isE2EEnabled, nextMockTxHash } from "../utils/e2e.js";
 import { getEscrowAddress, getRewardAddress } from "./evmAddresses.js";
 
+const EVM_TX_HASH_RE = /^0x[a-fA-F0-9]{64}$/;
+
+function ensureSuccessfulTx(result: TxResult, action: string): TxResult {
+  if (!result.success) {
+    throw new Error(`[evm] ${action} returned unsuccessful tx result`);
+  }
+  if (!EVM_TX_HASH_RE.test(result.hash)) {
+    throw new Error(`[evm] ${action} returned invalid tx hash: ${result.hash}`);
+  }
+  return result;
+}
+
 // ─── MatchEscrow Operations ──────────────────────────────────
 
 /**
@@ -25,12 +37,13 @@ export async function createMatchOnchain(params: {
   if (isE2EEnabled()) {
     return { hash: nextMockTxHash(), receipt: null, success: true };
   }
-  return sendContractTx({
+  const result = await sendContractTx({
     address: getEscrowAddress(),
     abi: matchEscrowAbi,
     functionName: "createMatch",
     args: [params.matchId, params.player1, params.player2, params.depositAmountWei],
   });
+  return ensureSuccessfulTx(result, "createMatch");
 }
 
 /**
@@ -43,12 +56,13 @@ export async function settleMatch(params: {
   if (isE2EEnabled()) {
     return { hash: nextMockTxHash(), receipt: null, success: true };
   }
-  return sendContractTx({
+  const result = await sendContractTx({
     address: getEscrowAddress(),
     abi: matchEscrowAbi,
     functionName: "settle",
     args: [params.matchId, params.winner],
   });
+  return ensureSuccessfulTx(result, "settle");
 }
 
 /**
@@ -58,12 +72,13 @@ export async function settleMatchDraw(matchId: Hash): Promise<TxResult> {
   if (isE2EEnabled()) {
     return { hash: nextMockTxHash(), receipt: null, success: true };
   }
-  return sendContractTx({
+  const result = await sendContractTx({
     address: getEscrowAddress(),
     abi: matchEscrowAbi,
     functionName: "settleDraw",
     args: [matchId],
   });
+  return ensureSuccessfulTx(result, "settleDraw");
 }
 
 /**
@@ -73,12 +88,13 @@ export async function cancelMatch(matchId: Hash): Promise<TxResult> {
   if (isE2EEnabled()) {
     return { hash: nextMockTxHash(), receipt: null, success: true };
   }
-  return sendContractTx({
+  const result = await sendContractTx({
     address: getEscrowAddress(),
     abi: matchEscrowAbi,
     functionName: "cancel",
     args: [matchId],
   });
+  return ensureSuccessfulTx(result, "cancel");
 }
 
 /**
@@ -114,7 +130,7 @@ export async function payRewardOnchain(params: {
   if (isE2EEnabled()) {
     return { hash: nextMockTxHash(), receipt: null, success: true };
   }
-  return sendContractTx({
+  const result = await sendContractTx({
     address: getRewardAddress(),
     abi: rewardVaultAbi,
     functionName: "payReward",
@@ -127,6 +143,7 @@ export async function payRewardOnchain(params: {
       params.payload,
     ],
   });
+  return ensureSuccessfulTx(result, "payReward");
 }
 
 /**

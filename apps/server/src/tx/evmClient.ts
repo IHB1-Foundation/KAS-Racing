@@ -144,19 +144,43 @@ export async function sendContractTx(params: {
         `[evm] Tx sent: ${hash} (${params.functionName}, attempt ${attempt})`
       );
 
-      // Wait for receipt
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash,
-        confirmations: 1,
-        timeout: 30_000,
-      });
+      try {
+        // Wait briefly for receipt. If timeout, keep tx as submitted and let indexer/ws advance state.
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash,
+          confirmations: 1,
+          timeout: 30_000,
+        });
 
-      return {
-        hash,
-        receipt,
-        success: receipt.status === "success",
-        gasUsed: receipt.gasUsed,
-      };
+        if (receipt.status !== "success") {
+          throw new Error(`Transaction reverted: ${hash}`);
+        }
+
+        return {
+          hash,
+          receipt,
+          success: true,
+          gasUsed: receipt.gasUsed,
+        };
+      } catch (receiptErr: unknown) {
+        const receiptMessage = receiptErr instanceof Error ? receiptErr.message : String(receiptErr);
+        const isReceiptTimeout =
+          receiptMessage.includes("timeout") ||
+          receiptMessage.includes("timed out");
+
+        if (isReceiptTimeout) {
+          console.warn(
+            `[evm] Receipt timeout for ${params.functionName} (${hash}); returning submitted tx and relying on indexer confirmation`
+          );
+          return {
+            hash,
+            receipt: null,
+            success: true,
+          };
+        }
+
+        throw receiptErr;
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       const isTransient =
@@ -177,16 +201,11 @@ export async function sendContractTx(params: {
         `[evm] Tx ${params.functionName} failed after ${attempt} attempts:`,
         message
       );
-      return {
-        hash: "0x" as Hash,
-        receipt: null,
-        success: false,
-        error: message,
-      };
+      throw new Error(`[evm] ${params.functionName} failed: ${message}`);
     }
   }
 
-  return { hash: "0x" as Hash, receipt: null, success: false, error: "Max retries exceeded" };
+  throw new Error(`[evm] ${params.functionName} failed: Max retries exceeded`);
 }
 
 /**

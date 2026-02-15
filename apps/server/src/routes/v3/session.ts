@@ -148,12 +148,6 @@ router.post('/event', asyncHandler(async (req: Request, res: Response) => {
     const rewardKas = amounts[idx] ?? amounts[0] ?? 0.02;
     const rewardWei = parseEther(rewardKas.toString()).toString();
 
-    // Update session event count
-    await db
-      .update(sessions)
-      .set({ eventCount: session.eventCount + 1, lastEventAt: new Date(now) })
-      .where(eq(sessions.id, body.sessionId));
-
     // Process reward via RewardVault contract
     const rewardResult = await processEvmReward({
       sessionId: body.sessionId,
@@ -166,6 +160,18 @@ router.post('/event', asyncHandler(async (req: Request, res: Response) => {
       console.warn(`[v3/session] Reward error: ${rewardResult.error}`);
       res.json({ accepted: false, rejectReason: rewardResult.error });
       return;
+    }
+
+    // Reward tx submission succeeded; update session counters after success.
+    try {
+      await db
+        .update(sessions)
+        .set({ eventCount: session.eventCount + 1, lastEventAt: new Date(now) })
+        .where(eq(sessions.id, body.sessionId));
+    } catch (counterError) {
+      // The reward tx may already be on-chain; keep response successful to avoid
+      // duplicate client retries. We can reconcile counters from DB events later.
+      console.error('[v3/session] Failed to update session counters after reward submit:', counterError);
     }
 
     res.json({

@@ -17,7 +17,12 @@ import { isE2E } from '../e2e';
 import { getEvmExplorerTxUrl } from '../utils/explorer';
 
 const MAX_CHECKPOINTS = 10;
+const EVM_TX_HASH_RE = /^0x[a-fA-F0-9]{64}$/;
 type TxRecordStatus = TxStatus | 'pending';
+
+function isValidTxHash(hash: string | null | undefined): hash is `0x${string}` {
+  return typeof hash === 'string' && EVM_TX_HASH_RE.test(hash);
+}
 
 // Map EVM tx status to TxLifecycleTimeline status
 function mapEvmStatus(s: string): TxStatus {
@@ -73,6 +78,7 @@ export function FreeRun() {
   // Indexer-fed chain state updates
   const handleChainStateChanged = useCallback((data: ChainStateEvent) => {
     if (data.entityType !== 'reward') return;
+    if (!isValidTxHash(data.txid)) return;
     setTxRecords(prev =>
       prev.map(tx =>
         tx.txHash === data.txid
@@ -142,10 +148,14 @@ export function FreeRun() {
           tx.seq === event.seq
             ? {
                 ...tx,
-                status: result.accepted ? (result.txHash ? mapEvmStatus(result.txStatus ?? 'submitted') : 'pending') : 'failed',
-                txHash: result.txHash,
+                status: result.accepted
+                  ? (isValidTxHash(result.txHash) ? mapEvmStatus(result.txStatus ?? 'submitted') : 'failed')
+                  : 'failed',
+                txHash: isValidTxHash(result.txHash) ? result.txHash : undefined,
                 rewardAmountWei: result.rewardAmountWei,
-                error: result.rejectReason,
+                error: result.rejectReason ?? (result.accepted && !isValidTxHash(result.txHash)
+                  ? 'Invalid transaction hash returned from server'
+                  : undefined),
               }
             : tx
         )
@@ -378,7 +388,7 @@ export function FreeRun() {
                       <span className="tx-amount">{formatReward(tx.rewardAmountWei)}</span>
                     )}
                   </div>
-                  {tx.txHash ? (
+                  {isValidTxHash(tx.txHash) ? (
                     <TxLifecycleTimeline
                       txid={tx.txHash}
                       status={tx.status === 'pending' ? 'broadcasted' : tx.status}

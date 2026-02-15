@@ -38,6 +38,8 @@ import type {
 import type { Address } from 'viem';
 import { toHex, toBytes } from 'viem';
 
+const EVM_TX_HASH_RE = /^0x[a-fA-F0-9]{64}$/;
+
 // ── Reward Processing ──
 
 export interface EvmRewardRequest {
@@ -197,6 +199,9 @@ export async function processEvmReward(request: EvmRewardRequest): Promise<EvmRe
       proofHash: proofHash,
       payload: payloadHex,
     });
+    if (!txResult.success || !EVM_TX_HASH_RE.test(txResult.hash)) {
+      throw new Error(txResult.error ?? `Invalid tx submission result: ${txResult.hash}`);
+    }
 
     // Update DB with tx hash
     await db
