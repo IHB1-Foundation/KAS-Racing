@@ -219,23 +219,33 @@
 - 없음
 
 
-### - [ ] T-404 WebSocket Protocol v3-Market (진짜 실시간 체감)
+### - [x] T-404 WebSocket Protocol v3-Market (진짜 실시간 체감)
 **의존**
 - T-403
 
 **작업**
-- [ ] 이벤트 정의: `marketTick`, `betAccepted`, `betCancelled`, `marketLocked`, `marketSettled`
-- [ ] 구독 모델 정의: `subscribeMarket`, `unsubscribeMarket`
-- [ ] 재연결 시 snapshot + sequence replay 적용
-- [ ] WS fallback polling과 정합성 체크
+- [x] 이벤트 정의: `marketTick`, `betAccepted`, `betCancelled`, `marketLocked`, `marketSettled`
+- [x] 구독 모델 정의: `subscribeMarket`, `unsubscribeMarket`
+- [x] 재연결 시 snapshot + sequence replay 적용
+- [x] WS fallback polling과 정합성 체크
 
 **산출물**
-- `apps/server/src/ws/index.ts` market channel 확장
+- `apps/server/src/ws/index.ts` market channel 확장 (T-402에서 emit 함수 추가, T-404에서 subscription 핸들러 + disconnect cleanup 추가)
 - `apps/client/src/realtime/useRealtimeSync.ts` market 이벤트 핸들러 확장
 
 **완료조건**
 - 브라우저 새로고침 없이 배당/베팅/취소 상태가 즉시 갱신
 - 재연결 후 상태 누락 없이 최신 스냅샷 복구
+
+**변경 요약**
+- 서버 WS: `registerMarketHandlers` (subscribeMarket/unsubscribeMarket), `cleanupMarketSubscriptions`, room-based routing (`market:{id}`)
+- 클라이언트 `useRealtimeSync`: `marketId` 옵션 추가, 5종 market 이벤트 핸들러 (marketTick, marketLocked, marketSettled, betAccepted, betCancelled)
+- 재연결 시 자동 `subscribeMarket` 재구독 + `pollOnce()` reconciliation
+- 타입 export: MarketTickEvent, MarketLockedEvent, MarketSettledEvent, BetAcceptedEvent, BetCancelledEvent
+
+**실행 방법**
+- `pnpm --filter @kas-racing/client typecheck`
+- `pnpm --filter @kas-racing/server typecheck`
 
 **Notes/Blockers**
 - 없음

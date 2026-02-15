@@ -72,9 +72,48 @@ interface EvmRewardUpdateEvent {
   chainEvent: EvmChainEventInfo;
 }
 
+// ── Market Event Types ──
+
+export interface MarketTickEvent {
+  marketId: string;
+  seq: number;
+  probABps: number;
+  probBBps: number;
+  timestamp: number;
+}
+
+export interface MarketLockedEvent {
+  marketId: string;
+  finalProbABps: number;
+  finalProbBBps: number;
+  lockedAt: number;
+}
+
+export interface MarketSettledEvent {
+  marketId: string;
+  winnerSide: string;
+  totalPoolWei: string;
+  totalPayoutWei: string;
+  txHash: string | null;
+}
+
+export interface BetAcceptedEvent {
+  marketId: string;
+  orderId: string;
+  side: string;
+  stakeWei: string;
+  oddsAtPlacementBps: number;
+}
+
+export interface BetCancelledEvent {
+  marketId: string;
+  orderId: string;
+}
+
 interface UseRealtimeSyncOptions {
   sessionId?: string | null;
   matchId?: string | null;
+  marketId?: string | null;
   enabled?: boolean;
   /** When set, poll at this interval even when WS is connected (reconciliation). */
   reconcileIntervalMs?: number;
@@ -82,6 +121,11 @@ interface UseRealtimeSyncOptions {
   onMatchUpdate?: (data: MatchInfo) => void;
   onChainStateChanged?: (data: ChainStateEvent) => void;
   onMatchStateChanged?: (data: MatchStateEvent) => void;
+  onMarketTick?: (data: MarketTickEvent) => void;
+  onMarketLocked?: (data: MarketLockedEvent) => void;
+  onMarketSettled?: (data: MarketSettledEvent) => void;
+  onBetAccepted?: (data: BetAcceptedEvent) => void;
+  onBetCancelled?: (data: BetCancelledEvent) => void;
 }
 
 function mapEvmEventToTxStatus(eventName: string): TxStatusInfo['status'] {
@@ -102,6 +146,7 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions) {
   const {
     sessionId,
     matchId,
+    marketId,
     enabled = true,
     reconcileIntervalMs,
   } = options;
@@ -206,6 +251,11 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions) {
       // Subscribe to match
       if (matchId) {
         socket.emit('subscribeMatch', { matchId });
+      }
+
+      // Subscribe to market
+      if (marketId) {
+        socket.emit('subscribeMarket', { marketId });
       }
 
       // Reconcile on reconnect: fetch latest state to catch missed events
@@ -350,14 +400,76 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions) {
       });
     });
 
+    // ── Market Events ──
+
+    socket.on('marketTick', (data: MarketTickEvent) => {
+      callbacksRef.current.onMarketTick?.(data);
+
+      addLatencyRecord({
+        event: `market:tick:${data.seq}`,
+        entityId: data.marketId,
+        latencyMs: Math.max(0, Date.now() - data.timestamp),
+        timestamp: Date.now(),
+        source: 'ws',
+      });
+    });
+
+    socket.on('marketLocked', (data: MarketLockedEvent) => {
+      callbacksRef.current.onMarketLocked?.(data);
+
+      addLatencyRecord({
+        event: 'market:locked',
+        entityId: data.marketId,
+        latencyMs: Math.max(0, Date.now() - data.lockedAt),
+        timestamp: Date.now(),
+        source: 'ws',
+      });
+    });
+
+    socket.on('marketSettled', (data: MarketSettledEvent) => {
+      callbacksRef.current.onMarketSettled?.(data);
+
+      addLatencyRecord({
+        event: 'market:settled',
+        entityId: data.marketId,
+        latencyMs: 0,
+        timestamp: Date.now(),
+        source: 'ws',
+      });
+    });
+
+    socket.on('betAccepted', (data: BetAcceptedEvent) => {
+      callbacksRef.current.onBetAccepted?.(data);
+
+      addLatencyRecord({
+        event: 'market:betAccepted',
+        entityId: data.orderId,
+        latencyMs: 0,
+        timestamp: Date.now(),
+        source: 'ws',
+      });
+    });
+
+    socket.on('betCancelled', (data: BetCancelledEvent) => {
+      callbacksRef.current.onBetCancelled?.(data);
+
+      addLatencyRecord({
+        event: 'market:betCancelled',
+        entityId: data.orderId,
+        latencyMs: 0,
+        timestamp: Date.now(),
+        source: 'ws',
+      });
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
       stopPolling();
     };
-  }, [enabled, sessionId, matchId, startPolling, stopPolling, addLatencyRecord, pollOnce]);
+  }, [enabled, sessionId, matchId, marketId, startPolling, stopPolling, addLatencyRecord, pollOnce]);
 
-  // Re-subscribe when session/match changes
+  // Re-subscribe when session/match/market changes
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket?.connected) return;
@@ -368,6 +480,9 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions) {
     if (matchId) {
       socket.emit('subscribeMatch', { matchId });
     }
+    if (marketId) {
+      socket.emit('subscribeMarket', { marketId });
+    }
 
     return () => {
       if (sessionId) {
@@ -376,8 +491,11 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions) {
       if (matchId) {
         socket.emit('unsubscribeMatch', { matchId });
       }
+      if (marketId) {
+        socket.emit('unsubscribeMarket', { marketId });
+      }
     };
-  }, [sessionId, matchId]);
+  }, [sessionId, matchId, marketId]);
 
   // Compute average latency
   const avgLatencyMs = latencyRecords.length > 0
