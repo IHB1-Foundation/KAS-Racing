@@ -14,6 +14,7 @@ import { SidebarWalletBalances } from '../components/SidebarWalletBalances';
 import { useRealtimeSync, type ChainStateEvent } from '../realtime';
 import { formatEther } from 'viem';
 import { isE2E } from '../e2e';
+import { getEvmExplorerTxUrl } from '../utils/explorer';
 
 const MAX_CHECKPOINTS = 10;
 type TxRecordStatus = TxStatus | 'pending';
@@ -382,7 +383,7 @@ export function FreeRun() {
                       txid={tx.txHash}
                       status={tx.status === 'pending' ? 'broadcasted' : tx.status}
                       timestamps={tx.chainTimestamps ?? { broadcasted: tx.timestamp }}
-                      network="testnet"
+                      explorerUrl={getEvmExplorerTxUrl(tx.txHash)}
                     />
                   ) : (
                     <div className={`tx-status tx-status-${tx.status}`}>

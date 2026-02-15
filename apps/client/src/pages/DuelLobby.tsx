@@ -15,6 +15,7 @@ import { SidebarWalletBalances } from '../components/SidebarWalletBalances';
 import { useRealtimeSync, type ChainStateEvent, type MatchStateEvent } from '../realtime';
 import { parseEther, formatEther, type Address, type Hash } from 'viem';
 import { isE2E, e2eApiBase } from '../e2e';
+import { getEvmExplorerTxUrl } from '../utils/explorer';
 
 type View = 'lobby' | 'create' | 'join' | 'waiting' | 'deposits' | 'game' | 'finished';
 
@@ -597,7 +598,7 @@ export function DuelLobby() {
                     txid={(myDepositTx?.txHash ?? depositTxHash)!}
                     status={mapTxStatus(myDepositTx?.txStatus ?? (depositState === 'mined' ? 'mined' : 'submitted'))}
                     timestamps={{ broadcasted: Date.now() }}
-                    network="testnet"
+                    explorerUrl={getEvmExplorerTxUrl((myDepositTx?.txHash ?? depositTxHash)!)}
                   />
                 )}
                 {approveTxHash && !myDeposited && (
@@ -605,7 +606,7 @@ export function DuelLobby() {
                     txid={approveTxHash}
                     status={mapTxStatus(approveState === 'mined' ? 'mined' : 'submitted')}
                     timestamps={{ broadcasted: Date.now() }}
-                    network="testnet"
+                    explorerUrl={getEvmExplorerTxUrl(approveTxHash)}
                   />
                 )}
               </div>
@@ -629,7 +630,7 @@ export function DuelLobby() {
                     txid={opDepositTx.txHash}
                     status={mapTxStatus(opDepositTx.txStatus)}
                     timestamps={{ broadcasted: Date.now() }}
-                    network="testnet"
+                    explorerUrl={getEvmExplorerTxUrl(opDepositTx.txHash)}
                   />
                 )}
               </div>
@@ -770,7 +771,7 @@ export function DuelLobby() {
                   txid={settleTxHash}
                   status={mapTxStatus(settleStatus ?? 'submitted')}
                   timestamps={{ broadcasted: Date.now() }}
-                  network="testnet"
+                  explorerUrl={getEvmExplorerTxUrl(settleTxHash)}
                 />
               </div>
             )}

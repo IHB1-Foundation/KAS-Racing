@@ -11,8 +11,7 @@ import {
 } from '../api/v3client';
 import { useEvmWallet } from '../evm';
 import { SidebarWalletBalances } from '../components/SidebarWalletBalances';
-
-const EXPLORER_BASE = 'https://explorer.testnet.kasplextest.xyz';
+import { EVM_EXPLORER_BASE, getEvmExplorerTxUrl } from '../utils/explorer';
 
 // Map EVM tx status to TxLifecycleTimeline status
 function mapEvmStatus(s: string): TxStatus {
@@ -123,7 +122,7 @@ export function Proof() {
     [handleVerifyTx, handleVerifyProof, loading, lookupMode]
   );
 
-  const getExplorerUrl = (txHash: string) => `${EXPLORER_BASE}/tx/${txHash}`;
+  const getExplorerUrl = (txHash: string) => getEvmExplorerTxUrl(txHash);
 
   return (
     <div className="layout">
@@ -388,7 +387,7 @@ export function Proof() {
                 txid={txResult.txDetails.txHash}
                 status={mapEvmStatus(txResult.txStatus.status)}
                 timestamps={txResult.txStatus.timestamps}
-                network="testnet"
+                explorerUrl={getEvmExplorerTxUrl(txResult.txDetails.txHash)}
               />
             </div>
 
@@ -422,7 +421,7 @@ export function Proof() {
             </a>
           ) : (
             <a
-              href={EXPLORER_BASE}
+              href={EVM_EXPLORER_BASE}
               target="_blank"
               rel="noopener noreferrer"
               className="btn"
