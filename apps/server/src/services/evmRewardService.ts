@@ -318,6 +318,17 @@ export async function getProofData(sessionId: string, seq: number): Promise<{
     };
   }
 
+  const sessionRows = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+  const session = sessionRows[0];
+  const mode = session?.mode ?? 'free_run';
+  const network = (process.env.NETWORK ?? 'testnet').toLowerCase() === 'mainnet'
+    ? 'mainnet'
+    : 'testnet';
+
   // Find ProofRecorded chain events
   let chainEvents: EvmChainEventInfo[] = [];
   if (event.txHash) {
@@ -331,7 +342,7 @@ export async function getProofData(sessionId: string, seq: number): Promise<{
     sessionId,
     seq,
     proofHash: event.proofHash,
-    payload: `KASRACE1|${sessionId}|checkpoint|${seq}`,
+    payload: `KASRACE1|${network}|${mode}|${sessionId}|checkpoint|${seq}`,
     txHash: event.txHash,
     blockNumber: event.blockNumber?.toString() ?? null,
     verified: hasProofEvent,
