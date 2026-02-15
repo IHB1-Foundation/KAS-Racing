@@ -1,11 +1,11 @@
 {
   "network": "kasplex-testnet",
   "chainId": 167012,
-  "deployer": "0x_TO_BE_SET",
-  "operator": "0x_TO_BE_SET",
+  "deployer": "0xBc8d27aa7F866aD57A2D109043dB1feB9fa3c1f5",
+  "operator": "0xBc8d27aa7F866aD57A2D109043dB1feB9fa3c1f5",
   "contracts": {
-    "MatchEscrow": "0x_TO_BE_DEPLOYED",
-    "RewardVault": "0x_TO_BE_DEPLOYED"
+    "MatchEscrow": "0xd731DB9644049F010bF595f94c91851D2e7765dD",
+    "RewardVault": "0xE2769EE0c03bA6b9aD881f4e02b3225aD1033889"
   },
   "config": {
     "minDeposit": "0.001",
@@ -13,7 +13,6 @@
     "minReward": "0.001",
     "maxReward": "0.1"
   },
-  "deployedAt": null,
-  "blockNumber": null,
-  "_note": "Run: OPERATOR_PRIVATE_KEY=0x... pnpm --filter @kas-racing/contracts-evm deploy:testnet"
+  "deployedAt": "2026-02-15T16:25:27.034Z",
+  "blockNumber": 18827035
 }

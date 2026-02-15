@@ -1,6 +1,6 @@
 # KAS Racing — Intern Deploy Checklist (KASPLEX Testnet)
 
-> **Goal**: Deploy 3 services — **Postgres** + **API server** on Railway, and **Client (FE)** on Vercel — from scratch, using this document alone.
+> **Goal**: Deploy 4 services — **Postgres + API + EVM Indexer** on Railway, and **Client (FE)** on Vercel — from scratch, using this document alone.
 
 ---
 
@@ -14,6 +14,11 @@
 | KASPLEX Testnet KAS | KASPLEX Discord faucet / team request |
 | Operator private key | Any EVM wallet (0x-prefixed hex, 66 chars) |
 | Deployed contract addresses | From `deploy/addresses.kasplex.testnet.json` or `pnpm --filter @kas-racing/contracts-evm deploy:testnet` |
+
+Current deployed reference (2026-02-15 UTC):
+- `MatchEscrow`: `0xd731DB9644049F010bF595f94c91851D2e7765dD`
+- `RewardVault`: `0xE2769EE0c03bA6b9aD881f4e02b3225aD1033889`
+- `Operator`: `0xBc8d27aa7F866aD57A2D109043dB1feB9fa3c1f5`
 
 ---
 
@@ -43,6 +48,22 @@
   - `DATABASE_URL` — use `${{Postgres.DATABASE_URL}}` (Railway template variable)
 - [ ] Deploy and wait for health check: `GET /api/health` returns `200`
 - [ ] Copy the Railway public domain (e.g. `https://api-production-xxxx.up.railway.app`)
+- [ ] Add legacy-compat keys in Railway Variables (same wallet reuse):
+  - `TREASURY_PRIVATE_KEY` = `OPERATOR_PRIVATE_KEY`
+  - `ORACLE_PRIVATE_KEY` = `OPERATOR_PRIVATE_KEY`
+  - `TREASURY_CHANGE_ADDRESS` = `kaspatest:...` (형식만 맞으면 부팅 가능)
+
+### 1-D. Deploy EVM Indexer Service
+
+- [ ] **+ New** → **GitHub Repo** → select this repo (second service)
+- [ ] Service name: `indexer-evm`
+- [ ] Settings → **Root Directory**: leave blank (root)
+- [ ] Settings → **Config path**: `deploy/railway.indexer.json`
+- [ ] Go to **Variables** tab and paste every line from `deploy/railway.indexer.env.template`
+  - `DATABASE_URL` — use `${{Postgres.DATABASE_URL}}`
+- [ ] Deploy and check logs:
+  - `[db] Tables ensured`
+  - `[watcher]` logs start without fatal errors
 
 ---
 
@@ -64,6 +85,7 @@
 - [ ] Go back to Railway → `api` service → **Variables**
 - [ ] Set `CORS_ORIGIN` to the Vercel domain from step 2
 - [ ] Redeploy the `api` service (or it auto-deploys on variable change)
+- [ ] Ensure `indexer-evm` service is running with latest vars (manual redeploy 1회 권장)
 
 ---
 
@@ -102,6 +124,7 @@ Deployer: your-name
 
 Railway Project: https://railway.com/project/...
 - API URL:     https://...
+- Indexer:     running / failed
 - Postgres:    (managed by Railway)
 
 Vercel URL:    https://...
