@@ -25,7 +25,7 @@ A 3‑lane runner that fires **real Kaspa on‑chain transactions during gamepla
 ## Fun / Experience
 
 - **Instant reward loop:** collect a capsule → a real payout tx fires → HUD pops through states.
-- **Ghost‑Wheel 1v1:** deposit → match → settle flows are hard‑wired to the game outcome.
+- **Ghost‑Wheel 1v1:** create/join → both deposit into escrow → race → single on‑chain settle to the winner.
 
 ## Why It’s Special
 
@@ -33,14 +33,14 @@ A 3‑lane runner that fires **real Kaspa on‑chain transactions during gamepla
 
 - **No mocks—real transactions in the game loop.**
 - **Millisecond lifecycle visualization** (`broadcasted → accepted → included → confirmed`).
-- **On‑chain proof page** to decode payloads and verify game events.
+- **On‑chain proof page** that recomputes payload hashes and verifies RewardPaid + ProofRecorded logs.
 
 ## Key Features
 
 - **Free Run (Arcade‑to‑Earn):** checkpoint capsules trigger real rewards.
-- **Ghost‑Wheel Duel (1v1):** matched deposits + settlement flow.
+- **Ghost‑Wheel Duel (1v1):** MatchEscrow holds both deposits, then settles a single payout tx.
 - **Speed‑Visualizer SDK:** reusable React HUD components.
-- **Proof Page:** decode payloads for on‑chain verification.
+- **Proof Page:** recompute payloads, match hashes, and show tx + block evidence.
 
 ## Tech Stack
 
@@ -54,12 +54,16 @@ A 3‑lane runner that fires **real Kaspa on‑chain transactions during gamepla
 
 ## How It Works (High‑Level)
 
-<img src="https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/5.png?raw=true"
+<img src="https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/5.png?raw=true">
 
-1. Player starts a session and hits a checkpoint.
-2. Server validates policy (cooldown/max events) and builds a real payout transaction.
-3. HUD updates live as the tx progresses through Kaspa network states.
-4. Proof Page parses payloads to verify events on‑chain.
+1. Player starts a session, then hits a checkpoint.
+2. The server validates policy (cooldown + max events) and builds a payout call.
+3. For every checkpoint it builds a deterministic payload:  
+   `KASRACE1|<network>|<mode>|<sessionId>|checkpoint|<seq>`  
+   and hashes it into the on‑chain proof.
+4. The indexer ingests **RewardPaid** + **ProofRecorded** logs and streams lifecycle timestamps to the HUD.
+5. The **Proof Page** recomputes the payload + hash and cross‑checks the tx hash, block, and logs to prove the event.
+6. In **Ghost‑Wheel Duel**, both players deposit into MatchEscrow → when funded, the race runs → a single settle tx pays the winner.
 
 ## What’s Next
 
