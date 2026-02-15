@@ -35,7 +35,8 @@ const asyncHandler = (fn: AsyncHandler): RequestHandler => {
 const DEFAULT_POLICY: SessionPolicy = {
   rewardCooldownMs: 2000,
   rewardMaxPerSession: 10,
-  rewardAmounts: [0.02, 0.05, 0.1],
+  // Keep >= on-chain RewardVault minReward (0.1 kFUEL)
+  rewardAmounts: [0.1, 0.2, 0.5],
 };
 
 const TIMESTAMP_MAX_DRIFT_MS = 30000;
