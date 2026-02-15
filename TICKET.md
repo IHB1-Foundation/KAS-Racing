@@ -174,14 +174,14 @@
 - MatchManager/Settlement을 별도 컨트랙트 대신 MatchEscrow에 통합 (데모 안정성 우선)
 
 
-### - [ ] T-312 Reward + Proof Registry Contract
+### - [x] T-312 Reward + Proof Registry Contract
 **의존**
 - T-310
 
 **작업**
-- [ ] FreeRun 보상 지급 컨트랙트(또는 Vault) 구현
-- [ ] payload/commit 해시를 이벤트로 남기는 Proof 경로 구현
-- [ ] 중복 지급 방지 키(sessionId+seq) 적용
+- [x] FreeRun 보상 지급 컨트랙트(또는 Vault) 구현
+- [x] payload/commit 해시를 이벤트로 남기는 Proof 경로 구현
+- [x] 중복 지급 방지 키(sessionId+seq) 적용
 
 **산출물**
 - Reward 관련 컨트랙트 + 이벤트 스펙
@@ -189,6 +189,17 @@
 **완료조건**
 - 동일 checkpoint 재요청 시 중복 지급 불가
 - Proof 페이지가 이벤트 원문 검증 가능
+
+**변경 요약**
+- `RewardVault.sol`: payReward() + ProofRecorded 이벤트 + keccak256(sessionId,seq) 중복 방지
+- 21 tests (idempotency 4건, access control 3건, validation 4건)
+- Ownable + ReentrancyGuard + Pausable 적용
+
+**실행 방법**
+- `pnpm --filter @kas-racing/contracts-evm test`
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-313 Contract Test/Security Baseline
