@@ -1,0 +1,12 @@
+{
+  "network": "kasplex-testnet",
+  "chainId": 167012,
+  "deployer": "0x_TO_BE_SET",
+  "operator": "0x_TO_BE_SET",
+  "contracts": {
+    "MatchEscrow": "0x_TO_BE_DEPLOYED",
+    "RewardVault": "0x_TO_BE_DEPLOYED"
+  },
+  "deployedAt": null,
+  "blockNumber": null
+}

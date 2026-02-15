@@ -87,21 +87,32 @@
 - 기존 lint 에러 1건(`apps/server/src/db/index.ts:108`) — T-300과 무관한 기존 이슈
 
 
-### - [ ] T-301 Chain/Wallet/Token 결정 매트릭스
+### - [x] T-301 Chain/Wallet/Token 결정 매트릭스
 **의존**
 - T-300
 
 **작업**
-- [ ] 지원 지갑 확정(MetaMask + 1개 백업)
-- [ ] 데모 토큰 확정(ERC-20 주소, decimals, faucet 경로)
-- [ ] 계약/토큰/운영 지갑 주소 레지스트리 정의
+- [x] 지원 지갑 확정(MetaMask + 1개 백업)
+- [x] 데모 토큰 확정(ERC-20 주소, decimals, faucet 경로)
+- [x] 계약/토큰/운영 지갑 주소 레지스트리 정의
 
 **산출물**
 - `docs/CHAIN_MATRIX.md`, `deploy/addresses.kasplex.testnet.json`
 
 **완료조건**
 - FE/BE/Indexer가 참조할 단일 주소 소스가 존재
-- 인턴이 “어떤 지갑/토큰” 쓸지 헷갈리지 않음
+- 인턴이 "어떤 지갑/토큰" 쓸지 헷갈리지 않음
+
+**변경 요약**
+- `docs/CHAIN_MATRIX.md`: 체인(167012), 지갑(MetaMask primary, Rabby backup), 토큰(native KAS, 18 decimals), 주소 역할, 기여자별 퀵 레퍼런스
+- `deploy/addresses.kasplex.testnet.json`: 계약 주소 레지스트리 (배포 후 업데이트 예정)
+
+**실행 방법**
+- `cat docs/CHAIN_MATRIX.md`
+- `cat deploy/addresses.kasplex.testnet.json`
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-310 Contracts Workspace Bootstrap (Solidity)
