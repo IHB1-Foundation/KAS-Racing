@@ -21,6 +21,7 @@ const BET_AMOUNTS_KFUEL = [0.1, 0.5, 1.0, 5.0];
 const RECONCILE_INTERVAL_MS = 10_000;
 const DEPOSIT_POLL_INTERVAL_MS = 5_000;
 const DUEL_TIME_LIMIT_SECONDS = 30;
+const PROD_KFUEL_TOKEN_ADDRESS = '0xF8B8D3b674baE33f8f9b4775F9AEd2D487C0Cd8D';
 
 // Map V3 match state to view
 function stateToView(state: string): View {
@@ -62,7 +63,10 @@ export function DuelLobby() {
   const escrowAddress = (match?.contract.escrowAddress || null) as Address | null;
   const tokenAddress = (
     match?.contract.fuelTokenAddress ||
-    (import.meta.env.VITE_KFUEL_TOKEN_ADDRESS as string | undefined) ||
+    (import.meta.env.DEV
+      ? (import.meta.env.VITE_KFUEL_TOKEN_ADDRESS as string | undefined)
+      : ((import.meta.env.VITE_KFUEL_TOKEN_ADDRESS as string | undefined) ?? PROD_KFUEL_TOKEN_ADDRESS)
+    ) ||
     null
   ) as Address | null;
   const { depositState, depositTxHash, depositError, deposit, reset: resetDeposit } = useMatchEscrow(escrowAddress);

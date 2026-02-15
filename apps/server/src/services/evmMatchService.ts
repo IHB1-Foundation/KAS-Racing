@@ -31,6 +31,7 @@ import {
   settleMatchDraw,
   toMatchId,
 } from '../tx/evmContracts.js';
+import { resolveEscrowAddress, resolveFuelTokenAddress } from '../tx/evmAddresses.js';
 import { insertChainEvent, isE2EEnabled, nextMockTxHash } from '../utils/e2e.js';
 import {
   getEvmEventsByMatchId,
@@ -469,8 +470,8 @@ function buildMatchResponse(
   settlement: { txHash: string | null; txStatus: string; payoutWei: string; settlementType: string; winnerAddress: string | null } | null,
   chainEvents: EvmChainEventInfo[],
 ): V3MatchResponse {
-  const escrowAddress = process.env.ESCROW_CONTRACT_ADDRESS ?? '';
-  const fuelTokenAddress = process.env.FUEL_TOKEN_ADDRESS ?? '';
+  const escrowAddress = resolveEscrowAddress();
+  const fuelTokenAddress = resolveFuelTokenAddress();
 
   return {
     id: match.id,

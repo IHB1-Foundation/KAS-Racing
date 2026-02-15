@@ -33,9 +33,11 @@ import { oddsTicks, betOrders } from '../../db/schema.js';
 
 const router = Router();
 
-type AsyncHandler = (req: Request, res: Response) => Promise<void>;
+type AsyncHandler = (req: Request, res: Response) => Promise<void> | void;
 const asyncHandler = (fn: AsyncHandler): RequestHandler => {
-  return (req, res, next) => { fn(req, res).catch(next); };
+  return (req, res, next) => {
+    Promise.resolve(fn(req, res)).catch(next);
+  };
 };
 
 function handleMarketError(res: Response, error: unknown): void {

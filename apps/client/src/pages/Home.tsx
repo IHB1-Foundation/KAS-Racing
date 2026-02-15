@@ -11,6 +11,8 @@ const TWITTER_SHARE_TEXT = encodeURIComponent(
   'Check out KAS Racing - a web game with real Kaspa blockchain rewards! Every checkpoint = kFUEL. Watch transactions confirm in real-time.'
 );
 
+const PROD_KFUEL_TOKEN_ADDRESS = '0xF8B8D3b674baE33f8f9b4775F9AEd2D487C0Cd8D';
+
 export function Home() {
   const { address, isConnected, isCorrectChain } = useEvmWallet();
   const [faucetLoading, setFaucetLoading] = useState(false);
@@ -18,7 +20,10 @@ export function Home() {
   const [faucetTxHash, setFaucetTxHash] = useState<`0x${string}` | null>(null);
   const fuelTokenAddress = useMemo(() => {
     const raw = import.meta.env.VITE_KFUEL_TOKEN_ADDRESS as string | undefined;
-    return raw && raw.length > 0 ? (raw as Address) : null;
+    if (import.meta.env.DEV) {
+      return raw && raw.length > 0 ? (raw as Address) : null;
+    }
+    return (raw && raw.length > 0 ? raw : PROD_KFUEL_TOKEN_ADDRESS) as Address;
   }, []);
   const faucetAbi = useMemo(
     () => parseAbi(['function faucetMint() external']),

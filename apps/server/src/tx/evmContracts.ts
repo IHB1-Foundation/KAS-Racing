@@ -9,25 +9,7 @@ import { type Address, type Hash, keccak256, toBytes } from "viem";
 import { sendContractTx, getPublicClient, type TxResult } from "./evmClient.js";
 import { matchEscrowAbi, rewardVaultAbi } from "./evmAbis.js";
 import { isE2EEnabled, nextMockTxHash } from "../utils/e2e.js";
-
-// ─── Contract Addresses ──────────────────────────────────────
-
-function getEscrowAddress(): Address {
-  const addr = process.env.ESCROW_CONTRACT_ADDRESS;
-  if (!addr || addr === "0x_TO_BE_DEPLOYED") {
-    throw new Error("ESCROW_CONTRACT_ADDRESS not configured");
-  }
-  return addr as Address;
-}
-
-function getRewardAddress(): Address {
-  const addr = process.env.REWARD_CONTRACT_ADDRESS;
-  if (!addr || addr === "0x_TO_BE_DEPLOYED") {
-    throw new Error("REWARD_CONTRACT_ADDRESS not configured");
-  }
-  return addr as Address;
-}
-
+import { getEscrowAddress, getRewardAddress } from "./evmAddresses.js";
 
 // ─── MatchEscrow Operations ──────────────────────────────────
 

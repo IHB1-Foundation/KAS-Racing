@@ -4,15 +4,19 @@
   "deployer": "0xBc8d27aa7F866aD57A2D109043dB1feB9fa3c1f5",
   "operator": "0xBc8d27aa7F866aD57A2D109043dB1feB9fa3c1f5",
   "contracts": {
-    "MatchEscrow": "0xd731DB9644049F010bF595f94c91851D2e7765dD",
-    "RewardVault": "0xE2769EE0c03bA6b9aD881f4e02b3225aD1033889"
+    "KasRacingFuel": "0xF8B8D3b674baE33f8f9b4775F9AEd2D487C0Cd8D",
+    "MatchEscrow": "0x62c0a62d3121499a92293B8Bd95f8073D226Fb02",
+    "RewardVault": "0xa706104A1F63cb360B8d405a60132424a81986A8"
   },
   "config": {
-    "minDeposit": "0.001",
+    "tokenSymbol": "kFUEL",
+    "minDepositKfuel": "1.0",
     "timeoutBlocks": 300,
-    "minReward": "0.001",
-    "maxReward": "0.1"
+    "minRewardKfuel": "0.1",
+    "maxRewardKfuel": "10.0",
+    "initialSupplyKfuel": "1000000000.0",
+    "initialVaultFundingKfuel": "1000000.0"
   },
-  "deployedAt": "2026-02-15T16:25:27.034Z",
-  "blockNumber": 18827035
+  "deployedAt": "2026-02-15T21:24:44.088Z",
+  "blockNumber": 18844962
 }
