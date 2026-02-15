@@ -1,4 +1,4 @@
-import { pgTable, text, integer, bigint, doublePrecision, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, bigint, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core';
 
 // ── Users ──
 

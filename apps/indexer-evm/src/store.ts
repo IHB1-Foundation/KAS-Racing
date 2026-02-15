@@ -63,7 +63,12 @@ export async function ensureTables(): Promise<void> {
 export async function getCursor(): Promise<bigint> {
   const db = getPool();
   const result = await db.query("SELECT last_block FROM indexer_cursor WHERE id = 1");
-  return BigInt(result.rows[0]?.last_block || 0);
+  const row = result.rows[0] as { last_block?: string | number | bigint | null } | undefined;
+  const value = row?.last_block;
+  if (value === null || value === undefined) {
+    return 0n;
+  }
+  return BigInt(value);
 }
 
 /// Update the last indexed block

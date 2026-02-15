@@ -10,7 +10,7 @@
  *  - On LOCKED transition, one final tick is emitted with frozen odds
  */
 
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   raceMarkets,

@@ -86,7 +86,10 @@ router.post('/match/:id/deposit', asyncHandler(async (req, res) => {
   const depositedPlayers = new Set(
     events
       .filter((evt) => evt.eventName === 'Deposited')
-      .map((evt) => String(evt.args.player ?? '').toLowerCase())
+      .map((evt) => {
+        const playerValue = evt.args.player;
+        return typeof playerValue === 'string' ? playerValue.toLowerCase() : '';
+      })
       .filter(Boolean),
   );
 

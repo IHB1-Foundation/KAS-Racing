@@ -157,16 +157,17 @@ export async function sendContractTx(params: {
         success: receipt.status === "success",
         gasUsed: receipt.gasUsed,
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       const isTransient =
-        err.message?.includes("nonce") ||
-        err.message?.includes("timeout") ||
-        err.message?.includes("ETIMEDOUT") ||
-        err.message?.includes("connection");
+        message.includes("nonce") ||
+        message.includes("timeout") ||
+        message.includes("ETIMEDOUT") ||
+        message.includes("connection");
 
       if (isTransient && attempt < MAX_RETRIES) {
         console.warn(
-          `[evm] Tx ${params.functionName} attempt ${attempt} failed (transient): ${err.message}. Retrying in ${RETRY_DELAY_MS}ms...`
+          `[evm] Tx ${params.functionName} attempt ${attempt} failed (transient): ${message}. Retrying in ${RETRY_DELAY_MS}ms...`
         );
         await sleep(RETRY_DELAY_MS * attempt);
         continue;
@@ -174,13 +175,13 @@ export async function sendContractTx(params: {
 
       console.error(
         `[evm] Tx ${params.functionName} failed after ${attempt} attempts:`,
-        err.message
+        message
       );
       return {
         hash: "0x" as Hash,
         receipt: null,
         success: false,
-        error: err.message,
+        error: message,
       };
     }
   }

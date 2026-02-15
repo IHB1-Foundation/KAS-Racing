@@ -5,8 +5,8 @@
  * Each function handles encoding, sending, receipt tracking.
  */
 
-import { type Address, type Hash, toHex, keccak256, toBytes, encodePacked } from "viem";
-import { sendContractTx, getPublicClient, loadOperatorAccount, type TxResult } from "./evmClient.js";
+import { type Address, type Hash, keccak256, toBytes } from "viem";
+import { sendContractTx, getPublicClient, type TxResult } from "./evmClient.js";
 import { matchEscrowAbi, rewardVaultAbi } from "./evmAbis.js";
 import { isE2EEnabled, nextMockTxHash } from "../utils/e2e.js";
 
@@ -160,7 +160,7 @@ export async function isRewardPaid(sessionId: Hash, seq: bigint): Promise<boolea
     functionName: "isPaid",
     args: [sessionId, seq],
   });
-  return result as boolean;
+  return result === true;
 }
 
 /**
@@ -176,7 +176,7 @@ export async function getVaultBalance(): Promise<bigint> {
     abi: rewardVaultAbi,
     functionName: "vaultBalance",
   });
-  return result as bigint;
+  return typeof result === "bigint" ? result : BigInt(result as string);
 }
 
 // ─── Utility ─────────────────────────────────────────────────

@@ -28,9 +28,21 @@ async function indexRange(
 ): Promise<number> {
   let totalEvents = 0;
 
+  type AbiEventInput = {
+    type: string;
+    indexed?: boolean;
+    name?: string;
+  };
+  type AbiEvent = {
+    type: "event";
+    name: string;
+    inputs: AbiEventInput[];
+  };
+  type AbiItem = AbiEvent | { type: string; name?: string; inputs?: AbiEventInput[] };
+
   const contracts: Array<{
     address: Address;
-    abi: readonly any[];
+    abi: readonly AbiItem[];
     label: string;
   }> = [];
 
@@ -60,7 +72,7 @@ async function indexRange(
 
       for (const log of logs) {
         const eventName = decodeEventName(log, contract.abi);
-        const args = decodeEventArgs(log, contract.abi);
+        const args = decodeEventArgs(log);
 
         const inserted = await insertEvent({
           blockNumber: log.blockNumber,
@@ -82,14 +94,19 @@ async function indexRange(
 }
 
 /// Decode event name from log topic
-function decodeEventName(log: Log, abi: readonly any[]): string | null {
+function decodeEventName(
+  log: Log,
+  abi: readonly Array<{ type: string; name?: string; inputs?: Array<{ type: string; indexed?: boolean; name?: string }> }>
+): string | null {
   const topic0 = log.topics[0];
   if (!topic0) return null;
 
   for (const item of abi) {
-    if (item.type !== "event") continue;
+    if (item.type !== "event" || !item.name || !item.inputs) continue;
     try {
-      const sig = `event ${item.name}(${item.inputs.map((i: any) => `${i.type}${i.indexed ? " indexed" : ""} ${i.name}`).join(", ")})`;
+      const sig = `event ${item.name}(${item.inputs
+        .map((i) => `${i.type}${i.indexed ? " indexed" : ""} ${i.name ?? ""}`.trim())
+        .join(", ")})`;
       const abiItem = parseAbiItem(sig);
       const topics = encodeEventTopics({ abi: [abiItem] });
       if (topics[0] === topic0) return item.name;
@@ -101,7 +118,7 @@ function decodeEventName(log: Log, abi: readonly any[]): string | null {
 }
 
 /// Decode event args (simplified — returns raw topics/data)
-function decodeEventArgs(log: Log, _abi: readonly any[]): Record<string, unknown> {
+function decodeEventArgs(log: Log): Record<string, unknown> {
   return {
     topics: log.topics,
     data: log.data,
@@ -168,5 +185,7 @@ export async function startWatcher(): Promise<void> {
   void poll();
 
   // Continuous polling
-  setInterval(poll, config.pollingIntervalMs);
+  setInterval(() => {
+    void poll();
+  }, config.pollingIntervalMs);
 }

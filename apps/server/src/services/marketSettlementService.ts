@@ -19,8 +19,6 @@ import {
   raceMarkets,
   betOrders,
   marketSettlements,
-  type RaceMarket,
-  type BetOrder,
   type NewMarketSettlement,
 } from '../db/schema.js';
 import { emitMarketSettled } from '../ws/index.js';

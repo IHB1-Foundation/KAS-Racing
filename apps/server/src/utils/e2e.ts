@@ -27,7 +27,7 @@ export function isE2EEnabled(): boolean {
 }
 
 export function nextMockTxHash(): Hash {
-  return `0x${randomBytes(32).toString('hex')}` as Hash;
+  return `0x${randomBytes(32).toString('hex')}`;
 }
 
 export function nextMockBlockNumber(): bigint {

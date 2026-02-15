@@ -127,7 +127,7 @@ interface UseRealtimeSyncOptions {
   onBetCancelled?: (data: BetCancelledEvent) => void;
 }
 
-function mapEvmEventToTxStatus(_eventName: string): 'submitted' | 'mined' | 'confirmed' {
+function mapEvmEventToTxStatus(): 'submitted' | 'mined' | 'confirmed' {
   // EVM events are emitted only after inclusion in a block.
   return 'mined';
 }
@@ -264,7 +264,7 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions) {
 
     // Handle EVM match updates (v3)
     socket.on('evmMatchUpdate', (data: EvmMatchUpdateEvent) => {
-      const status = mapEvmEventToTxStatus(data.eventName);
+      const status = mapEvmEventToTxStatus();
       const entityType = data.eventName === 'Settled' || data.eventName === 'Draw'
         ? 'settlement'
         : 'deposit';
@@ -304,11 +304,16 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions) {
 
     // Handle EVM reward updates (v3)
     socket.on('evmRewardUpdate', (data: EvmRewardUpdateEvent) => {
-      const status = mapEvmEventToTxStatus(data.eventName);
+      const status = mapEvmEventToTxStatus();
+
+      const sessionId =
+        typeof data.chainEvent.args.sessionId === 'string'
+          ? data.chainEvent.args.sessionId
+          : '';
 
       callbacksRef.current.onChainStateChanged?.({
         entityType: 'reward',
-        entityId: String(data.chainEvent.args.sessionId ?? ''),
+        entityId: sessionId,
         txid: data.txHash,
         oldStatus: status,
         newStatus: status,

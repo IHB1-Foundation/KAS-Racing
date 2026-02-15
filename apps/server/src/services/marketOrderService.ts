@@ -24,7 +24,6 @@ import {
   type NewBetOrder,
   type NewRaceMarket,
 } from '../db/schema.js';
-import { matchesV3 } from '../db/schema.js';
 import { emitBetAccepted, emitBetCancelled } from '../ws/index.js';
 
 // ── Configuration ──
@@ -103,9 +102,10 @@ export async function placeBet(req: PlaceBetRequest): Promise<PlaceBetResult> {
   // 1. Idempotency check — return existing if duplicate
   const existing = await findByIdempotencyKey(req.idempotencyKey);
   if (existing) {
+    const side = existing.side === 'A' || existing.side === 'B' ? existing.side : 'A';
     return {
       orderId: existing.id,
-      side: existing.side as 'A' | 'B',
+      side,
       stakeWei: existing.stakeWei,
       oddsAtPlacementBps: existing.oddsAtPlacementBps,
       status: existing.status,

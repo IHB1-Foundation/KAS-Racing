@@ -6,7 +6,7 @@
  */
 
 import { http, createConfig } from 'wagmi';
-import { injected, mock } from 'wagmi/connectors';
+import { metaMask, mock } from 'wagmi/connectors';
 import type { Address } from 'viem';
 import { kasplexTestnet } from './chains.js';
 import { isE2E, e2eAccounts } from '../e2e.js';
@@ -21,7 +21,7 @@ const connectors = isE2E
         features: { defaultConnected: true, reconnect: true },
       }),
     ]
-  : [injected()];
+  : [metaMask()];
 
 export const wagmiConfig = createConfig({
   chains: [kasplexTestnet],

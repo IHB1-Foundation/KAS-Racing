@@ -23,7 +23,6 @@ import {
 } from '../../services/marketSettlementService.js';
 import {
   checkRateLimit,
-  logAdminLock,
   logAdminCancel,
 } from '../../services/marketRiskService.js';
 import { submitTelemetry } from '../../workers/oddsTickWorker.js';
@@ -238,7 +237,7 @@ router.get('/match/:matchId', asyncHandler(async (req: Request, res: Response) =
  * POST /api/v3/market/:id/telemetry
  * Submit race telemetry for odds calculation
  */
-router.post('/:id/telemetry', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/telemetry', asyncHandler((req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const body = req.body as RaceTelemetry;

@@ -16,7 +16,6 @@ import {
   computeOdds,
   publishOddsTick,
   lockMarket,
-  clearMarketState,
   ODDS_TICK_INTERVAL_MS,
   ODDS_LOCK_BEFORE_END_MS,
   type RaceTelemetry,

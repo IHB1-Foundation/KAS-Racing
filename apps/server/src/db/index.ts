@@ -42,7 +42,7 @@ async function createPool(): Promise<Pool> {
         adaptResults?: (query: unknown, res: unknown) => unknown;
         adaptQuery?: (query: unknown, values?: unknown[]) => unknown;
       };
-      new (): unknown;
+      new (): Pool;
     };
 
     const originalQuery = MemPool.prototype.query;
@@ -108,7 +108,7 @@ async function createPool(): Promise<Pool> {
       };
     }
 
-    return new MemPool() as unknown as Pool;
+    return new MemPool();
   }
 
   throw new Error(
@@ -282,7 +282,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
       })
       .catch((error) => {
         clearTimeout(timer);
-        reject(error);
+        reject(error instanceof Error ? error : new Error(String(error)));
       });
   });
 }

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@kas-racing/speed-visualizer-sdk": "workspace:*",
+    "@metamask/sdk": "^0.33.1",
     "@tanstack/react-query": "^5.90.21",
     "phaser": "^3.80.0",
     "react": "^18.3.0",
