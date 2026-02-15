@@ -6,6 +6,7 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import sessionRoutes from './routes/session.js';
 import txRoutes from './routes/tx.js';
 import matchRoutes from './routes/match.js';
+import v3Routes from './routes/v3/index.js';
 import { setupWebSocket } from './ws/index.js';
 import { requestLogger } from './middleware/requestLogger.js';
 
@@ -126,6 +127,7 @@ if (!isTestEnv) {
 app.use('/api/session', sessionRoutes);
 app.use('/api/tx', txRoutes);
 app.use('/api/match', matchRoutes);
+app.use('/api/v3', v3Routes);
 
 // Setup WebSocket
 const io = setupWebSocket(httpServer);

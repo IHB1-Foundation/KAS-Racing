@@ -300,16 +300,18 @@ async function ensureSchema(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS matches_v3 (
       id TEXT PRIMARY KEY,
-      match_id_onchain TEXT NOT NULL UNIQUE,
+      join_code TEXT UNIQUE,
+      match_id_onchain TEXT UNIQUE,
       player1_address TEXT NOT NULL,
-      player2_address TEXT NOT NULL,
+      player2_address TEXT,
       deposit_amount_wei TEXT NOT NULL,
-      timeout_block BIGINT NOT NULL,
-      state TEXT NOT NULL DEFAULT 'created',
+      timeout_block BIGINT,
+      state TEXT NOT NULL DEFAULT 'lobby',
       player1_deposited INTEGER NOT NULL DEFAULT 0,
       player2_deposited INTEGER NOT NULL DEFAULT 0,
       winner_address TEXT,
       settle_tx_hash TEXT,
+      create_tx_hash TEXT,
       player1_score INTEGER,
       player2_score INTEGER,
       created_at TIMESTAMPTZ NOT NULL,
@@ -317,6 +319,16 @@ async function ensureSchema(): Promise<void> {
       settled_at TIMESTAMPTZ
     );
   `);
+
+  // v3 schema migrations for existing tables
+  const safeAlter = async (sql: string) => {
+    try { await pool.query(sql); } catch { /* column/constraint already exists or incompatible */ }
+  };
+  await safeAlter(`ALTER TABLE matches_v3 ADD COLUMN IF NOT EXISTS join_code TEXT UNIQUE`);
+  await safeAlter(`ALTER TABLE matches_v3 ADD COLUMN IF NOT EXISTS create_tx_hash TEXT`);
+  await safeAlter(`ALTER TABLE matches_v3 ALTER COLUMN player2_address DROP NOT NULL`);
+  await safeAlter(`ALTER TABLE matches_v3 ALTER COLUMN match_id_onchain DROP NOT NULL`);
+  await safeAlter(`ALTER TABLE matches_v3 ALTER COLUMN timeout_block DROP NOT NULL`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS deposits_v3 (

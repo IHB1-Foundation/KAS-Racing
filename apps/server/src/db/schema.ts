@@ -189,19 +189,21 @@ export const chainEventsEvm = pgTable('chain_events_evm', {
 // ── Matches v3 (EVM: contract-backed matches) ──
 
 export const matchesV3 = pgTable('matches_v3', {
-  id: text('id').primaryKey(), // bytes32 matchId hex
-  matchIdOnchain: text('match_id_onchain').notNull().unique(), // bytes32 from contract
+  id: text('id').primaryKey(), // internal UUID
+  joinCode: text('join_code').unique(), // lobby join code
+  matchIdOnchain: text('match_id_onchain').unique(), // bytes32 from contract (null until on-chain)
   player1Address: text('player1_address').notNull(),
-  player2Address: text('player2_address').notNull(),
+  player2Address: text('player2_address'), // nullable: unknown until player2 joins
   depositAmountWei: text('deposit_amount_wei').notNull(), // stored as string for precision
-  timeoutBlock: bigint('timeout_block', { mode: 'bigint' }).notNull(),
+  timeoutBlock: bigint('timeout_block', { mode: 'bigint' }), // nullable: set when on-chain match created
   state: text('state', {
-    enum: ['created', 'funded', 'settled', 'refunded', 'cancelled']
-  }).notNull().default('created'),
+    enum: ['lobby', 'created', 'funded', 'settled', 'refunded', 'cancelled']
+  }).notNull().default('lobby'),
   player1Deposited: integer('player1_deposited').notNull().default(0), // 0/1 boolean
   player2Deposited: integer('player2_deposited').notNull().default(0),
   winnerAddress: text('winner_address'),
   settleTxHash: text('settle_tx_hash'),
+  createTxHash: text('create_tx_hash'), // tx hash of createMatch call
   player1Score: integer('player1_score'),
   player2Score: integer('player2_score'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),

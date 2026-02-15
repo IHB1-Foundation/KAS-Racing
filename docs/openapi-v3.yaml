@@ -1,0 +1,621 @@
+openapi: 3.0.3
+info:
+  title: KAS Racing V3 API (EVM / KASPLEX zkEVM)
+  description: |
+    Contract-first EVM API for KAS Racing.
+    All endpoints use KASPLEX zkEVM (Chain ID 167012) contracts as source-of-truth.
+    State transitions are verified against indexed chain events (chain_events_evm).
+  version: 3.0.0
+  contact:
+    name: KAS Racing Team
+
+servers:
+  - url: http://localhost:8787/api/v3
+    description: Local development
+
+tags:
+  - name: Session
+    description: Game session lifecycle + reward payouts via RewardVault contract
+  - name: Match
+    description: Duel match lifecycle via MatchEscrow contract
+  - name: Transaction
+    description: EVM tx status + proof verification
+
+paths:
+  # ── Session ──────────────────────────────────────────────
+
+  /session/start:
+    post:
+      tags: [Session]
+      summary: Start a new game session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userAddress]
+              properties:
+                userAddress:
+                  type: string
+                  description: Player's EVM address (0x...)
+                  example: "0x1234567890abcdef1234567890abcdef12345678"
+                mode:
+                  type: string
+                  enum: [free_run, duel]
+                  default: free_run
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                    format: uuid
+                  policy:
+                    $ref: "#/components/schemas/SessionPolicy"
+
+  /session/event:
+    post:
+      tags: [Session]
+      summary: Report checkpoint event — triggers reward payout via RewardVault
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionEventRequest"
+      responses:
+        "200":
+          description: Event result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted:
+                    type: boolean
+                  rejectReason:
+                    type: string
+                  rewardAmountWei:
+                    type: string
+                    description: Reward amount in wei
+                  txHash:
+                    type: string
+                    description: EVM transaction hash
+                  txStatus:
+                    $ref: "#/components/schemas/EvmTxStatus"
+                  eventId:
+                    type: string
+
+  /session/{id}:
+    get:
+      tags: [Session]
+      summary: Get session info
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session details
+        "404":
+          description: Session not found
+
+  /session/{id}/events:
+    get:
+      tags: [Session]
+      summary: Get all reward events with EVM chain data
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reward events list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/V3RewardEvent"
+                  total:
+                    type: integer
+
+  /session/{id}/end:
+    post:
+      tags: [Session]
+      summary: End a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session ended
+
+  # ── Match ────────────────────────────────────────────────
+
+  /match/create:
+    post:
+      tags: [Match]
+      summary: Create match lobby (on-chain match created when player2 joins)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [playerAddress, betAmountWei]
+              properties:
+                playerAddress:
+                  type: string
+                  description: Player1 EVM address
+                betAmountWei:
+                  type: string
+                  description: Deposit amount in wei
+                  example: "1000000000000000"
+      responses:
+        "200":
+          description: Match lobby created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V3Match"
+
+  /match/join:
+    post:
+      tags: [Match]
+      summary: Join match + create on-chain match via MatchEscrow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [joinCode, playerAddress]
+              properties:
+                joinCode:
+                  type: string
+                  description: 6-char join code
+                playerAddress:
+                  type: string
+                  description: Player2 EVM address
+      responses:
+        "200":
+          description: Match joined, on-chain match created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V3Match"
+        "400":
+          description: Invalid state or self-join
+        "404":
+          description: Match not found
+
+  /match/{id}:
+    get:
+      tags: [Match]
+      summary: Get unified match state (DB + chain events + contract)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sync
+          in: query
+          description: Force sync from chain events before responding
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Full match state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V3Match"
+
+  /match/code/{joinCode}:
+    get:
+      tags: [Match]
+      summary: Get match by join code
+      parameters:
+        - name: joinCode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Match details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V3Match"
+
+  /match/{id}/submit-score:
+    post:
+      tags: [Match]
+      summary: Submit score — auto-triggers settlement when both scores in
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [playerAddress, score]
+              properties:
+                playerAddress:
+                  type: string
+                score:
+                  type: number
+                  minimum: 0
+      responses:
+        "200":
+          description: Score submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V3Match"
+
+  /match/{id}/sync:
+    post:
+      tags: [Match]
+      summary: Force sync match state from indexed chain events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Synced match state
+
+  /match/{id}/chain-events:
+    get:
+      tags: [Match]
+      summary: Get raw indexed chain events for a match
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Chain events list
+
+  # ── Transaction ──────────────────────────────────────────
+
+  /tx/{txHash}/status:
+    get:
+      tags: [Transaction]
+      summary: Get EVM tx status (indexed events → RPC fallback)
+      parameters:
+        - name: txHash
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transaction status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvmTxStatusInfo"
+
+  /tx/{txHash}:
+    get:
+      tags: [Transaction]
+      summary: Get full EVM tx details (events + receipt)
+      parameters:
+        - name: txHash
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transaction details with events and receipt
+        "404":
+          description: Transaction not found
+
+  /tx/proof/{sessionId}/{seq}:
+    get:
+      tags: [Transaction]
+      summary: Get proof-of-action data for a reward event
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: seq
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Proof data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V3Proof"
+
+components:
+  schemas:
+    EvmTxStatus:
+      type: string
+      enum: [pending, submitted, mined, confirmed, failed]
+
+    SessionPolicy:
+      type: object
+      properties:
+        rewardCooldownMs:
+          type: integer
+          example: 2000
+        rewardMaxPerSession:
+          type: integer
+          example: 10
+        rewardAmounts:
+          type: array
+          items:
+            type: number
+          example: [0.02, 0.05, 0.1]
+
+    SessionEventRequest:
+      type: object
+      required: [sessionId, seq]
+      properties:
+        sessionId:
+          type: string
+        type:
+          type: string
+          enum: [checkpoint]
+          default: checkpoint
+        seq:
+          type: integer
+        timestamp:
+          type: integer
+          description: Client timestamp in ms
+
+    EvmChainEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        blockNumber:
+          type: string
+        txHash:
+          type: string
+        logIndex:
+          type: integer
+        contract:
+          type: string
+          enum: [MatchEscrow, RewardVault]
+        eventName:
+          type: string
+        args:
+          type: object
+        createdAt:
+          type: integer
+
+    EvmTxStatusInfo:
+      type: object
+      properties:
+        txHash:
+          type: string
+        status:
+          $ref: "#/components/schemas/EvmTxStatus"
+        blockNumber:
+          type: string
+          nullable: true
+        confirmations:
+          type: integer
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvmChainEvent"
+        timestamps:
+          type: object
+          properties:
+            submitted:
+              type: integer
+            mined:
+              type: integer
+            confirmed:
+              type: integer
+
+    V3Match:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        matchIdOnchain:
+          type: string
+          nullable: true
+          description: bytes32 on-chain match ID
+        joinCode:
+          type: string
+        state:
+          type: string
+          enum: [lobby, created, funded, settled, refunded, cancelled]
+        players:
+          type: object
+          properties:
+            player1:
+              type: object
+              properties:
+                address:
+                  type: string
+                deposited:
+                  type: boolean
+                score:
+                  type: integer
+                  nullable: true
+            player2:
+              type: object
+              properties:
+                address:
+                  type: string
+                  nullable: true
+                deposited:
+                  type: boolean
+                score:
+                  type: integer
+                  nullable: true
+        depositAmountWei:
+          type: string
+        timeoutBlock:
+          type: string
+          nullable: true
+        winner:
+          type: object
+          nullable: true
+          properties:
+            address:
+              type: string
+        settlement:
+          type: object
+          nullable: true
+          properties:
+            txHash:
+              type: string
+              nullable: true
+            txStatus:
+              $ref: "#/components/schemas/EvmTxStatus"
+            payoutWei:
+              type: string
+            type:
+              type: string
+              enum: [winner, draw, refund]
+        deposits:
+          type: array
+          items:
+            type: object
+            properties:
+              playerAddress:
+                type: string
+              amountWei:
+                type: string
+              txHash:
+                type: string
+                nullable: true
+              txStatus:
+                $ref: "#/components/schemas/EvmTxStatus"
+              blockNumber:
+                type: string
+                nullable: true
+        chainEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvmChainEvent"
+        contract:
+          type: object
+          properties:
+            escrowAddress:
+              type: string
+            matchIdBytes32:
+              type: string
+              nullable: true
+        createdAt:
+          type: integer
+        fundedAt:
+          type: integer
+          nullable: true
+        settledAt:
+          type: integer
+          nullable: true
+
+    V3RewardEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        seq:
+          type: integer
+        recipientAddress:
+          type: string
+        amountWei:
+          type: string
+        proofHash:
+          type: string
+          nullable: true
+        txHash:
+          type: string
+          nullable: true
+        txStatus:
+          $ref: "#/components/schemas/EvmTxStatus"
+        blockNumber:
+          type: string
+          nullable: true
+        chainEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvmChainEvent"
+        timestamps:
+          type: object
+          properties:
+            created:
+              type: integer
+            mined:
+              type: integer
+              nullable: true
+            confirmed:
+              type: integer
+              nullable: true
+
+    V3Proof:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        seq:
+          type: integer
+        proofHash:
+          type: string
+          nullable: true
+        payload:
+          type: string
+          nullable: true
+        txHash:
+          type: string
+          nullable: true
+        blockNumber:
+          type: string
+          nullable: true
+        verified:
+          type: boolean
+          description: True if ProofRecorded event found on-chain
+        chainEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvmChainEvent"
