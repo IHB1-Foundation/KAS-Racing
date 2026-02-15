@@ -1,77 +1,71 @@
-# KAS Racing (Speed‑Visualizer SDK)
+# KAS Racing (Speed-Visualizer SDK)
 
-## One‑Line Summary
+## One-Line Summary
 
-<img src="https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/1.png?raw=true">
+A 3-lane runner that fires real Kaspa on-chain transactions during gameplay and visualizes each stage in real time, plus a reusable Speed-Visualizer HUD SDK.
 
-A 3‑lane runner that fires **real Kaspa on‑chain transactions during gameplay** and visualizes each stage in real time—proving speed by UX, not claims—plus a reusable Speed‑Visualizer HUD SDK.
+![KAS Racing Screenshot 1](https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/1.png?raw=true)
 
 ## Track Targets
 
-<img src="https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/2.png?raw=true">
+- Gaming and interactive: on-chain transactions drive gameplay rewards and 1v1 outcomes
+- Payments and commerce: instant-feeling micro-payouts at checkpoints with a transparent lifecycle
+- Real-time data: live transaction-state telemetry streamed into the HUD
 
-- **Gaming & Interactive:** on‑chain transactions directly drive gameplay rewards and 1v1 outcomes.
-- **Payments & Commerce:** instant‑feeling micro‑payouts at checkpoints with a transparent lifecycle.
-- **Real‑Time Data:** live transaction‑state telemetry streamed into the HUD as the action happens.
+![KAS Racing Screenshot 2](https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/2.png?raw=true)
 
 ## Impact
 
-<img src="https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/3.png?raw=true">
+- Flips the "blockchain is slow" perception by letting players feel speed
+- Demonstrates what real-time PoW unlocks for game economies and settlement loops
+- Reusable SDK lets other builders add the same telemetry to any Kaspa app
 
-- **Flips the “blockchain is slow” perception:** users *feel* speed through instant, visible feedback.
-- **Shows what real‑time PoW unlocks:** game economies and settlement loops that respond immediately.
-- **Reusable SDK:** other builders can plug the Speed‑Visualizer into any Kaspa app.
+![KAS Racing Screenshot 3](https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/3.png?raw=true)
 
-## Fun / Experience
+## Why It Is Special
 
-- **Instant reward loop:** collect a capsule → a real payout tx fires → HUD pops through states.
-- **Ghost‑Wheel 1v1:** create/join → both deposit into escrow → race → single on‑chain settle to the winner.
+- No mocks: real transactions in the game loop
+- Millisecond lifecycle visualization (broadcasted -> accepted -> included -> confirmed)
+- Proof page recomputes payload hashes and verifies RewardPaid and ProofRecorded logs
 
-## Why It’s Special
-
-<img src="https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/4.png?raw=true">
-
-- **No mocks—real transactions in the game loop.**
-- **Millisecond lifecycle visualization** (`broadcasted → accepted → included → confirmed`).
-- **On‑chain proof page** that recomputes payload hashes and verifies RewardPaid + ProofRecorded logs.
+![KAS Racing Screenshot 4](https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/4.png?raw=true)
 
 ## Key Features
 
-- **Free Run (Arcade‑to‑Earn):** checkpoint capsules trigger real rewards.
-- **Ghost‑Wheel Duel (1v1):** MatchEscrow holds both deposits, then settles a single payout tx.
-- **Speed‑Visualizer SDK:** reusable React HUD components.
-- **Proof Page:** recompute payloads, match hashes, and show tx + block evidence.
+- Free Run (Arcade to Earn): checkpoint capsules trigger real rewards
+- Ghost-Wheel Duel (1v1): MatchEscrow holds both deposits, then settles a single payout to the winner
+- Speed-Visualizer SDK: reusable React HUD components
+- Proof Page: recompute payloads, match hashes, and show on-chain evidence
 
 ## Tech Stack
 
-<img src="https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/6.png?raw=true">
+- Client: React + Phaser 3
+- Server: Node.js (Express) + WebSocket (socket.io)
+- DB: PostgreSQL (Drizzle ORM)
+- Blockchain: Kaspa (kaspa-wasm + REST API)
+- Deploy: Vercel (client), Railway (server)
 
-- **Client:** React + Phaser 3
-- **Server:** Node.js (Express) + WebSocket (socket.io)
-- **DB:** PostgreSQL (Drizzle ORM)
-- **Blockchain:** Kaspa (kaspa‑wasm + REST API)
-- **Deploy:** Vercel (client), Railway (server)
+![KAS Racing Screenshot 6](https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/6.png?raw=true)
 
-## How It Works (High‑Level)
-
-<img src="https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/5.png?raw=true">
+## How It Works (High Level)
 
 1. Player starts a session, then hits a checkpoint.
-2. The server validates policy (cooldown + max events) and builds a payout call.
-3. For every checkpoint it builds a deterministic payload:  
-   `KASRACE1|<network>|<mode>|<sessionId>|checkpoint|<seq>`  
-   and hashes it into the on‑chain proof.
-4. The indexer ingests **RewardPaid** + **ProofRecorded** logs and streams lifecycle timestamps to the HUD.
-5. The **Proof Page** recomputes the payload + hash and cross‑checks the tx hash, block, and logs to prove the event.
-6. In **Ghost‑Wheel Duel**, both players deposit into MatchEscrow → when funded, the race runs → a single settle tx pays the winner.
+2. The server validates policy (cooldown and max events) and builds a payout call.
+3. For each checkpoint it builds a deterministic payload:
+   `KASRACE1|<network>|<mode>|<sessionId>|checkpoint|<seq>`
+   and hashes it into the on-chain proof.
+4. The indexer ingests RewardPaid and ProofRecorded logs and streams lifecycle timestamps to the HUD.
+5. The Proof Page recomputes the payload and hash to cross-check the tx hash, block, and logs.
+6. In Ghost-Wheel Duel, both players deposit into MatchEscrow -> race -> a single settle tx pays the winner.
 
-## What’s Next
+![KAS Racing Screenshot 5](https://github.com/IHB1-Foundation/KAS-Racing/blob/main/picture/5.png?raw=true)
+
+## What Is Next
 
 - Full covenant escrow settlement on mainnet
-- Expanded SDK docs/examples
-- Additional game modes using the same on‑chain telemetry
+- Expanded SDK docs and examples
+- Additional game modes using the same on-chain telemetry
 
 ## AI Usage
 
-- AI tools were used for scaffolding and documentation.
-- All core gameplay, contract logic, and integration flows were reviewed and validated by the team.
+AI tools were used for scaffolding and documentation. All core gameplay, contract logic, and integration flows were reviewed and validated by the team.

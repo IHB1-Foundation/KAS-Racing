@@ -1,56 +1,24 @@
 # KAS Racing
 
-> A web-based 3-lane runner game with real-time KASPLEX zkEVM integration, demonstrating sub-second transaction UX.
+A web-based 3-lane runner game that integrates real KASPLEX zkEVM transactions into gameplay and visualizes each step of the transaction lifecycle in real time.
 
-[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](#license)
-[![Built with Kaspa](https://img.shields.io/badge/Built%20with-Kaspa-00d4aa)](https://kaspa.org)
+## Overview
 
-## What is KAS Racing?
+KAS Racing connects a fast arcade loop with real on-chain reward payouts. Every checkpoint capsule triggers a live transaction and the HUD streams its lifecycle from submission to confirmation.
 
-KAS Racing is a fast-paced endless runner game that integrates **real KASPLEX zkEVM transactions** (Kaspa ecosystem) into gameplay. When you collect checkpoint capsules, you receive instant kFUEL rewards — and you can watch the entire transaction lifecycle unfold in real-time through our HUD.
+## Highlights
 
-**Key Features:**
-- **Real Blockchain Integration**: No mocks, no simulations — actual on-chain transactions
-- **Transaction Lifecycle Visualization**: Watch rewards progress through `submitted → mined → confirmed`
-- **Speed-Visualizer SDK**: Reusable React components for any Kaspa/KASPLEX-integrated app
-- **1v1 Duel Mode**: Bet against friends with transparent settlement
+- Real blockchain integration (no mocks)
+- Live transaction lifecycle visualization
+- Reusable Speed-Visualizer React SDK
+- 1v1 duel mode with transparent settlement
 
-## Why KAS Racing?
+## Architecture (High Level)
 
-"Blockchain is slow" is a common misconception. KAS Racing proves otherwise by:
-
-1. **Showing, not telling**: See transactions confirm in real-time as you play
-2. **Measuring with precision**: Every stage is timestamped in milliseconds
-3. **Providing proof**: Explorer links for every transaction
-
-We don't claim "sub-second finality" — we let the HUD speak for itself.
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                          Client (Web)                           │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │   Phaser Game   │  │   HUD/SDK       │  │  Wallet Connect │ │
-│  │  (3-lane runner)│  │  (Timeline)     │  │  (MetaMask)     │ │
-│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘ │
-└───────────┼────────────────────┼────────────────────┼──────────┘
-            │                    │                    │
-            ▼                    ▼                    ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        Server (Node.js)                         │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │ Session Manager │  │  TX Engine      │  │  Event Bridge   │ │
-│  │ (Policy Engine) │  │    (EVM)        │  │  (Indexer)      │ │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-            │
-            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     KASPLEX zkEVM                               │
-│                   RPC + Explorer                                │
-└─────────────────────────────────────────────────────────────────┘
-```
+- Client: Phaser game + React UI + wallet integration
+- Server: Node.js API + WebSocket updates
+- Indexer: event ingestion and timeline updates
+- Chain: KASPLEX zkEVM RPC + explorer
 
 ## Quickstart
 
@@ -58,28 +26,23 @@ We don't claim "sub-second finality" — we let the HUD speak for itself.
 
 - Node.js 20+
 - pnpm 9+
-- [MetaMask](https://metamask.io/) (or any injected EVM wallet)
+- MetaMask or another injected EVM wallet
 
-### Installation
+### Install and run
 
 ```bash
-# Clone the repository
 git clone https://github.com/your-username/kas-racing.git
 cd kas-racing
-
-# Install dependencies
 pnpm install
-
-# Start development servers
 pnpm dev
 ```
 
-- **Game**: http://localhost:5173
-- **API**: http://localhost:8787/api/health
+- Game: http://localhost:5173
+- API: http://localhost:8787/api/health
 
-### Configuration
+## Configuration
 
-For real transaction broadcasts, copy `.env.example` to `.env` and fill in:
+For real transaction broadcasts, copy `.env.example` to `.env` and fill in values. Do not commit secrets.
 
 ```bash
 NETWORK=testnet
@@ -96,32 +59,31 @@ VITE_KFUEL_TOKEN_ADDRESS=0x...
 
 ### Free Run (Arcade to Earn)
 
-1. Connect your EVM wallet (MetaMask)
+1. Connect your EVM wallet
 2. Press SPACE to start
 3. Use LEFT/RIGHT arrows to dodge obstacles
 4. Collect checkpoint capsules to earn kFUEL rewards
-5. Watch the TX Timeline update in real-time
+5. Watch the transaction timeline update in real time
 
-**Controls:**
-- Desktop: ←/→ keys, SPACE to start
-- Mobile: Swipe left/right, Tap to start
+Controls:
+- Desktop: Left/Right arrows, SPACE to start
+- Mobile: Swipe left/right, tap to start
 
 ### Ghost-Wheel Duel (1v1 Betting)
 
-1. Create a match and choose bet amount
-2. Share the join code with your opponent
-3. Both players deposit kFUEL
-4. Race for 30 seconds — highest distance wins
+1. Create a match and choose a bet amount
+2. Share the join code with an opponent
+3. Both players deposit kFUEL into escrow
+4. Race for 30 seconds
 5. Winner receives the pot automatically
 
 ## Speed-Visualizer SDK
 
-The SDK provides reusable React components for Kaspa transaction visualization:
+Reusable React components for Kaspa transaction visualization.
 
 ```tsx
 import { TxLifecycleTimeline, KaspaRPMGauge } from '@kas-racing/speed-visualizer-sdk';
 
-// Transaction lifecycle timeline
 <TxLifecycleTimeline
   txid="abc123..."
   status="accepted"
@@ -132,16 +94,12 @@ import { TxLifecycleTimeline, KaspaRPMGauge } from '@kas-racing/speed-visualizer
   network="mainnet"
 />
 
-// Network pulse gauge
 <KaspaRPMGauge bps={1.5} maxBps={10} />
 ```
 
-### Components
-
-| Component | Description |
-|-----------|-------------|
-| `TxLifecycleTimeline` | Shows transaction progress through network stages |
-| `KaspaRPMGauge` | Displays network blocks-per-second as a gauge |
+Components:
+- `TxLifecycleTimeline`: shows transaction progress through network stages
+- `KaspaRPMGauge`: displays blocks-per-second as a gauge
 
 ## Proof Page
 
@@ -149,43 +107,41 @@ Visit `/proof` to verify any KAS Racing transaction:
 
 1. Enter a transaction ID
 2. See the decoded payload (game event, session, sequence)
-3. Verify the transaction is genuine on-chain proof of gameplay
+3. Verify the transaction on-chain
 
-Payload format: `KASRACE1|network|mode|sessionId|event|seq|commit`
+Payload format:
 
-## API Reference
+```
+KASRACE1|network|mode|sessionId|event|seq|commit
+```
 
-### REST Endpoints
+## API Reference (Summary)
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health` | GET | Health check |
-| `/api/v3/session/start` | POST | Start game session |
-| `/api/v3/session/event` | POST | Submit checkpoint event |
-| `/api/v3/tx/:txHash/status` | GET | Get transaction status |
-| `/api/v3/match/create` | POST | Create duel match |
-| `/api/v3/match/join` | POST | Join match by code |
+REST:
+- `GET /api/health`
+- `POST /api/v3/session/start`
+- `POST /api/v3/session/event`
+- `GET /api/v3/tx/:txHash/status`
+- `POST /api/v3/match/create`
+- `POST /api/v3/match/join`
 
-### WebSocket Events
-
-| Event | Direction | Description |
-|-------|-----------|-------------|
-| `subscribe` | Client→Server | Subscribe to session updates |
-| `subscribeMatch` | Client→Server | Subscribe to match updates |
-| `evmRewardUpdate` | Server→Client | RewardVault event updates (tx lifecycle) |
-| `evmMatchUpdate` | Server→Client | MatchEscrow event updates |
+WebSocket events:
+- `subscribe` (client -> server)
+- `subscribeMatch` (client -> server)
+- `evmRewardUpdate` (server -> client)
+- `evmMatchUpdate` (server -> client)
 
 ## Project Structure
 
 ```
 kas-racing/
-├── apps/
-│   ├── client/          # Phaser game + React UI
-│   └── server/          # Express API + WebSocket
-├── packages/
-│   └── speed-visualizer-sdk/  # Reusable components
-├── README.md            # Main public documentation
-└── DORAHACKS.md          # Hackathon submission
++-- apps/
+|   +-- client/          # Phaser game + React UI
+|   +-- server/          # Express API + WebSocket
++-- packages/
+|   +-- speed-visualizer-sdk/
++-- README.md            # Main documentation
++-- DORAHACKS.md         # Hackathon submission
 ```
 
 ## Deployment
@@ -196,40 +152,30 @@ kas-racing/
 vercel --prod
 ```
 
-Set `VITE_API_URL` in Vercel to your Railway server URL (example: `https://<service>.up.railway.app`).
+Set `VITE_API_URL` in Vercel to your Railway server URL.
 
 ### Server (Railway)
 
-- This repo includes `railway.json` which deploys `apps/server/Dockerfile`.
-- Create a Railway service from this repo, add Railway Postgres, then set Variables:
-  - `NETWORK` (payload labeling)
+- `railway.json` deploys `apps/server/Dockerfile`.
+- Create a Railway service, add Postgres, then set variables:
+  - `NETWORK`
   - `EVM_CHAIN_ID`, `EVM_RPC_URL`
   - `OPERATOR_PRIVATE_KEY`
   - `ESCROW_CONTRACT_ADDRESS`, `REWARD_CONTRACT_ADDRESS`, `FUEL_TOKEN_ADDRESS`
-  - `CORS_ORIGIN` (your Vercel URL)
-  - `DATABASE_URL` (Railway Postgres connection string)
+  - `CORS_ORIGIN`
+  - `DATABASE_URL`
   - `DATABASE_SSL=true`
 - Verify health check: `GET /api/health` returns 200 on the Railway public URL.
 
 ## Security Notes
 
-- Operator keys are server‑side only
+- Operator keys are server-side only
 - Rate limiting protects gameplay endpoints
 
 ## AI Usage
 
-This project used AI assistance for scaffolding and documentation. All code was reviewed and tested by the team.
+AI tools were used for scaffolding and documentation. All core gameplay, contract logic, and integration flows were reviewed and validated by the team.
 
 ## License
 
-Proprietary, all rights reserved. See [LICENSE](LICENSE) for details.
-
-## Links
-
-- [Kaspa](https://kaspa.org)
-- [MetaMask](https://metamask.io/)
-- [KASPLEX Explorer](https://explorer.testnet.kasplextest.xyz)
-
----
-
-Built for the Kaspa Hackathon 2026
+Proprietary. See `LICENSE` for details.
