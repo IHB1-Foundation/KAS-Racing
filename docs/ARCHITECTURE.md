@@ -117,8 +117,13 @@ kas-racing/
 | `settlements` | **(NEW)** Settlement TX tracking (split from matches) | id, matchId, txid, status, mode, winnerAddress, amount |
 | `chain_events` | **(NEW)** Raw indexed events from indexer | id, blockNumber, txid, eventType, data, indexedAt |
 | `idempotency_keys` | **(NEW)** Request deduplication | key, response, expiresAt |
+| `race_markets` | **(NEW v3)** Live betting market per race | id, matchId, state (OPEN/LOCKED/SETTLED/CANCELLED), poolWei, createdAt, lockedAt, settledAt |
+| `odds_ticks` | **(NEW v3)** Historical odds snapshots | id, marketId, seq, probA_bps, probB_bps, timestamp |
+| `bet_orders` | **(NEW v3)** User bets | id, marketId, userId, side, stakeWei, oddsAtPlacement_bps, status, payoutWei, idempotencyKey |
+| `bet_cancels` | **(NEW v3)** Cancellation records | id, orderId, reason, cancelledAt |
+| `market_settlements` | **(NEW v3)** Settlement records | id, marketId, winnerSide, totalPoolWei, totalPayoutWei, txHash, settledAt |
 
-> Current schema (v1) stores deposit/settlement fields inline on the `matches` table. v2 promotes them to separate tables for indexer compatibility and query flexibility.
+> Current schema (v1) stores deposit/settlement fields inline on the `matches` table. v2 promotes them to separate tables for indexer compatibility and query flexibility. v3 adds live market tables (see [ADR-003](./ADR-003-live-market.md)).
 
 ---
 
@@ -220,6 +225,70 @@ sequenceDiagram
     API->>PG: UPDATE match (status: finished, winnerId)
     API-->>A: WS push {result, settleTxid}
     API-->>B: WS push {result, settleTxid}
+```
+
+### Data Flow — Live Race Market (Real-time Odds + Betting)
+
+> **ADR reference**: See [ADR-003-live-market.md](./ADR-003-live-market.md) for full rules.
+
+```mermaid
+sequenceDiagram
+    participant S as Spectator (FE)
+    participant API as API Server
+    participant OE as Odds Engine
+    participant PG as Postgres
+    participant WS as WebSocket
+    participant EVM as EVM Contract
+
+    Note over S,EVM: Phase 1 — Market OPEN (race in progress)
+
+    API->>PG: INSERT race_market (state=OPEN)
+    API->>WS: broadcast marketOpened {marketId, players, initialOdds}
+
+    loop Every 200-500ms (telemetry sampling)
+        OE->>OE: Sample race telemetry (distance, speed, time)
+        OE->>OE: Compute new probabilities
+        alt Change ≥ threshold (2%)
+            OE->>PG: INSERT odds_tick {seq, probA_bps, probB_bps}
+            OE->>WS: broadcast marketTick {marketId, seq, odds, ts}
+        end
+    end
+
+    S->>API: POST /market/:id/bet {side, stake, idempotencyKey}
+    API->>API: Validate (state=OPEN, limits, balance, idempotency)
+    alt Valid
+        API->>PG: INSERT bet_order (status=pending, oddsAtPlacement)
+        API-->>S: 201 {orderId, lockedOdds}
+        API->>WS: broadcast betAccepted {marketId, orderId}
+    else Rejected
+        API-->>S: 4xx {error: MARKET_LOCKED | LIMIT_EXCEEDED | ...}
+    end
+
+    S->>API: POST /market/:id/cancel {orderId}
+    API->>API: Validate (state=OPEN, ownership)
+    alt Valid
+        API->>PG: UPDATE bet_order status=cancelled
+        API-->>S: 200 {cancelled: true}
+        API->>WS: broadcast betCancelled {marketId, orderId}
+    else Rejected
+        API-->>S: 4xx {error: MARKET_LOCKED | NOT_OWNER}
+    end
+
+    Note over S,EVM: Phase 2 — Market LOCKED (3s before race end)
+
+    API->>PG: UPDATE race_market state=LOCKED
+    OE->>WS: broadcast marketLocked {marketId, finalOdds}
+    Note over API: No new bets or cancels accepted
+
+    Note over S,EVM: Phase 3 — Race ends, SETTLED
+
+    API->>API: Determine winner from race scores
+    API->>PG: Calculate payouts per bet_order
+    API->>PG: UPDATE race_market state=SETTLED
+    API->>PG: INSERT market_settlement {marketId, results}
+    API->>EVM: Batch payout transaction (winners)
+    EVM-->>API: txHash
+    API->>WS: broadcast marketSettled {marketId, winner, txHash, payouts}
 ```
 
 ### Data Flow — Duel (Fallback Mode, Mainnet)

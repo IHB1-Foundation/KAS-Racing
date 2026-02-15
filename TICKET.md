@@ -89,15 +89,15 @@
 - 현재는 "실시간 레이스 베팅 마켓"이 아니라 "듀얼 자동 진행" 레벨까지만 완료됨
 
 
-### - [ ] T-400 Live Market ADR + Rules Freeze (확률/베팅/취소 규칙 고정)
+### - [x] T-400 Live Market ADR + Rules Freeze (확률/베팅/취소 규칙 고정)
 **의존**
 - T-390
 
 **작업**
-- [ ] 실시간 마켓 상태머신 확정: `OPEN -> LOCKED -> SETTLED -> CANCELLED`
-- [ ] 취소 허용 경계 정의(예: lock 이전만 취소 가능)
-- [ ] 확률/배당 업데이트 주기 정의(예: 100~500ms)
-- [ ] "체결 소스(오프체인 엔진) + 온체인 정산 경계" 문서화
+- [x] 실시간 마켓 상태머신 확정: `OPEN -> LOCKED -> SETTLED -> CANCELLED`
+- [x] 취소 허용 경계 정의(예: lock 이전만 취소 가능)
+- [x] 확률/배당 업데이트 주기 정의(예: 100~500ms)
+- [x] "체결 소스(오프체인 엔진) + 온체인 정산 경계" 문서화
 
 **산출물**
 - `docs/ADR-003-live-market.md`
@@ -106,6 +106,14 @@
 **완료조건**
 - FE/BE/운영이 동일 규칙으로 구현 가능한 수준으로 명세 고정
 - "취소 가능/불가능" 경계가 예시와 함께 명확히 문서화
+
+**변경 요약**
+- ADR-003 작성: 마켓 상태머신(OPEN→LOCKED→SETTLED→CANCELLED), 취소 규칙(OPEN 상태에서만 허용, 타임라인 예시 포함), 배당 틱 주기(300ms 기본, 2% 임계치), off-chain/on-chain 정산 경계 도식
+- ARCHITECTURE.md에 Live Race Market 시퀀스 다이어그램 추가 + Postgres Schema에 마켓 테이블 5종 명세 추가
+
+**실행 방법**
+- `cat docs/ADR-003-live-market.md` — ADR 전문 확인
+- `docs/ARCHITECTURE.md` — "Live Race Market" 섹션 및 Postgres Schema v3 테이블 확인
 
 **Notes/Blockers**
 - 없음
