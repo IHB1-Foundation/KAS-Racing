@@ -28,21 +28,9 @@ async function indexRange(
 ): Promise<number> {
   let totalEvents = 0;
 
-  type AbiEventInput = {
-    type: string;
-    indexed?: boolean;
-    name?: string;
-  };
-  type AbiEvent = {
-    type: "event";
-    name: string;
-    inputs: AbiEventInput[];
-  };
-  type AbiItem = AbiEvent | { type: string; name?: string; inputs?: AbiEventInput[] };
-
   const contracts: Array<{
     address: Address;
-    abi: readonly AbiItem[];
+    abi: readonly unknown[];
     label: string;
   }> = [];
 
@@ -96,12 +84,17 @@ async function indexRange(
 /// Decode event name from log topic
 function decodeEventName(
   log: Log,
-  abi: readonly Array<{ type: string; name?: string; inputs?: Array<{ type: string; indexed?: boolean; name?: string }> }>
+  abi: readonly unknown[]
 ): string | null {
   const topic0 = log.topics[0];
   if (!topic0) return null;
 
-  for (const item of abi) {
+  for (const rawItem of abi) {
+    const item = rawItem as {
+      type?: string;
+      name?: string;
+      inputs?: ReadonlyArray<{ type: string; indexed?: boolean; name?: string }>;
+    };
     if (item.type !== "event" || !item.name || !item.inputs) continue;
     try {
       const sig = `event ${item.name}(${item.inputs

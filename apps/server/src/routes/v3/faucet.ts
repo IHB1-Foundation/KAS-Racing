@@ -6,6 +6,7 @@ import { Router, type Request, type Response, type RequestHandler } from 'expres
 import { parseEther } from 'viem';
 import { mintFuel } from '../../tx/evmContracts.js';
 import { normalizeEvmAddress } from '../../utils/evmAddress.js';
+import type { Address } from 'viem';
 
 const router = Router();
 
@@ -50,7 +51,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
-  const result = await mintFuel({ to: normalized, amountWei });
+  const result = await mintFuel({ to: normalized as Address, amountWei });
   if (!result.success) {
     res.status(500).json({ error: result.error ?? 'Faucet request failed' });
     return;
