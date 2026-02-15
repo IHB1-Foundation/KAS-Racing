@@ -601,20 +601,36 @@
 - 없음
 
 
-### - [ ] T-353 Cutover & Rollback Plan
+### - [x] T-353 Cutover & Rollback Plan
 **의존**
 - T-352
 
 **작업**
-- [ ] 레거시(Kaspa UTXO) → EVM 컷오버 절차 문서화
-- [ ] 문제 발생 시 롤백(트래픽/환경변수/주소) 계획 수립
-- [ ] 운영 당일 체크리스트 확정
+- [x] 레거시(Kaspa UTXO) → EVM 컷오버 절차 문서화
+- [x] 문제 발생 시 롤백(트래픽/환경변수/주소) 계획 수립
+- [x] 운영 당일 체크리스트 확정
 
 **산출물**
 - `docs/CUTOVER_PLAN.md`
 
 **완료조건**
-- “언제 어떻게 전환하고, 실패 시 어떻게 되돌리는지”가 1문서로 완결
+- "언제 어떻게 전환하고, 실패 시 어떻게 되돌리는지"가 1문서로 완결
+
+**변경 요약**
+- `docs/CUTOVER_PLAN.md` 신규 작성: 8개 섹션 완결 문서
+  - 전제조건 체크리스트 (4개 카테고리, 17항목)
+  - 6단계 컷오버 절차 (Phase 1~6: 스냅샷→Railway API→Indexer→Vercel→검증→완료)
+  - 3가지 롤백 옵션 (A: 환경변수 복원, B: Git 커밋 복원, C: 유지보수 모드)
+  - DB 마이그레이션/롤백 전략 (v3 테이블 독립, v2 무영향)
+  - 운영 당일 체크리스트 (T-60→T-30→T-0→T+5→T+10→Post-cutover)
+  - 연락처/에스컬레이션 테이블
+
+**실행 방법**
+- `cat docs/CUTOVER_PLAN.md`로 전체 문서 확인
+- 운영 당일 섹션 6 "Operation Day Checklist"를 인쇄해서 사용
+
+**Notes/Blockers**
+- 없음
 
 ### - [x] T-002 CI Pipeline (Lint/Test/Build)
 **의존**
