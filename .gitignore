@@ -25,3 +25,4 @@ apps/server/data/
 
 # Local deployment runbook (do not commit)
 DEPLOY.md
+ENVIRON.md
