@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 /// @title Kas Racing Fuel (kFUEL)
 /// @notice Utility token for racing rewards and betting
 contract KasRacingFuel is ERC20, Ownable {
+    uint256 public constant FAUCET_AMOUNT = 10 * 1e18;
     mapping(address => bool) public minters;
 
     event MinterUpdated(address indexed minter, bool status);
@@ -39,5 +40,9 @@ contract KasRacingFuel is ERC20, Ownable {
     function mint(address to, uint256 amount) external onlyMinter {
         if (to == address(0)) revert ZeroAddress();
         _mint(to, amount);
+    }
+
+    function faucetMint() external {
+        _mint(msg.sender, FAUCET_AMOUNT);
     }
 }

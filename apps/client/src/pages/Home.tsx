@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatEther } from 'viem';
-import { EvmWalletButton, useEvmWallet } from '../evm';
-import { requestFaucet } from '../api/v3client';
+import { type Address, parseAbi } from 'viem';
+import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import { EvmWalletButton, useEvmWallet, kasplexTestnet } from '../evm';
 import logoSymbol from '../assets/logo-symbol.png';
 
 const GITHUB_URL = 'https://github.com/anthropics/kas-racing';
@@ -14,22 +15,58 @@ export function Home() {
   const { address, isConnected, isCorrectChain } = useEvmWallet();
   const [faucetLoading, setFaucetLoading] = useState(false);
   const [faucetMessage, setFaucetMessage] = useState<string | null>(null);
+  const [faucetTxHash, setFaucetTxHash] = useState<`0x${string}` | null>(null);
+  const fuelTokenAddress = useMemo(() => {
+    const raw = import.meta.env.VITE_KFUEL_TOKEN_ADDRESS as string | undefined;
+    return raw && raw.length > 0 ? (raw as Address) : null;
+  }, []);
+  const faucetAbi = useMemo(
+    () => parseAbi(['function faucetMint() external']),
+    [],
+  );
 
-  const handleFaucet = async () => {
+  const { writeContract, data: txHash, isPending, error: faucetError } = useWriteContract();
+  const { isSuccess: faucetMined } = useWaitForTransactionReceipt({
+    hash: txHash,
+    confirmations: 1,
+  });
+
+  const handleFaucet = () => {
     if (!address || faucetLoading) return;
     setFaucetLoading(true);
     setFaucetMessage(null);
 
     try {
-      const result = await requestFaucet(address);
-      const amount = formatEther(BigInt(result.amountWei));
-      setFaucetMessage(`Faucet sent ${amount} kFUEL`);
+      if (!fuelTokenAddress) {
+        setFaucetMessage('kFUEL token address not configured');
+        return;
+      }
+
+      writeContract({
+        address: fuelTokenAddress,
+        abi: faucetAbi,
+        functionName: 'faucetMint',
+        chainId: kasplexTestnet.id,
+      });
+      setFaucetTxHash(null);
     } catch (err) {
       setFaucetMessage(err instanceof Error ? err.message : 'Faucet request failed');
     } finally {
       setFaucetLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (txHash && faucetTxHash !== txHash) {
+      setFaucetTxHash(txHash);
+    }
+  }, [txHash, faucetTxHash]);
+
+  useEffect(() => {
+    if (faucetMined && faucetTxHash) {
+      setFaucetMessage(`Faucet sent ${formatEther(10n * 10n ** 18n)} kFUEL`);
+    }
+  }, [faucetMined, faucetTxHash]);
 
   return (
     <div className="landing">
@@ -52,9 +89,9 @@ export function Home() {
           <button
             className="faucet-btn"
             onClick={() => { void handleFaucet(); }}
-            disabled={!isConnected || !isCorrectChain || faucetLoading}
+            disabled={!isConnected || !isCorrectChain || faucetLoading || isPending}
           >
-            {faucetLoading ? 'Requesting kFUEL...' : 'Get kFUEL (Faucet)'}
+            {faucetLoading || isPending ? 'Requesting kFUEL...' : 'Get 10 kFUEL (Faucet)'}
           </button>
           {!isConnected && (
             <span className="faucet-hint">Connect your wallet to claim kFUEL.</span>
@@ -64,6 +101,9 @@ export function Home() {
           )}
           {faucetMessage && (
             <span className="faucet-status">{faucetMessage}</span>
+          )}
+          {faucetError && (
+            <span className="faucet-status">{faucetError.message.split('\n')[0]}</span>
           )}
         </div>
       </div>

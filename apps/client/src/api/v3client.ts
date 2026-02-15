@@ -208,10 +208,6 @@ export interface V3SessionInfo {
   createdAt: number;
 }
 
-export interface V3FaucetResponse {
-  txHash: string;
-  amountWei: string;
-}
 
 export interface V3RewardEvent {
   id: string;
@@ -567,19 +563,3 @@ export async function getProofV3(
 /**
  * Request kFUEL from faucet
  */
-export async function requestFaucet(
-  address: string,
-  amountWei?: string,
-): Promise<V3FaucetResponse> {
-  const response = await fetch(`${API_BASE}/api/v3/faucet`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ address, amountWei }),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseErrorResponse(response));
-  }
-
-  return (await response.json()) as V3FaucetResponse;
-}
