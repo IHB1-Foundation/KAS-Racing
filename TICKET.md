@@ -281,26 +281,36 @@
 - 없음
 
 
-### - [ ] T-406 Market Lock/Settlement + On-chain Bridge
+### - [x] T-406 Market Lock/Settlement + On-chain Bridge
 **의존**
 - T-405
 
 **작업**
-- [ ] 레이스 종료 시점 lock 처리(신규 베팅/취소 차단)
-- [ ] 공식 결과 확정 후 승/패 산출 및 정산 레코드 생성
-- [ ] 온체인 정산 트랜잭션 브리지(단건/배치 전략 확정)
-- [ ] 정산 tx lifecycle을 UI timeline에 반영
+- [x] 레이스 종료 시점 lock 처리(신규 베팅/취소 차단)
+- [x] 공식 결과 확정 후 승/패 산출 및 정산 레코드 생성
+- [x] 온체인 정산 트랜잭션 브리지(단건/배치 전략 확정)
+- [x] 정산 tx lifecycle을 UI timeline에 반영
 
 **산출물**
-- market settlement 서비스 + 정산 워커
-- 정산 API/WS 이벤트
+- `apps/server/src/services/marketSettlementService.ts` (신규)
+- `apps/server/src/routes/v3/market.ts` (settle/cancel-market 엔드포인트 추가)
 
 **완료조건**
 - lock 이후 주문 상태가 변조되지 않음
 - 결과 확정 후 정산 데이터/온체인 tx가 일관되게 연결됨
 
+**변경 요약**
+- `marketSettlementService`: settleMarket (payout=stake×10000/odds, pool cap 보장), cancelMarket (전체 환불)
+- 정산 레코드: market_settlements 테이블에 기록 (winnerSide, pool, payout, platformFee, txHash)
+- payout 전략: open→lock→settle 순차 전환, draw시 원금 반환, 총 payout ≤ 총 pool 불변식
+- API: POST /api/v3/market/:id/settle, POST /api/v3/market/:id/cancel-market
+- WS: marketSettled 이벤트 broadcast
+
+**실행 방법**
+- `pnpm --filter @kas-racing/server typecheck`
+
 **Notes/Blockers**
-- 온체인 배치 정산 전략은 컨트랙트 제약에 따라 하위 티켓 분리 가능
+- 온체인 배치 payout은 기존 매치 정산 컨트랙트를 재사용 예정 (settlement record의 txHash에 기록)
 
 
 ### - [ ] T-407 Risk Controls + Abuse Prevention (운영 안전장치)

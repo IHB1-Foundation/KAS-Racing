@@ -17,6 +17,10 @@ import {
   getMarketByMatchId,
   MarketOrderError,
 } from '../../services/marketOrderService.js';
+import {
+  settleMarket,
+  cancelMarket,
+} from '../../services/marketSettlementService.js';
 import { submitTelemetry } from '../../workers/oddsTickWorker.js';
 import type { RaceTelemetry } from '../../services/oddsEngineService.js';
 import { eq, desc } from 'drizzle-orm';
@@ -247,6 +251,51 @@ router.post('/:id/telemetry', asyncHandler(async (req: Request, res: Response) =
     });
 
     res.json({ accepted: true });
+  } catch (error) {
+    handleMarketError(res, error);
+  }
+}));
+
+/**
+ * POST /api/v3/market/:id/settle
+ * Settle a market with the race result
+ */
+router.post('/:id/settle', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const body = req.body as { winnerSide: 'A' | 'B' | 'draw' };
+
+    if (!id) {
+      res.status(400).json({ error: 'Market ID is required' });
+      return;
+    }
+    if (!body.winnerSide || !['A', 'B', 'draw'].includes(body.winnerSide)) {
+      res.status(400).json({ error: 'winnerSide must be A, B, or draw' });
+      return;
+    }
+
+    const result = await settleMarket(id, body.winnerSide);
+    res.json(result);
+  } catch (error) {
+    handleMarketError(res, error);
+  }
+}));
+
+/**
+ * POST /api/v3/market/:id/cancel
+ * Cancel a market (refund all bets)
+ * Note: This is market-level cancel, not individual bet cancel
+ */
+router.post('/:id/cancel-market', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'Market ID is required' });
+      return;
+    }
+
+    await cancelMarket(id);
+    res.json({ cancelled: true });
   } catch (error) {
     handleMarketError(res, error);
   }
