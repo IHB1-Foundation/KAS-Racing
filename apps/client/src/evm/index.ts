@@ -10,3 +10,4 @@ export { EvmWalletProvider } from './EvmWalletProvider.js';
 export { useEvmWallet, type EvmWalletState } from './useEvmWallet.js';
 export { EvmWalletButton } from './EvmWalletButton.js';
 export { EvmNetworkGuard } from './EvmNetworkGuard.js';
+export { useMatchEscrow, useIsDeposited, type DepositState } from './useMatchEscrow.js';
