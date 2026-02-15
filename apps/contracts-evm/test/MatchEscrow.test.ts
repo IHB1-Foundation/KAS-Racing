@@ -1,15 +1,16 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { mine } from "@nomicfoundation/hardhat-network-helpers";
-import { MatchEscrow } from "../typechain-types";
+import { MatchEscrow, KasRacingFuel } from "../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("MatchEscrow", function () {
-  const DEPOSIT = ethers.parseEther("0.01");
-  const MIN_DEPOSIT = ethers.parseEther("0.001");
+  const DEPOSIT = ethers.parseEther("10");
+  const MIN_DEPOSIT = ethers.parseEther("1");
   const TIMEOUT_BLOCKS = 100;
   const MATCH_ID = ethers.keccak256(ethers.toUtf8Bytes("match-001"));
 
+  let fuel: KasRacingFuel;
   let escrow: MatchEscrow;
   let owner: SignerWithAddress;
   let operator: SignerWithAddress;
@@ -19,9 +20,19 @@ describe("MatchEscrow", function () {
 
   beforeEach(async function () {
     [owner, operator, player1, player2, outsider] = await ethers.getSigners();
-    const Factory = await ethers.getContractFactory("MatchEscrow");
-    escrow = await Factory.deploy(MIN_DEPOSIT, TIMEOUT_BLOCKS);
+
+    const FuelFactory = await ethers.getContractFactory("KasRacingFuel");
+    fuel = await FuelFactory.deploy(0n, owner.address);
+
+    const EscrowFactory = await ethers.getContractFactory("MatchEscrow");
+    escrow = await EscrowFactory.deploy(await fuel.getAddress(), MIN_DEPOSIT, TIMEOUT_BLOCKS);
     await escrow.setOperator(operator.address, true);
+
+    // Give players kFUEL and approval for escrow deposits.
+    await fuel.mint(player1.address, DEPOSIT * 20n);
+    await fuel.mint(player2.address, DEPOSIT * 20n);
+    await fuel.connect(player1).approve(await escrow.getAddress(), ethers.MaxUint256);
+    await fuel.connect(player2).approve(await escrow.getAddress(), ethers.MaxUint256);
   });
 
   async function createMatch(matchId = MATCH_ID) {
@@ -30,11 +41,10 @@ describe("MatchEscrow", function () {
 
   async function fundMatch(matchId = MATCH_ID) {
     await createMatch(matchId);
-    await escrow.connect(player1).deposit(matchId, { value: DEPOSIT });
-    await escrow.connect(player2).deposit(matchId, { value: DEPOSIT });
+    await escrow.connect(player1).deposit(matchId);
+    await escrow.connect(player2).deposit(matchId);
   }
 
-  // ─── Match Creation ────────────────────────────────────────
   describe("Match Creation", function () {
     it("should create a match", async function () {
       await createMatch();
@@ -47,7 +57,7 @@ describe("MatchEscrow", function () {
 
     it("should emit MatchCreated event", async function () {
       await expect(
-        escrow.connect(operator).createMatch(MATCH_ID, player1.address, player2.address, DEPOSIT)
+        escrow.connect(operator).createMatch(MATCH_ID, player1.address, player2.address, DEPOSIT),
       ).to.emit(escrow, "MatchCreated");
     });
 
@@ -58,31 +68,30 @@ describe("MatchEscrow", function () {
 
     it("should reject non-operator", async function () {
       await expect(
-        escrow.connect(outsider).createMatch(MATCH_ID, player1.address, player2.address, DEPOSIT)
+        escrow.connect(outsider).createMatch(MATCH_ID, player1.address, player2.address, DEPOSIT),
       ).to.be.revertedWithCustomError(escrow, "NotOperator");
     });
 
     it("should reject deposit below minimum", async function () {
       await expect(
-        escrow.connect(operator).createMatch(MATCH_ID, player1.address, player2.address, MIN_DEPOSIT - 1n)
+        escrow.connect(operator).createMatch(MATCH_ID, player1.address, player2.address, MIN_DEPOSIT - 1n),
       ).to.be.revertedWith("Below min deposit");
     });
 
     it("should reject same player as both sides", async function () {
       await expect(
-        escrow.connect(operator).createMatch(MATCH_ID, player1.address, player1.address, DEPOSIT)
+        escrow.connect(operator).createMatch(MATCH_ID, player1.address, player1.address, DEPOSIT),
       ).to.be.revertedWith("Same player");
     });
   });
 
-  // ─── Deposits ──────────────────────────────────────────────
   describe("Deposits", function () {
     beforeEach(async function () {
       await createMatch();
     });
 
     it("should accept player1 deposit", async function () {
-      await expect(escrow.connect(player1).deposit(MATCH_ID, { value: DEPOSIT }))
+      await expect(escrow.connect(player1).deposit(MATCH_ID))
         .to.emit(escrow, "Deposited")
         .withArgs(MATCH_ID, player1.address, DEPOSIT);
 
@@ -90,34 +99,46 @@ describe("MatchEscrow", function () {
     });
 
     it("should move to Funded after both deposits", async function () {
-      await escrow.connect(player1).deposit(MATCH_ID, { value: DEPOSIT });
-      await expect(escrow.connect(player2).deposit(MATCH_ID, { value: DEPOSIT }))
+      await escrow.connect(player1).deposit(MATCH_ID);
+      await expect(escrow.connect(player2).deposit(MATCH_ID))
         .to.emit(escrow, "MatchFunded");
 
       expect(await escrow.getMatchState(MATCH_ID)).to.equal(1); // Funded
     });
 
-    it("should reject wrong deposit amount", async function () {
+    it("should transfer kFUEL into escrow on deposit", async function () {
+      await expect(escrow.connect(player1).deposit(MATCH_ID))
+        .to.changeTokenBalances(
+          fuel,
+          [player1, await escrow.getAddress()],
+          [-DEPOSIT, DEPOSIT],
+        );
+    });
+
+    it("should reject deposit when allowance is missing", async function () {
+      const matchId = ethers.keccak256(ethers.toUtf8Bytes("match-no-allowance"));
+      await escrow.connect(operator).createMatch(matchId, outsider.address, player2.address, DEPOSIT);
+      await fuel.mint(outsider.address, DEPOSIT);
+
       await expect(
-        escrow.connect(player1).deposit(MATCH_ID, { value: DEPOSIT + 1n })
-      ).to.be.revertedWithCustomError(escrow, "WrongDepositAmount");
+        escrow.connect(outsider).deposit(matchId),
+      ).to.be.reverted;
     });
 
     it("should reject double deposit", async function () {
-      await escrow.connect(player1).deposit(MATCH_ID, { value: DEPOSIT });
+      await escrow.connect(player1).deposit(MATCH_ID);
       await expect(
-        escrow.connect(player1).deposit(MATCH_ID, { value: DEPOSIT })
+        escrow.connect(player1).deposit(MATCH_ID),
       ).to.be.revertedWithCustomError(escrow, "AlreadyDeposited");
     });
 
     it("should reject outsider deposit", async function () {
       await expect(
-        escrow.connect(outsider).deposit(MATCH_ID, { value: DEPOSIT })
+        escrow.connect(outsider).deposit(MATCH_ID),
       ).to.be.revertedWithCustomError(escrow, "NotPlayer");
     });
   });
 
-  // ─── Settlement ────────────────────────────────────────────
   describe("Settlement", function () {
     beforeEach(async function () {
       await fundMatch();
@@ -134,8 +155,13 @@ describe("MatchEscrow", function () {
 
     it("should increase winner balance by 2x deposit", async function () {
       await expect(
-        escrow.connect(operator).settle(MATCH_ID, player1.address)
-      ).to.changeEtherBalance(player1, DEPOSIT * 2n);
+        escrow.connect(operator).settle(MATCH_ID, player1.address),
+      ).to.changeTokenBalance(fuel, player1, DEPOSIT * 2n);
+    });
+
+    it("should empty escrow token balance after settlement", async function () {
+      await escrow.connect(operator).settle(MATCH_ID, player1.address);
+      expect(await fuel.balanceOf(await escrow.getAddress())).to.equal(0n);
     });
 
     it("should handle draw — refund both players", async function () {
@@ -144,16 +170,15 @@ describe("MatchEscrow", function () {
         .withArgs(MATCH_ID, player1.address, player2.address, DEPOSIT);
     });
 
-    // ── Theft Resistance ──
     it("THEFT: should reject settlement to third-party address", async function () {
       await expect(
-        escrow.connect(operator).settle(MATCH_ID, outsider.address)
+        escrow.connect(operator).settle(MATCH_ID, outsider.address),
       ).to.be.revertedWithCustomError(escrow, "InvalidWinner");
     });
 
     it("THEFT: should reject settlement by non-operator", async function () {
       await expect(
-        escrow.connect(outsider).settle(MATCH_ID, outsider.address)
+        escrow.connect(outsider).settle(MATCH_ID, outsider.address),
       ).to.be.revertedWithCustomError(escrow, "NotOperator");
     });
 
@@ -161,25 +186,23 @@ describe("MatchEscrow", function () {
       const id2 = ethers.keccak256(ethers.toUtf8Bytes("match-002"));
       await escrow.connect(operator).createMatch(id2, player1.address, player2.address, DEPOSIT);
       await expect(
-        escrow.connect(operator).settle(id2, player1.address)
+        escrow.connect(operator).settle(id2, player1.address),
       ).to.be.revertedWithCustomError(escrow, "InvalidState");
     });
 
     it("should reject settling already-settled match", async function () {
       await escrow.connect(operator).settle(MATCH_ID, player1.address);
       await expect(
-        escrow.connect(operator).settle(MATCH_ID, player2.address)
+        escrow.connect(operator).settle(MATCH_ID, player2.address),
       ).to.be.revertedWithCustomError(escrow, "InvalidState");
     });
   });
 
-  // ─── Timeout Refund ────────────────────────────────────────
   describe("Timeout Refund", function () {
     it("should refund after timeout (partially funded)", async function () {
       await createMatch();
-      await escrow.connect(player1).deposit(MATCH_ID, { value: DEPOSIT });
+      await escrow.connect(player1).deposit(MATCH_ID);
 
-      // Mine past timeout
       await mine(TIMEOUT_BLOCKS + 1);
 
       await expect(escrow.connect(player1).refund(MATCH_ID))
@@ -189,23 +212,22 @@ describe("MatchEscrow", function () {
 
     it("should refund both players after timeout (fully funded)", async function () {
       await fundMatch();
-
       await mine(TIMEOUT_BLOCKS + 1);
 
       await expect(escrow.connect(player1).refund(MATCH_ID))
-        .to.changeEtherBalance(player1, DEPOSIT);
+        .to.changeTokenBalance(fuel, player1, DEPOSIT);
       await expect(escrow.connect(player2).refund(MATCH_ID))
-        .to.changeEtherBalance(player2, DEPOSIT);
+        .to.changeTokenBalance(fuel, player2, DEPOSIT);
 
       expect(await escrow.getMatchState(MATCH_ID)).to.equal(3); // Refunded
     });
 
     it("should reject refund before timeout", async function () {
       await createMatch();
-      await escrow.connect(player1).deposit(MATCH_ID, { value: DEPOSIT });
+      await escrow.connect(player1).deposit(MATCH_ID);
 
       await expect(
-        escrow.connect(player1).refund(MATCH_ID)
+        escrow.connect(player1).refund(MATCH_ID),
       ).to.be.revertedWith("Timeout not reached");
     });
 
@@ -214,19 +236,18 @@ describe("MatchEscrow", function () {
       await mine(TIMEOUT_BLOCKS + 1);
 
       await expect(
-        escrow.connect(outsider).refund(MATCH_ID)
+        escrow.connect(outsider).refund(MATCH_ID),
       ).to.be.revertedWithCustomError(escrow, "NotPlayer");
     });
   });
 
-  // ─── Cancel ────────────────────────────────────────────────
   describe("Cancel", function () {
     it("should cancel and refund deposited player", async function () {
       await createMatch();
-      await escrow.connect(player1).deposit(MATCH_ID, { value: DEPOSIT });
+      await escrow.connect(player1).deposit(MATCH_ID);
 
       await expect(escrow.connect(operator).cancel(MATCH_ID))
-        .to.emit(escrow, "MatchCancelled");
+        .to.changeTokenBalance(fuel, player1, DEPOSIT);
 
       expect(await escrow.getMatchState(MATCH_ID)).to.equal(4); // Cancelled
     });
@@ -234,19 +255,18 @@ describe("MatchEscrow", function () {
     it("should reject cancel of funded match", async function () {
       await fundMatch();
       await expect(
-        escrow.connect(operator).cancel(MATCH_ID)
+        escrow.connect(operator).cancel(MATCH_ID),
       ).to.be.revertedWithCustomError(escrow, "InvalidState");
     });
 
     it("should reject cancel by non-operator", async function () {
       await createMatch();
       await expect(
-        escrow.connect(outsider).cancel(MATCH_ID)
+        escrow.connect(outsider).cancel(MATCH_ID),
       ).to.be.revertedWithCustomError(escrow, "NotOperator");
     });
   });
 
-  // ─── Access Control ────────────────────────────────────────
   describe("Access Control", function () {
     it("owner should be able to add/remove operators", async function () {
       await escrow.setOperator(outsider.address, true);
@@ -258,7 +278,7 @@ describe("MatchEscrow", function () {
 
     it("non-owner should not be able to add operators", async function () {
       await expect(
-        escrow.connect(outsider).setOperator(outsider.address, true)
+        escrow.connect(outsider).setOperator(outsider.address, true),
       ).to.be.revertedWithCustomError(escrow, "OwnableUnauthorizedAccount");
     });
 
@@ -267,7 +287,7 @@ describe("MatchEscrow", function () {
       await expect(createMatch()).to.be.revertedWithCustomError(escrow, "EnforcedPause");
 
       await escrow.unpause();
-      await createMatch(); // should work
+      await createMatch();
     });
   });
 });

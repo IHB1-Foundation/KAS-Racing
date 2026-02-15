@@ -19,6 +19,7 @@ async function main() {
   console.log("Registry loaded:", JSON.stringify(registry, null, 2));
 
   const contracts = registry.contracts || {};
+  const fuelAddress = contracts.KasRacingFuel as string | undefined;
   let allGood = true;
 
   for (const [name, address] of Object.entries(contracts)) {
@@ -39,27 +40,50 @@ async function main() {
       }
 
       // Check contract state
+      if (name === "KasRacingFuel") {
+        const fuel = await ethers.getContractAt("KasRacingFuel", address as string);
+        const tokenName = await fuel.name();
+        const tokenSymbol = await fuel.symbol();
+        const totalSupply = await fuel.totalSupply();
+        const owner = await fuel.owner();
+        const ownerBalance = await fuel.balanceOf(owner);
+        console.log(`  name/symbol: ${tokenName} (${tokenSymbol})`);
+        console.log(`  totalSupply: ${ethers.formatEther(totalSupply)} ${tokenSymbol}`);
+        console.log(`  owner: ${owner}`);
+        console.log(`  ownerBalance: ${ethers.formatEther(ownerBalance)} ${tokenSymbol}`);
+      }
+
       if (name === "MatchEscrow") {
         const escrow = await ethers.getContractAt("MatchEscrow", address as string);
         const minDeposit = await escrow.minDeposit();
         const timeoutBlocks = await escrow.timeoutBlocks();
+        const token = await escrow.fuelToken();
         const owner = await escrow.owner();
-        console.log(`  minDeposit: ${ethers.formatEther(minDeposit)} KAS`);
+        console.log(`  fuelToken: ${token}`);
+        if (fuelAddress) {
+          console.log(`  fuelToken matches registry: ${token.toLowerCase() === fuelAddress.toLowerCase()}`);
+        }
+        console.log(`  minDeposit: ${ethers.formatEther(minDeposit)} kFUEL`);
         console.log(`  timeoutBlocks: ${timeoutBlocks}`);
         console.log(`  owner: ${owner}`);
       }
 
       if (name === "RewardVault") {
         const vault = await ethers.getContractAt("RewardVault", address as string);
-        const balance = await ethers.provider.getBalance(address as string);
+        const token = await vault.fuelToken();
+        const balance = await vault.vaultBalance();
         const minReward = await vault.minReward();
         const maxReward = await vault.maxRewardPerTx();
         const totalPaid = await vault.totalPaid();
         const owner = await vault.owner();
-        console.log(`  balance: ${ethers.formatEther(balance)} KAS`);
-        console.log(`  minReward: ${ethers.formatEther(minReward)} KAS`);
-        console.log(`  maxReward: ${ethers.formatEther(maxReward)} KAS`);
-        console.log(`  totalPaid: ${ethers.formatEther(totalPaid)} KAS`);
+        console.log(`  fuelToken: ${token}`);
+        if (fuelAddress) {
+          console.log(`  fuelToken matches registry: ${token.toLowerCase() === fuelAddress.toLowerCase()}`);
+        }
+        console.log(`  balance: ${ethers.formatEther(balance)} kFUEL`);
+        console.log(`  minReward: ${ethers.formatEther(minReward)} kFUEL`);
+        console.log(`  maxReward: ${ethers.formatEther(maxReward)} kFUEL`);
+        console.log(`  totalPaid: ${ethers.formatEther(totalPaid)} kFUEL`);
         console.log(`  owner: ${owner}`);
       }
     } catch (err: any) {

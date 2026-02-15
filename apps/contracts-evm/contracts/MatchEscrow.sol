@@ -2,6 +2,8 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
@@ -9,6 +11,8 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 /// @notice Manages 1v1 match lifecycle: create → deposit → settle/refund
 /// @dev operator = server wallet that creates matches and triggers settlements
 contract MatchEscrow is Ownable, ReentrancyGuard, Pausable {
+    using SafeERC20 for IERC20;
+
     // ─── Types ───────────────────────────────────────────────────
     enum MatchState {
         Created,       // match created, waiting for deposits
@@ -29,6 +33,7 @@ contract MatchEscrow is Ownable, ReentrancyGuard, Pausable {
     }
 
     // ─── State ───────────────────────────────────────────────────
+    IERC20 public immutable fuelToken;
     mapping(bytes32 => Match) public matches;
     mapping(address => bool) public operators;
     uint256 public minDeposit;
@@ -51,10 +56,8 @@ contract MatchEscrow is Ownable, ReentrancyGuard, Pausable {
     error InvalidState(MatchState current, MatchState expected);
     error NotPlayer();
     error AlreadyDeposited();
-    error WrongDepositAmount();
     error InvalidWinner();
-    error TimeoutNotReached();
-    error TransferFailed();
+    error ZeroAddress();
 
     // ─── Modifiers ───────────────────────────────────────────────
     modifier onlyOperator() {
@@ -68,7 +71,10 @@ contract MatchEscrow is Ownable, ReentrancyGuard, Pausable {
     }
 
     // ─── Constructor ─────────────────────────────────────────────
-    constructor(uint256 _minDeposit, uint256 _timeoutBlocks) Ownable(msg.sender) {
+    constructor(address _fuelToken, uint256 _minDeposit, uint256 _timeoutBlocks) Ownable(msg.sender) {
+        if (_fuelToken == address(0)) revert ZeroAddress();
+
+        fuelToken = IERC20(_fuelToken);
         minDeposit = _minDeposit;
         timeoutBlocks = _timeoutBlocks;
         operators[msg.sender] = true;
@@ -124,11 +130,10 @@ contract MatchEscrow is Ownable, ReentrancyGuard, Pausable {
     }
 
     /// @notice Player deposits their stake
-    function deposit(bytes32 matchId) external payable nonReentrant whenNotPaused matchExists(matchId) {
+    function deposit(bytes32 matchId) external nonReentrant whenNotPaused matchExists(matchId) {
         Match storage m = matches[matchId];
 
         if (m.state != MatchState.Created) revert InvalidState(m.state, MatchState.Created);
-        if (msg.value != m.depositAmount) revert WrongDepositAmount();
 
         if (msg.sender == m.player1) {
             if (m.player1Deposited) revert AlreadyDeposited();
@@ -140,7 +145,10 @@ contract MatchEscrow is Ownable, ReentrancyGuard, Pausable {
             revert NotPlayer();
         }
 
-        emit Deposited(matchId, msg.sender, msg.value);
+        uint256 amount = m.depositAmount;
+        fuelToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        emit Deposited(matchId, msg.sender, amount);
 
         if (m.player1Deposited && m.player2Deposited) {
             m.state = MatchState.Funded;
@@ -164,8 +172,7 @@ contract MatchEscrow is Ownable, ReentrancyGuard, Pausable {
 
         emit Settled(matchId, winner, payout);
 
-        (bool success, ) = winner.call{value: payout}("");
-        if (!success) revert TransferFailed();
+        fuelToken.safeTransfer(winner, payout);
     }
 
     /// @notice Operator declares a draw — both players get refunded
@@ -179,10 +186,8 @@ contract MatchEscrow is Ownable, ReentrancyGuard, Pausable {
 
         emit Draw(matchId, m.player1, m.player2, refundEach);
 
-        (bool s1, ) = m.player1.call{value: refundEach}("");
-        if (!s1) revert TransferFailed();
-        (bool s2, ) = m.player2.call{value: refundEach}("");
-        if (!s2) revert TransferFailed();
+        fuelToken.safeTransfer(m.player1, refundEach);
+        fuelToken.safeTransfer(m.player2, refundEach);
     }
 
     /// @notice Any player can reclaim their deposit after timeout
@@ -216,8 +221,7 @@ contract MatchEscrow is Ownable, ReentrancyGuard, Pausable {
 
         emit Refunded(matchId, msg.sender, refundAmount);
 
-        (bool success, ) = msg.sender.call{value: refundAmount}("");
-        if (!success) revert TransferFailed();
+        fuelToken.safeTransfer(msg.sender, refundAmount);
     }
 
     /// @notice Operator can cancel a match before it's fully funded
@@ -231,14 +235,12 @@ contract MatchEscrow is Ownable, ReentrancyGuard, Pausable {
         // Refund any deposited amounts
         if (m.player1Deposited) {
             m.player1Deposited = false;
-            (bool s1, ) = m.player1.call{value: m.depositAmount}("");
-            if (!s1) revert TransferFailed();
+            fuelToken.safeTransfer(m.player1, m.depositAmount);
             emit Refunded(matchId, m.player1, m.depositAmount);
         }
         if (m.player2Deposited) {
             m.player2Deposited = false;
-            (bool s2, ) = m.player2.call{value: m.depositAmount}("");
-            if (!s2) revert TransferFailed();
+            fuelToken.safeTransfer(m.player2, m.depositAmount);
             emit Refunded(matchId, m.player2, m.depositAmount);
         }
 

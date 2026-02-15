@@ -1,7 +1,7 @@
 /**
  * useMatchEscrow — Hook for MatchEscrow contract interaction (deposit)
  *
- * Players call deposit(matchId) as a payable function directly on-chain.
+ * Players call deposit(matchId) after approving kFUEL to MatchEscrow.
  * The server (operator) handles createMatch/settle — FE only needs deposit.
  */
 
@@ -16,7 +16,7 @@ import { kasplexTestnet } from './chains.js';
 
 // Minimal ABI — only the functions the FE needs
 const matchEscrowAbi = parseAbi([
-  'function deposit(bytes32 matchId) external payable',
+  'function deposit(bytes32 matchId) external',
   'function getMatch(bytes32 matchId) view returns ((address player1, address player2, uint256 depositAmount, uint256 timeoutBlock, uint8 state, bool player1Deposited, bool player2Deposited))',
   'function isDeposited(bytes32 matchId, address player) view returns (bool)',
   'event Deposited(bytes32 indexed matchId, address indexed player, uint256 amount)',
@@ -34,7 +34,7 @@ export interface UseMatchEscrowResult {
   depositState: DepositState;
   depositTxHash: Hash | null;
   depositError: string | null;
-  deposit: (matchIdBytes32: Hash, amountWei: bigint) => void;
+  deposit: (matchIdBytes32: Hash) => void;
   reset: () => void;
   // Read helpers
   useIsDeposited: (escrowAddress: Address, matchIdBytes32: Hash | null, playerAddress: Address | null) => boolean | undefined;
@@ -64,7 +64,7 @@ export function useMatchEscrow(escrowAddress: Address | null): Omit<UseMatchEscr
   const currentError = depositError ?? (writeError ? parseWalletError(writeError) : null);
 
   const handleDeposit = useCallback(
-    (matchIdBytes32: Hash, amountWei: bigint) => {
+    (matchIdBytes32: Hash) => {
       if (!escrowAddress) {
         setDepositError('Escrow contract address not configured');
         setDepositState('error');
@@ -80,7 +80,6 @@ export function useMatchEscrow(escrowAddress: Address | null): Omit<UseMatchEscr
           abi: matchEscrowAbi,
           functionName: 'deposit',
           args: [matchIdBytes32],
-          value: amountWei,
           chainId: kasplexTestnet.id,
         },
         {
@@ -136,8 +135,8 @@ function parseWalletError(err: Error): string {
   if (msg.includes('rejected') || msg.includes('denied') || msg.includes('User rejected')) {
     return 'Transaction rejected by user';
   }
-  if (msg.includes('insufficient funds')) {
-    return 'Insufficient funds for deposit + gas';
+  if (msg.includes('insufficient funds') || msg.includes('allowance') || msg.includes('transfer amount exceeds')) {
+    return 'Insufficient kFUEL balance or approval';
   }
   if (msg.includes('already deposited')) {
     return 'Already deposited for this match';

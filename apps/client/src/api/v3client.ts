@@ -58,6 +58,7 @@ export interface V3MatchResponse {
   }>;
   contract: {
     escrowAddress: string;
+    fuelTokenAddress: string;
     matchIdBytes32: string | null;
   };
   createdAt: number;

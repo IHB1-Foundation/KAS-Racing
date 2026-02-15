@@ -1,17 +1,18 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { RewardVault } from "../typechain-types";
+import { RewardVault, KasRacingFuel } from "../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("RewardVault", function () {
-  const MIN_REWARD = ethers.parseEther("0.001");
-  const MAX_REWARD = ethers.parseEther("0.1");
-  const REWARD_AMOUNT = ethers.parseEther("0.005");
-  const VAULT_FUNDING = ethers.parseEther("1.0");
+  const MIN_REWARD = ethers.parseEther("0.1");
+  const MAX_REWARD = ethers.parseEther("10");
+  const REWARD_AMOUNT = ethers.parseEther("1");
+  const VAULT_FUNDING = ethers.parseEther("1000");
   const SESSION_ID = ethers.keccak256(ethers.toUtf8Bytes("session-001"));
   const PROOF_HASH = ethers.keccak256(ethers.toUtf8Bytes("checkpoint-event-data"));
   const PAYLOAD = ethers.toUtf8Bytes("KASRACE1|testnet|freerun|session-001|checkpoint|1|abc123");
 
+  let fuel: KasRacingFuel;
   let vault: RewardVault;
   let owner: SignerWithAddress;
   let operator: SignerWithAddress;
@@ -20,52 +21,56 @@ describe("RewardVault", function () {
 
   beforeEach(async function () {
     [owner, operator, player, outsider] = await ethers.getSigners();
-    const Factory = await ethers.getContractFactory("RewardVault");
-    vault = await Factory.deploy(MIN_REWARD, MAX_REWARD);
+
+    const FuelFactory = await ethers.getContractFactory("KasRacingFuel");
+    fuel = await FuelFactory.deploy(0n, owner.address);
+    await fuel.mint(owner.address, ethers.parseEther("1000000"));
+
+    const VaultFactory = await ethers.getContractFactory("RewardVault");
+    vault = await VaultFactory.deploy(await fuel.getAddress(), MIN_REWARD, MAX_REWARD);
     await vault.setOperator(operator.address, true);
 
-    // Fund the vault
-    await owner.sendTransaction({ to: await vault.getAddress(), value: VAULT_FUNDING });
+    await fuel.approve(await vault.getAddress(), VAULT_FUNDING);
+    await vault.fund(VAULT_FUNDING);
   });
 
-  // ─── Funding ───────────────────────────────────────────────
   describe("Funding", function () {
-    it("should accept direct funding", async function () {
+    it("should hold funded token balance", async function () {
       expect(await vault.vaultBalance()).to.equal(VAULT_FUNDING);
     });
 
     it("should emit Funded event", async function () {
-      const amount = ethers.parseEther("0.5");
+      const amount = ethers.parseEther("500");
+      await fuel.approve(await vault.getAddress(), amount);
       await expect(
-        owner.sendTransaction({ to: await vault.getAddress(), value: amount })
+        vault.fund(amount),
       ).to.emit(vault, "Funded").withArgs(owner.address, amount);
     });
   });
 
-  // ─── Reward Payment ────────────────────────────────────────
   describe("Reward Payment", function () {
     it("should pay reward to player", async function () {
       await expect(
-        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD)
+        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD),
       ).to.emit(vault, "RewardPaid")
         .withArgs(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH);
     });
 
-    it("should increase player balance", async function () {
+    it("should increase player token balance", async function () {
       await expect(
-        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD)
-      ).to.changeEtherBalance(player, REWARD_AMOUNT);
+        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD),
+      ).to.changeTokenBalance(fuel, player, REWARD_AMOUNT);
     });
 
     it("should emit ProofRecorded when payload provided", async function () {
       await expect(
-        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD)
+        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD),
       ).to.emit(vault, "ProofRecorded");
     });
 
     it("should not emit ProofRecorded when payload is empty", async function () {
       await expect(
-        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, "0x")
+        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, "0x"),
       ).to.not.emit(vault, "ProofRecorded");
     });
 
@@ -78,13 +83,12 @@ describe("RewardVault", function () {
     });
   });
 
-  // ─── Idempotency (Duplicate Prevention) ────────────────────
   describe("Idempotency", function () {
     it("should reject duplicate (sessionId, seq)", async function () {
       await vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD);
 
       await expect(
-        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD)
+        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD),
       ).to.be.revertedWithCustomError(vault, "AlreadyPaid");
     });
 
@@ -110,76 +114,72 @@ describe("RewardVault", function () {
     });
   });
 
-  // ─── Validation ────────────────────────────────────────────
   describe("Validation", function () {
     it("should reject below minimum reward", async function () {
       await expect(
-        vault.connect(operator).payReward(SESSION_ID, 1, player.address, MIN_REWARD - 1n, PROOF_HASH, PAYLOAD)
+        vault.connect(operator).payReward(SESSION_ID, 1, player.address, MIN_REWARD - 1n, PROOF_HASH, PAYLOAD),
       ).to.be.revertedWithCustomError(vault, "BelowMinReward");
     });
 
     it("should reject above maximum reward", async function () {
       await expect(
-        vault.connect(operator).payReward(SESSION_ID, 1, player.address, MAX_REWARD + 1n, PROOF_HASH, PAYLOAD)
+        vault.connect(operator).payReward(SESSION_ID, 1, player.address, MAX_REWARD + 1n, PROOF_HASH, PAYLOAD),
       ).to.be.revertedWithCustomError(vault, "AboveMaxReward");
     });
 
     it("should reject zero address recipient", async function () {
       await expect(
-        vault.connect(operator).payReward(SESSION_ID, 1, ethers.ZeroAddress, REWARD_AMOUNT, PROOF_HASH, PAYLOAD)
+        vault.connect(operator).payReward(SESSION_ID, 1, ethers.ZeroAddress, REWARD_AMOUNT, PROOF_HASH, PAYLOAD),
       ).to.be.revertedWithCustomError(vault, "ZeroAddress");
     });
 
     it("should reject when vault has insufficient balance", async function () {
-      // Deploy new vault without funding
-      const Factory = await ethers.getContractFactory("RewardVault");
-      const emptyVault = await Factory.deploy(MIN_REWARD, MAX_REWARD);
+      const VaultFactory = await ethers.getContractFactory("RewardVault");
+      const emptyVault = await VaultFactory.deploy(await fuel.getAddress(), MIN_REWARD, MAX_REWARD);
       await emptyVault.setOperator(operator.address, true);
 
       await expect(
-        emptyVault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD)
+        emptyVault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD),
       ).to.be.revertedWithCustomError(emptyVault, "InsufficientBalance");
     });
   });
 
-  // ─── Access Control ────────────────────────────────────────
   describe("Access Control", function () {
     it("should reject non-operator payReward", async function () {
       await expect(
-        vault.connect(outsider).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD)
+        vault.connect(outsider).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD),
       ).to.be.revertedWithCustomError(vault, "NotOperator");
     });
 
     it("should reject non-owner setOperator", async function () {
       await expect(
-        vault.connect(outsider).setOperator(outsider.address, true)
+        vault.connect(outsider).setOperator(outsider.address, true),
       ).to.be.revertedWithCustomError(vault, "OwnableUnauthorizedAccount");
     });
 
     it("should pause and block payouts", async function () {
       await vault.pause();
       await expect(
-        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD)
+        vault.connect(operator).payReward(SESSION_ID, 1, player.address, REWARD_AMOUNT, PROOF_HASH, PAYLOAD),
       ).to.be.revertedWithCustomError(vault, "EnforcedPause");
     });
   });
 
-  // ─── Withdraw ──────────────────────────────────────────────
   describe("Withdraw", function () {
-    it("owner should be able to withdraw", async function () {
-      const amount = ethers.parseEther("0.5");
-      await expect(vault.withdraw(amount)).to.changeEtherBalance(owner, amount);
+    it("owner should be able to withdraw tokens", async function () {
+      const amount = ethers.parseEther("500");
+      await expect(vault.withdraw(amount)).to.changeTokenBalance(fuel, owner, amount);
     });
 
     it("should reject withdraw exceeding balance", async function () {
       await expect(
-        vault.withdraw(VAULT_FUNDING + 1n)
+        vault.withdraw(VAULT_FUNDING + 1n),
       ).to.be.revertedWithCustomError(vault, "InsufficientBalance");
     });
 
     it("should reject non-owner withdraw", async function () {
       await expect(
-        vault.connect(outsider).withdraw(ethers.parseEther("0.1"))
+        vault.connect(outsider).withdraw(ethers.parseEther("1")),
       ).to.be.revertedWithCustomError(vault, "OwnableUnauthorizedAccount");
     });
   });

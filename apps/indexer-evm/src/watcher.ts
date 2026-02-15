@@ -164,8 +164,8 @@ export async function startWatcher(): Promise<void> {
     }
   };
 
-  // Initial poll
-  await poll();
+  // Initial poll (non-blocking so healthcheck can pass during cold start)
+  void poll();
 
   // Continuous polling
   setInterval(poll, config.pollingIntervalMs);

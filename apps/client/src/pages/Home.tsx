@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import { WalletButton } from '../components';
+import { EvmWalletButton } from '../evm';
 import logoSymbol from '../assets/logo-symbol.png';
 
 const GITHUB_URL = 'https://github.com/anthropics/kas-racing';
 const TWITTER_SHARE_TEXT = encodeURIComponent(
-  'Check out KAS Racing - a web game with real Kaspa blockchain rewards! Every checkpoint = real KAS. Watch transactions confirm in real-time.'
+  'Check out KAS Racing - a web game with real Kaspa blockchain rewards! Every checkpoint = kFUEL. Watch transactions confirm in real-time.'
 );
 
 export function Home() {
@@ -18,13 +18,13 @@ export function Home() {
           Real-time blockchain gaming on Kaspa
         </p>
         <p className="hero-tagline">
-          Collect checkpoints. Earn KAS instantly. Watch it happen on-chain.
+          Collect checkpoints. Earn kFUEL instantly. Watch it happen on-chain.
         </p>
       </div>
 
       {/* Wallet Connection */}
       <div className="wallet-section">
-        <WalletButton />
+        <EvmWalletButton />
       </div>
 
       {/* Game Modes */}
@@ -37,7 +37,7 @@ export function Home() {
             <p className="mode-desc">
               Endless runner with checkpoint rewards.
               <br />
-              <span className="mode-highlight">Earn up to 0.1 KAS per checkpoint</span>
+              <span className="mode-highlight">Earn up to 0.1 kFUEL per checkpoint</span>
             </p>
             <span className="mode-action">Play Now</span>
           </Link>

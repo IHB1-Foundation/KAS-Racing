@@ -74,6 +74,7 @@ export interface V3MatchResponse {
   chainEvents: EvmChainEventInfo[];
   contract: {
     escrowAddress: string;
+    fuelTokenAddress: string;
     matchIdBytes32: string | null;
   };
   createdAt: number;

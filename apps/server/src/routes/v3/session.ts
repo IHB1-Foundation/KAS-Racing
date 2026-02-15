@@ -2,7 +2,7 @@
  * V3 Session Routes — EVM Contract-first
  *
  * Session lifecycle is similar to v1, but rewards are paid
- * via RewardVault contract instead of Kaspa L1 UTXO tx.
+ * via RewardVault contract in kFUEL token units.
  */
 
 import { Router, type Request, type Response, type RequestHandler } from 'express';
@@ -71,7 +71,7 @@ router.post('/start', asyncHandler(async (req: Request, res: Response) => {
 
 /**
  * POST /api/v3/session/event
- * Report checkpoint → pays reward via RewardVault contract
+ * Report checkpoint → pays reward via RewardVault contract (kFUEL)
  */
 router.post('/event', asyncHandler(async (req: Request, res: Response) => {
   try {

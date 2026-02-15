@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { GameCanvas, type GameStats, type CheckpointEvent, type GameOverEvent } from '../components/GameCanvas';
-import { useEvmWallet, EvmNetworkGuard } from '../evm';
+import { useEvmWallet, EvmNetworkGuard, formatEvmAddress } from '../evm';
 import {
   startSessionV3,
   sendEventV3,
@@ -171,7 +171,7 @@ export function FreeRun() {
         const amountDisplay = result.rewardAmountWei
           ? formatEther(BigInt(result.rewardAmountWei))
           : '0';
-        console.log(`[FreeRun] Reward TX: ${result.txHash ?? 'pending'}, amount: ${amountDisplay} KAS`);
+        console.log(`[FreeRun] Reward TX: ${result.txHash ?? 'pending'}, amount: ${amountDisplay} kFUEL`);
       }
     } catch (err) {
       console.error('[FreeRun] Failed to send event:', err);
@@ -251,17 +251,11 @@ export function FreeRun() {
     void processGameStart();
   }, [processGameStart]);
 
-  // Format address for display
-  const formatAddress = useCallback((addr: string) => {
-    if (addr.length <= 16) return addr;
-    return `${addr.slice(0, 8)}...${addr.slice(-4)}`;
-  }, []);
-
   // Format reward amount for display
   const formatReward = (amountWei?: string) => {
     if (!amountWei) return null;
     try {
-      return `${formatEther(BigInt(amountWei))} KAS`;
+      return `${formatEther(BigInt(amountWei))} kFUEL`;
     } catch {
       return null;
     }
@@ -280,7 +274,7 @@ export function FreeRun() {
       </main>
       <aside className="panel">
         <h2>Free Run</h2>
-        <p className="muted">Collect checkpoints to earn KAS rewards.</p>
+        <p className="muted">Collect checkpoints to earn kFUEL rewards.</p>
         <EvmNetworkGuard />
 
         {/* Wallet Status */}
@@ -309,7 +303,7 @@ export function FreeRun() {
         {isConnected && isCorrectChain && address && (
           <div className="wallet-info" style={{ marginBottom: '16px' }}>
             <span className="muted">Wallet: </span>
-            <span className="address">{formatAddress(address)}</span>
+            <span className="address">{formatEvmAddress(address)}</span>
           </div>
         )}
 

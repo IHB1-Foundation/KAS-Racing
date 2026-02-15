@@ -2,14 +2,19 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /// @title RewardVault — FreeRun reward payout + Proof-of-Action registry
-/// @notice Server (operator) calls payReward() to send KAS to players
+/// @notice Server (operator) calls payReward() to send kFUEL to players
 /// @dev Uses (sessionId, seq) composite key for idempotent payouts
 contract RewardVault is Ownable, ReentrancyGuard, Pausable {
+    using SafeERC20 for IERC20;
+
     // ─── State ───────────────────────────────────────────────────
+    IERC20 public immutable fuelToken;
     mapping(address => bool) public operators;
     mapping(bytes32 => bool) public paidKeys; // keccak256(sessionId, seq) → paid
 
@@ -44,7 +49,6 @@ contract RewardVault is Ownable, ReentrancyGuard, Pausable {
     error BelowMinReward();
     error AboveMaxReward();
     error InsufficientBalance();
-    error TransferFailed();
     error ZeroAddress();
 
     // ─── Modifiers ───────────────────────────────────────────────
@@ -54,7 +58,10 @@ contract RewardVault is Ownable, ReentrancyGuard, Pausable {
     }
 
     // ─── Constructor ─────────────────────────────────────────────
-    constructor(uint256 _minReward, uint256 _maxRewardPerTx) Ownable(msg.sender) {
+    constructor(address _fuelToken, uint256 _minReward, uint256 _maxRewardPerTx) Ownable(msg.sender) {
+        if (_fuelToken == address(0)) revert ZeroAddress();
+
+        fuelToken = IERC20(_fuelToken);
         minReward = _minReward;
         maxRewardPerTx = _maxRewardPerTx;
         operators[msg.sender] = true;
@@ -82,26 +89,26 @@ contract RewardVault is Ownable, ReentrancyGuard, Pausable {
         _unpause();
     }
 
-    /// @notice Owner can withdraw excess funds
+    /// @notice Fund the vault with kFUEL (requires prior token approval)
+    function fund(uint256 amount) external nonReentrant {
+        fuelToken.safeTransferFrom(msg.sender, address(this), amount);
+        emit Funded(msg.sender, amount);
+    }
+
+    /// @notice Owner can withdraw excess token balance
     function withdraw(uint256 amount) external onlyOwner nonReentrant {
-        if (amount > address(this).balance) revert InsufficientBalance();
+        if (amount > fuelToken.balanceOf(address(this))) revert InsufficientBalance();
         emit Withdrawn(msg.sender, amount);
-        (bool success, ) = msg.sender.call{value: amount}("");
-        if (!success) revert TransferFailed();
+        fuelToken.safeTransfer(msg.sender, amount);
     }
 
     // ─── Core ────────────────────────────────────────────────────
-
-    /// @notice Fund the vault with KAS
-    receive() external payable {
-        emit Funded(msg.sender, msg.value);
-    }
 
     /// @notice Operator pays a reward to a player
     /// @param sessionId The game session identifier
     /// @param seq The checkpoint sequence number within the session
     /// @param recipient The player's address
-    /// @param amount The reward amount in wei
+    /// @param amount The reward amount in kFUEL wei (18 decimals)
     /// @param proofHash Hash of the game event data (for on-chain proof)
     /// @param payload Raw event data (stored in event log for verification)
     function payReward(
@@ -115,7 +122,7 @@ contract RewardVault is Ownable, ReentrancyGuard, Pausable {
         if (recipient == address(0)) revert ZeroAddress();
         if (amount < minReward) revert BelowMinReward();
         if (amount > maxRewardPerTx) revert AboveMaxReward();
-        if (address(this).balance < amount) revert InsufficientBalance();
+        if (fuelToken.balanceOf(address(this)) < amount) revert InsufficientBalance();
 
         bytes32 idempotencyKey = keccak256(abi.encodePacked(sessionId, seq));
         if (paidKeys[idempotencyKey]) revert AlreadyPaid();
@@ -130,8 +137,7 @@ contract RewardVault is Ownable, ReentrancyGuard, Pausable {
             emit ProofRecorded(sessionId, seq, proofHash, payload);
         }
 
-        (bool success, ) = recipient.call{value: amount}("");
-        if (!success) revert TransferFailed();
+        fuelToken.safeTransfer(recipient, amount);
     }
 
     // ─── Views ───────────────────────────────────────────────────
@@ -143,6 +149,6 @@ contract RewardVault is Ownable, ReentrancyGuard, Pausable {
 
     /// @notice Get vault balance
     function vaultBalance() external view returns (uint256) {
-        return address(this).balance;
+        return fuelToken.balanceOf(address(this));
     }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useEvmWallet, useMatchEscrow, EvmNetworkGuard } from '../evm';
+import { useEvmWallet, useMatchEscrow, useFuelToken, EvmNetworkGuard, formatEvmAddress } from '../evm';
 import {
   createMatchV3,
   joinMatchV3,
@@ -16,7 +16,7 @@ import { parseEther, formatEther, type Address, type Hash } from 'viem';
 
 type View = 'lobby' | 'create' | 'join' | 'waiting' | 'deposits' | 'game' | 'finished';
 
-const BET_AMOUNTS_KAS = [0.1, 0.5, 1.0, 5.0];
+const BET_AMOUNTS_KFUEL = [0.1, 0.5, 1.0, 5.0];
 const RECONCILE_INTERVAL_MS = 10_000;
 const DEPOSIT_POLL_INTERVAL_MS = 5_000;
 const DUEL_TIME_LIMIT_SECONDS = 30;
@@ -59,7 +59,21 @@ export function DuelLobby() {
 
   // Contract deposit hook
   const escrowAddress = (match?.contract.escrowAddress || null) as Address | null;
+  const tokenAddress = (
+    match?.contract.fuelTokenAddress ||
+    (import.meta.env.VITE_KFUEL_TOKEN_ADDRESS as string | undefined) ||
+    null
+  ) as Address | null;
   const { depositState, depositTxHash, depositError, deposit, reset: resetDeposit } = useMatchEscrow(escrowAddress);
+  const {
+    allowance,
+    approveState,
+    approveTxHash,
+    approveError,
+    approve,
+    hasAllowance,
+    refreshAllowance,
+  } = useFuelToken(tokenAddress, (address ?? null) as Address | null, escrowAddress);
 
   // ── Realtime Sync ──
 
@@ -222,20 +236,29 @@ export function DuelLobby() {
   const handleDeposit = useCallback(() => {
     if (!match?.contract.matchIdBytes32 || !match.depositAmountWei) return;
 
+    if (!hasAllowance(BigInt(match.depositAmountWei))) {
+      setError('Approve kFUEL first');
+      return;
+    }
+
     setError(null);
-    deposit(
-      match.contract.matchIdBytes32 as Hash,
-      BigInt(match.depositAmountWei),
-    );
-  }, [match, deposit]);
+    deposit(match.contract.matchIdBytes32 as Hash);
+  }, [match, deposit, hasAllowance]);
+
+  const handleApprove = useCallback(() => {
+    if (!escrowAddress || !match?.depositAmountWei) return;
+    setError(null);
+    approve(escrowAddress, BigInt(match.depositAmountWei));
+  }, [approve, escrowAddress, match?.depositAmountWei]);
 
   const handleRetry = useCallback(() => {
     setError(null);
     resetDeposit();
+    refreshAllowance();
     if (match) {
       void getMatchV3(match.id, { sync: true }).then(setMatch).catch(() => {});
     }
-  }, [match, resetDeposit]);
+  }, [match, resetDeposit, refreshAllowance]);
 
   const handleDuelStatsUpdate = useCallback((stats: GameStats) => {
     setDuelStats(stats);
@@ -307,6 +330,10 @@ export function DuelLobby() {
     ? formatEther(BigInt(match.depositAmountWei))
     : betAmountKas.toString();
 
+  const needsApproval = !!match?.depositAmountWei && !myDeposited
+    ? !hasAllowance(BigInt(match.depositAmountWei))
+    : false;
+
   const myScore = match
     ? myRole === 'player1'
       ? match.players.player1.score
@@ -324,7 +351,7 @@ export function DuelLobby() {
   };
 
   // Show combined deposit error
-  const displayError = error ?? depositError;
+  const displayError = error ?? approveError ?? depositError;
 
   // ── Render ──
 
@@ -334,7 +361,7 @@ export function DuelLobby() {
         return (
           <div className="lobby-content">
             <h1>Ghost-Wheel Duel</h1>
-            <p className="muted">1v1 Race - Deposit KAS, Winner Takes All</p>
+            <p className="muted">1v1 Race - Deposit kFUEL, Winner Takes All</p>
             <EvmNetworkGuard />
 
             {!isConnected ? (
@@ -372,15 +399,15 @@ export function DuelLobby() {
             <EvmNetworkGuard />
 
             <div className="bet-selector" style={{ marginTop: '24px' }}>
-              <label className="muted">Bet Amount (KAS)</label>
+              <label className="muted">Bet Amount (kFUEL)</label>
               <div className="row" style={{ marginTop: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                {BET_AMOUNTS_KAS.map((amount) => (
+                {BET_AMOUNTS_KFUEL.map((amount) => (
                   <button
                     key={amount}
                     className={`btn ${betAmountKas === amount ? 'btn-primary' : ''}`}
                     onClick={() => setBetAmountKas(amount)}
                   >
-                    {amount} KAS
+                    {amount} kFUEL
                   </button>
                 ))}
               </div>
@@ -499,7 +526,7 @@ export function DuelLobby() {
         return (
           <div className="lobby-content">
             <h1>Deposit Required</h1>
-            <p className="muted">Both players must deposit {betDisplayKas} KAS to start the race</p>
+            <p className="muted">Both players must deposit {betDisplayKas} kFUEL to start the race</p>
 
             <div className="deposit-status" style={{ marginTop: '24px' }}>
               {/* My Deposit */}
@@ -516,6 +543,10 @@ export function DuelLobby() {
                   }}>
                     {myDeposited
                       ? 'Deposited'
+                      : approveState === 'submitted'
+                        ? 'Approval Submitted...'
+                        : approveState === 'confirming'
+                          ? 'Approve in Wallet...'
                       : depositState === 'submitted'
                         ? 'Tx Submitted...'
                         : depositState === 'confirming'
@@ -528,6 +559,14 @@ export function DuelLobby() {
                   <TxLifecycleTimeline
                     txid={(myDepositTx?.txHash ?? depositTxHash)!}
                     status={mapTxStatus(myDepositTx?.txStatus ?? (depositState === 'mined' ? 'mined' : 'submitted'))}
+                    timestamps={{ broadcasted: Date.now() }}
+                    network="testnet"
+                  />
+                )}
+                {approveTxHash && !myDeposited && (
+                  <TxLifecycleTimeline
+                    txid={approveTxHash}
+                    status={mapTxStatus(approveState === 'mined' ? 'mined' : 'submitted')}
                     timestamps={{ broadcasted: Date.now() }}
                     network="testnet"
                   />
@@ -559,8 +598,7 @@ export function DuelLobby() {
               </div>
             </div>
 
-            {/* Deposit button — show only if not yet deposited and no pending tx */}
-            {!myDeposited && depositState !== 'submitted' && depositState !== 'mined' && (
+            {!myDeposited && (
               <>
                 {displayError && (
                   <div style={{ marginTop: '16px' }}>
@@ -570,16 +608,32 @@ export function DuelLobby() {
                     </button>
                   </div>
                 )}
-                <button
-                  className="btn btn-primary"
-                  onClick={handleDeposit}
-                  disabled={depositState === 'confirming'}
-                  style={{ marginTop: '24px', width: '100%' }}
-                >
-                  {depositState === 'confirming'
-                    ? 'Confirm in Wallet...'
-                    : `Deposit ${betDisplayKas} KAS`}
-                </button>
+
+                {needsApproval && approveState !== 'submitted' && approveState !== 'mined' && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleApprove}
+                    disabled={approveState === 'confirming'}
+                    style={{ marginTop: '24px', width: '100%' }}
+                  >
+                    {approveState === 'confirming'
+                      ? 'Approve in Wallet...'
+                      : `Approve ${betDisplayKas} kFUEL`}
+                  </button>
+                )}
+
+                {!needsApproval && depositState !== 'submitted' && depositState !== 'mined' && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleDeposit}
+                    disabled={depositState === 'confirming'}
+                    style={{ marginTop: '24px', width: '100%' }}
+                  >
+                    {depositState === 'confirming'
+                      ? 'Confirm in Wallet...'
+                      : `Deposit ${betDisplayKas} kFUEL`}
+                  </button>
+                )}
               </>
             )}
 
@@ -648,7 +702,7 @@ export function DuelLobby() {
             <p className="muted">
               {isDraw
                 ? 'Both players scored the same.'
-                : `Winner: ${winnerAddr ? `${winnerAddr.slice(0, 8)}...${winnerAddr.slice(-4)}` : 'Pending'}`}
+                : `Winner: ${winnerAddr ? formatEvmAddress(winnerAddr) : 'Pending'}`}
             </p>
 
             <div className="result-scores" style={{
@@ -723,15 +777,15 @@ export function DuelLobby() {
               <div className="stat-item">
                 <span className="stat-label">Your Wallet</span>
                 <span className="stat-value" style={{ fontSize: '12px' }}>
-                  {address?.slice(0, 8)}...{address?.slice(-4)}
+                  {address ? formatEvmAddress(address) : '-'}
                 </span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Bet Amount</span>
-                <span className="stat-value">{betAmountKas} KAS</span>
+                <span className="stat-value">{betAmountKas} kFUEL</span>
               </div>
               <div className="stat-item">
-                <span className="stat-label">Balance</span>
+                <span className="stat-label">Gas Balance</span>
                 <span className="stat-value">
                   {balance ? `${parseFloat(balance).toFixed(4)} KAS` : '...'}
                 </span>
@@ -753,7 +807,7 @@ export function DuelLobby() {
               <div className="stat-item">
                 <span className="stat-label">Your Wallet</span>
                 <span className="stat-value" style={{ fontSize: '12px' }}>
-                  {address?.slice(0, 8)}...{address?.slice(-4)}
+                  {address ? formatEvmAddress(address) : '-'}
                 </span>
               </div>
             </div>
@@ -767,7 +821,7 @@ export function DuelLobby() {
             <div className="match-info">
               <div className="stat-item">
                 <span className="stat-label">Bet Amount</span>
-                <span className="stat-value">{betDisplayKas} KAS</span>
+                <span className="stat-value">{betDisplayKas} kFUEL</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">State</span>
@@ -781,7 +835,7 @@ export function DuelLobby() {
                 <div className="stat-item">
                   <span className="stat-label">Contract</span>
                   <span className="stat-value" style={{ fontSize: '11px' }}>
-                    {match.contract.escrowAddress.slice(0, 10)}...
+                    {formatEvmAddress(match.contract.escrowAddress)}
                   </span>
                 </div>
               )}
@@ -796,13 +850,17 @@ export function DuelLobby() {
             <div className="match-info">
               <div className="stat-item">
                 <span className="stat-label">Bet Amount</span>
-                <span className="stat-value">{betDisplayKas} KAS</span>
+                <span className="stat-value">{betDisplayKas} kFUEL</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Total Pot</span>
                 <span className="stat-value">
-                  {match ? formatEther(BigInt(match.depositAmountWei) * 2n) : '0'} KAS
+                  {match ? formatEther(BigInt(match.depositAmountWei) * 2n) : '0'} kFUEL
                 </span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Allowance</span>
+                <span className="stat-value">{formatEther(allowance)} kFUEL</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">State</span>
@@ -811,13 +869,13 @@ export function DuelLobby() {
               <div className="stat-item">
                 <span className="stat-label">Player 1</span>
                 <span className="stat-value" style={{ fontSize: '11px' }}>
-                  {match?.players.player1.address.slice(0, 10)}...
+                  {formatEvmAddress(match?.players.player1.address)}
                 </span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Player 2</span>
                 <span className="stat-value" style={{ fontSize: '11px' }}>
-                  {match?.players.player2.address?.slice(0, 10) ?? 'N/A'}...
+                  {match?.players.player2.address ? formatEvmAddress(match.players.player2.address) : 'N/A'}
                 </span>
               </div>
               {match?.contract.matchIdBytes32 && (
@@ -840,7 +898,7 @@ export function DuelLobby() {
               <div className="stat-item">
                 <span className="stat-label">Total Pot</span>
                 <span className="stat-value">
-                  {match ? formatEther(BigInt(match.depositAmountWei) * 2n) : '0'} KAS
+                  {match ? formatEther(BigInt(match.depositAmountWei) * 2n) : '0'} kFUEL
                 </span>
               </div>
               <div className="stat-item">
@@ -875,7 +933,7 @@ export function DuelLobby() {
               <div className="stat-item">
                 <span className="stat-label">Total Pot</span>
                 <span className="stat-value">
-                  {match ? formatEther(BigInt(match.depositAmountWei) * 2n) : '0'} KAS
+                  {match ? formatEther(BigInt(match.depositAmountWei) * 2n) : '0'} kFUEL
                 </span>
               </div>
               <div className="stat-item">
@@ -884,7 +942,7 @@ export function DuelLobby() {
                   {match?.settlement?.type === 'draw'
                     ? 'Draw'
                     : match?.winner?.address
-                      ? `${match.winner.address.slice(0, 8)}...${match.winner.address.slice(-4)}`
+                      ? formatEvmAddress(match.winner.address)
                       : 'Pending'}
                 </span>
               </div>

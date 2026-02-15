@@ -7,7 +7,7 @@
  * Flow:
  *  1. createMatchLobby() → DB record with joinCode (state=lobby)
  *  2. joinMatch()         → Set player2, call createMatch on-chain (state=created)
- *  3. Players deposit directly via contract's deposit() payable function
+ *  3. Players approve kFUEL and call deposit() on MatchEscrow
  *  4. Indexer picks up Deposited/MatchFunded events → synced to v3 tables
  *  5. submitScore()       → Record scores, trigger settlement
  *  6. processSettlement() → Call settle/settleDraw on-chain
@@ -422,6 +422,7 @@ function buildMatchResponse(
   chainEvents: EvmChainEventInfo[],
 ): V3MatchResponse {
   const escrowAddress = process.env.ESCROW_CONTRACT_ADDRESS ?? '';
+  const fuelTokenAddress = process.env.FUEL_TOKEN_ADDRESS ?? '';
 
   return {
     id: match.id,
@@ -459,6 +460,7 @@ function buildMatchResponse(
     chainEvents,
     contract: {
       escrowAddress,
+      fuelTokenAddress,
       matchIdBytes32: match.matchIdOnchain,
     },
     createdAt: match.createdAt instanceof Date ? match.createdAt.getTime() : Number(match.createdAt),
