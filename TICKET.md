@@ -49,6 +49,340 @@
 **Notes/Blockers**
 - 없음
 
+---
+
+## 1-A) P0 — EVM 전환 재설계 백로그 (KASPLEX Testnet)
+
+> 현 상태는 Kaspa UTXO 경로(`kaspa-wasm`) 기반이므로, 아래 티켓은 **KASPLEX zkEVM Testnet 기준으로 재설계/재구현**하는 신규 트랙이다.
+>
+> 기준값:
+> - Chain ID: `167012`
+> - RPC: `https://rpc.kasplextest.xyz`
+> - Explorer: `https://zkevm.kasplex.org`
+
+### - [x] T-300 EVM Pivot ADR + Scope Freeze
+**목표**
+- UTXO 기반 구현을 중단하고 EVM 전환 범위를 명확히 고정.
+
+**작업**
+- [x] `docs/ADR-002-evm-pivot.md` 작성 (왜 EVM인지, 버릴 것/유지할 것)
+- [x] UTXO 전용 모듈을 `legacy`로 분리 계획 수립
+- [x] 데모 스코프(Must/Should/Could) 확정
+
+**산출물**
+- ADR 문서 + 범위표 + 컷오버 체크리스트 초안
+
+**완료조건**
+- 팀 전원이 동일 스코프로 개발 가능
+- "이번 스프린트에서 안 하는 것"이 문서에 명시됨
+
+**변경 요약**
+- `docs/ADR-002-evm-pivot.md` 작성: UTXO→EVM 전환 이유, Keep/Discard 매트릭스, 5단계 legacy 분리 계획, Must/Should/Could 범위표, 환경 매트릭스, 컷오버 체크리스트(19항목), 구현 우선순위 테이블
+- ADR-001을 Supersede하며 KASPLEX zkEVM Testnet(Chain 167012)을 기준 체인으로 확정
+
+**실행 방법**
+- `cat docs/ADR-002-evm-pivot.md`로 전체 문서 확인
+
+**Notes/Blockers**
+- 기존 lint 에러 1건(`apps/server/src/db/index.ts:108`) — T-300과 무관한 기존 이슈
+
+
+### - [ ] T-301 Chain/Wallet/Token 결정 매트릭스
+**의존**
+- T-300
+
+**작업**
+- [ ] 지원 지갑 확정(MetaMask + 1개 백업)
+- [ ] 데모 토큰 확정(ERC-20 주소, decimals, faucet 경로)
+- [ ] 계약/토큰/운영 지갑 주소 레지스트리 정의
+
+**산출물**
+- `docs/CHAIN_MATRIX.md`, `deploy/addresses.kasplex.testnet.json`
+
+**완료조건**
+- FE/BE/Indexer가 참조할 단일 주소 소스가 존재
+- 인턴이 “어떤 지갑/토큰” 쓸지 헷갈리지 않음
+
+
+### - [ ] T-310 Contracts Workspace Bootstrap (Solidity)
+**의존**
+- T-301
+
+**작업**
+- [ ] `apps/contracts-evm` 생성 (Hardhat + TypeScript)
+- [ ] OpenZeppelin, hardhat-deploy, typechain 설정
+- [ ] `build/test/deploy` 스크립트 표준화
+
+**산출물**
+- EVM 컨트랙트 워크스페이스 + CI 통합
+
+**완료조건**
+- `pnpm --filter @kas-racing/contracts-evm test` 통과
+- ABI/타입이 FE/BE로 배포 가능
+
+
+### - [ ] T-311 Core Contracts 구현 (Escrow/Match/Settlement)
+**의존**
+- T-310
+
+**작업**
+- [ ] `MatchEscrow`(양측 예치/취소/타임아웃) 구현
+- [ ] `MatchManager`(매치 생성/참여/상태전이) 구현
+- [ ] `Settlement`(승자 정산/무승부 분배) 구현
+- [ ] 권한모델(oracle/operator/admin) 구현
+
+**산출물**
+- Solidity 코어 컨트랙트 + ABI
+
+**완료조건**
+- “제3자 탈취 불가/조건 미충족 정산 불가” 케이스가 테스트로 보장됨
+
+
+### - [ ] T-312 Reward + Proof Registry Contract
+**의존**
+- T-310
+
+**작업**
+- [ ] FreeRun 보상 지급 컨트랙트(또는 Vault) 구현
+- [ ] payload/commit 해시를 이벤트로 남기는 Proof 경로 구현
+- [ ] 중복 지급 방지 키(sessionId+seq) 적용
+
+**산출물**
+- Reward 관련 컨트랙트 + 이벤트 스펙
+
+**완료조건**
+- 동일 checkpoint 재요청 시 중복 지급 불가
+- Proof 페이지가 이벤트 원문 검증 가능
+
+
+### - [ ] T-313 Contract Test/Security Baseline
+**의존**
+- T-311, T-312
+
+**작업**
+- [ ] 단위/시나리오 테스트(정상/실패/공격 경로)
+- [ ] reentrancy, access-control, pause, replay 점검
+- [ ] 가스 스냅샷 및 한도 정의
+
+**산출물**
+- 테스트 리포트 + 보안 체크리스트 v1
+
+**완료조건**
+- 치명 취약점 0건
+- 핵심 시나리오 테스트 100% 통과
+
+
+### - [ ] T-314 KASPLEX Testnet 배포 + 검증
+**의존**
+- T-313
+
+**작업**
+- [ ] 배포 스크립트/환경변수 구성
+- [ ] 테스트넷 배포 및 explorer 검증
+- [ ] 주소/ABI 산출물 자동 업데이트
+
+**산출물**
+- `deployments/kasplex-testnet/*.json`
+- 배포 검증 로그
+
+**완료조건**
+- 인턴이 명령어만으로 재배포 가능
+- 배포 주소가 FE/BE/Indexer에 자동 반영됨
+
+
+### - [ ] T-320 Indexer 전환 (Ponder + Postgres)
+**의존**
+- T-314
+
+**작업**
+- [ ] `apps/indexer-evm`에 Ponder 설정
+- [ ] 컨트랙트 이벤트 ingest 스키마 정의
+- [ ] 백필/리오그 처리 정책 확정
+
+**산출물**
+- Ponder 인덱서 + generated types
+
+**완료조건**
+- 매치/입금/정산/보상 이벤트가 DB에 지연 없이 적재됨
+
+
+### - [ ] T-321 Postgres Schema v3 (EVM 이벤트 모델)
+**의존**
+- T-320
+
+**작업**
+- [ ] `chain_events_evm`, `matches_v3`, `deposits_v3`, `settlements_v3` 설계
+- [ ] 마이그레이션 + 인덱스 + idempotency 키 정리
+- [ ] 기존 v2와 공존 가능한 읽기 전략 설계
+
+**산출물**
+- DB 마이그레이션 + ERD 업데이트
+
+**완료조건**
+- API 질의가 full table scan 없이 동작
+- 롤백 가능한 migration 계획 포함
+
+
+### - [ ] T-330 Backend Tx Engine EVM화
+**의존**
+- T-314, T-321
+
+**작업**
+- [ ] `viem` 기반 RPC client + signer 모듈
+- [ ] nonce/gas/재시도/영수증 추적 로직 구현
+- [ ] 운영키 로딩/검증/마스킹 로깅 적용
+
+**산출물**
+- `apps/server` EVM tx 엔진
+
+**완료조건**
+- 보상/정산 tx를 서버에서 안전하게 broadcast 가능
+- 실패 시 재시도 정책이 명시적으로 동작
+
+
+### - [ ] T-331 API Refactor (Contract-first EVM)
+**의존**
+- T-330
+
+**작업**
+- [ ] match/session API를 컨트랙트 상태 기준으로 재정의
+- [ ] 상태전이 검증을 indexed event 기준으로 변경
+- [ ] Proof/Status endpoint를 EVM tx/log 기반으로 전환
+
+**산출물**
+- 서버 라우트/서비스 리팩토링 + OpenAPI 문서
+
+**완료조건**
+- FE가 EVM 플로우에서 필요한 상태를 단일 API로 조회 가능
+
+
+### - [ ] T-332 Realtime Bridge (WS + Indexer events)
+**의존**
+- T-320, T-331
+
+**작업**
+- [ ] indexer 이벤트를 WS payload로 브리지
+- [ ] polling fallback + reconnect reconciliation 유지
+- [ ] latency metrics (submitted/mined/finalized) 수집
+
+**산출물**
+- 실시간 이벤트 파이프라인
+
+**완료조건**
+- 이벤트 유실 없이 UI 상태 동기화
+- SLA 지표가 패널에서 확인 가능
+
+
+### - [ ] T-340 Frontend Wallet Stack EVM 전환
+**의존**
+- T-301
+
+**작업**
+- [ ] `wagmi + viem` 도입, 네트워크 `167012` 강제
+- [ ] wallet connect/disconnect/error 표준 UX 정리
+- [ ] 기존 Kasware 전용 코드 제거 또는 legacy 분리
+
+**산출물**
+- FE 지갑 모듈 v2
+
+**완료조건**
+- 지원 지갑으로 연결/체인스위치/서명 정상 동작
+
+
+### - [ ] T-341 Duel UX 전환 (Approve/Deposit/Settle)
+**의존**
+- T-331, T-340
+
+**작업**
+- [ ] 토큰 approve → deposit 단계형 UX
+- [ ] tx 대기/실패/재시도 상태머신 반영
+- [ ] 승패 결정 후 settlement lifecycle 표시
+
+**산출물**
+- `DuelLobby` EVM 플로우 완성
+
+**완료조건**
+- 신규 유저가 FE에서만 듀얼 전 과정을 완료 가능
+
+
+### - [ ] T-342 FreeRun Reward + Proof UX 전환
+**의존**
+- T-331, T-340
+
+**작업**
+- [ ] 체크포인트 reward tx 흐름 EVM 기준 반영
+- [ ] Timeline을 tx hash + receipt status 기반으로 갱신
+- [ ] Proof 페이지 log decode/검증 UI 전환
+
+**산출물**
+- `FreeRun`, `Proof` 페이지 EVM화
+
+**완료조건**
+- checkpoint 지급 tx가 자동 추적되고 Proof에서 검증됨
+
+
+### - [ ] T-350 LOCAL/DEPLOY/ENV 문서 전면 교체 (KASPLEX)
+**의존**
+- T-314, T-320, T-331, T-340
+
+**작업**
+- [ ] `LOCAL.md`를 EVM 실행절차로 교체
+- [ ] `deploy/*.template`의 RPC/CHAIN_ID/주소 변수 업데이트
+- [ ] 인턴 runbook에 지갑/토큰/가스 준비 절차 재작성
+
+**산출물**
+- 최신 로컬/배포 문서 세트
+
+**완료조건**
+- 인턴이 문서만으로 로컬 실행 + 테스트넷 배포 가능
+
+
+### - [ ] T-351 Railway/Vercel 배포 파이프라인 업데이트
+**의존**
+- T-350
+
+**작업**
+- [ ] Railway: API + Indexer + Postgres 변수 확정
+- [ ] Vercel: FE env + preview/prod 분기
+- [ ] smoke test 스크립트 EVM 엔드포인트 기준 수정
+
+**산출물**
+- 배포 템플릿 + 검증 스크립트
+
+**완료조건**
+- `deploy/smoke-test.sh`가 EVM 경로 기준 PASS
+
+
+### - [ ] T-352 E2E 리허설 + 데모 복구 시나리오
+**의존**
+- T-351
+
+**작업**
+- [ ] 15분/5분 데모 리허설 체크리스트 업데이트
+- [ ] 장애 시 fallback 시나리오(지갑 오류/RPC 장애/인덱서 지연) 업데이트
+- [ ] 실제 리허설 로그 기록
+
+**산출물**
+- `docs/DEMO_SCRIPT.md` v3 + 리허설 리포트
+
+**완료조건**
+- 비개발 인턴이 독립적으로 리허설 수행 가능
+
+
+### - [ ] T-353 Cutover & Rollback Plan
+**의존**
+- T-352
+
+**작업**
+- [ ] 레거시(Kaspa UTXO) → EVM 컷오버 절차 문서화
+- [ ] 문제 발생 시 롤백(트래픽/환경변수/주소) 계획 수립
+- [ ] 운영 당일 체크리스트 확정
+
+**산출물**
+- `docs/CUTOVER_PLAN.md`
+
+**완료조건**
+- “언제 어떻게 전환하고, 실패 시 어떻게 되돌리는지”가 1문서로 완결
 
 ### - [x] T-002 CI Pipeline (Lint/Test/Build)
 **의존**
