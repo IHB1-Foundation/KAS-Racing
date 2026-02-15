@@ -55,7 +55,7 @@ window.resizeTo(1920, 1080);
 ## Steps
 
 1. Start the game with `pnpm dev`
-2. Connect Kasware wallet
+2. Connect your EVM wallet (MetaMask)
 3. Start Free Run mode
 4. Play until you have:
    - At least 2 checkpoints collected

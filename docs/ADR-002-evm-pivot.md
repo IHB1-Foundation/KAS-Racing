@@ -16,12 +16,12 @@ KAS Racing P13 (T-200–T-210) was built on **Kaspa UTXO + kaspa-wasm + KIP-10 c
 - Escrow scripts in `apps/contracts/src/scriptBuilder.ts` generate P2SH addresses.
 - Settlement/refund TX builders operate on raw UTXO inputs/outputs.
 - A custom Ponder-fallback indexer (`apps/indexer`) watches Kaspa DAG blocks.
-- Wallet integration targets Kasware (Kaspa-native browser extension).
+- Wallet integration targeted a Kaspa-native browser extension.
 
 **Problems encountered:**
 
 1. **Tooling maturity** — `kaspa-wasm` lacks stable TypeScript bindings; covenant script debugging is manual opcode inspection.
-2. **Wallet ecosystem** — Kasware is the only browser extension; mobile coverage is zero.
+2. **Wallet ecosystem** — only one browser extension; mobile coverage was zero.
 3. **Indexing** — Ponder does not natively support Kaspa DAG; our custom indexer (`apps/indexer`) required significant scaffolding and has reorg edge cases.
 4. **Testing** — No Hardhat/Foundry equivalent for Kaspa scripts; unit tests mock most on-chain behavior.
 5. **Demo risk** — Testnet 12 RPC instability caused several demo rehearsal failures.
@@ -64,7 +64,7 @@ KASPLEX has launched a **zkEVM Testnet** (Chain ID `167012`, RPC `https://rpc.ka
 | UTXO opcodes module | `apps/contracts/src/opcodes.ts` | Archive to `legacy/` |
 | Settlement/Refund TX builders | `apps/contracts/src/settlement*.ts`, `refund*.ts` | Archive to `legacy/` |
 | Custom Kaspa indexer | `apps/indexer/` (current) | Replace with Ponder EVM indexer |
-| Kasware wallet provider | `apps/client/src/wallet/` | Replace with wagmi + viem |
+| Legacy wallet provider | `apps/client/src/wallet/` | Removed; replaced by `apps/client/src/evm/` (wagmi + viem) |
 | UTXO-specific API routes | `apps/server/src/routes/` (tx build/broadcast) | Rewrite for EVM |
 | Escrow module (server) | `apps/server/src/escrow/` | Replace with contract interaction via viem |
 | UTXO tx engine | `apps/server/src/tx/` | Replace with EVM tx engine |
@@ -77,7 +77,7 @@ KASPLEX has launched a **zkEVM Testnet** (Chain ID `167012`, RPC `https://rpc.ka
 | MatchEscrow contract | `apps/contracts-evm/contracts/` | On-chain escrow with deposit/settle/refund |
 | RewardVault contract | `apps/contracts-evm/contracts/` | FreeRun reward payouts + proof registry |
 | EVM Ponder indexer | `apps/indexer-evm/` | Native Ponder EVM indexer |
-| wagmi/viem wallet module | `apps/client/src/wallet/` | MetaMask + WalletConnect support |
+| wagmi/viem wallet module | `apps/client/src/evm/` | MetaMask + injected EVM wallet support |
 | EVM tx engine (server) | `apps/server/src/tx/` | viem-based RPC client + signer |
 | Postgres schema v3 | `apps/server/src/db/` | EVM event tables, updated deposits/settlements |
 
@@ -137,7 +137,7 @@ KASPLEX has launched a **zkEVM Testnet** (Chain ID `167012`, RPC `https://rpc.ka
 - Default switches to `evm` once contracts are deployed.
 
 ### Step 4 — Frontend switch (T-340)
-- Wallet module switches from Kasware to wagmi/viem.
+- Wallet module switches from legacy wallet stack to wagmi/viem.
 - Old wallet code moved to `apps/client/src/wallet/legacy/`.
 
 ### Step 5 — Cleanup (T-353, post-demo)
@@ -244,7 +244,7 @@ KASPLEX has launched a **zkEVM Testnet** (Chain ID `167012`, RPC `https://rpc.ka
 
 1. **Contract model**: Kaspa covenants → Solidity smart contracts
 2. **TX model**: UTXO inputs/outputs → EVM account model (nonce, gas, receipts)
-3. **Wallet**: Kasware → MetaMask (+ optional WalletConnect)
+3. **Wallet**: legacy extension → MetaMask (+ optional WalletConnect)
 4. **Indexer**: Custom Kaspa DAG indexer → Ponder native EVM support
 5. **Testing**: Mock-heavy unit tests → Hardhat test with local EVM
 

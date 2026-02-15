@@ -757,7 +757,7 @@
 **작업**
 - [x] `wagmi + viem` 도입, 네트워크 `167012` 강제
 - [x] wallet connect/disconnect/error 표준 UX 정리
-- [x] 기존 Kasware 전용 코드 제거 또는 legacy 분리
+- [x] 기존 레거시 지갑 코드 제거
 
 **산출물**
 - FE 지갑 모듈 v2
@@ -773,8 +773,8 @@
 - `useEvmWallet.ts`: 연결/해제/체인전환/잔고 훅
 - `EvmWalletButton.tsx`: 연결/해제/네트워크전환 UI
 - `EvmNetworkGuard.tsx`: 잘못된 네트워크 경고 배너
-- App.tsx에 EvmWalletProvider 래핑 (기존 Kasware와 공존)
-- 기존 `src/wallet/`은 legacy로 유지 (하위호환)
+- App.tsx에 EvmWalletProvider 래핑
+- 기존 `src/wallet/` 제거
 
 **실행 방법**
 - `pnpm --filter @kas-racing/client build` (빌드 성공)
@@ -782,8 +782,7 @@
 - `pnpm --filter @kas-racing/client test` (19 tests 통과)
 
 **Notes/Blockers**
-- 기존 Kasware 지갑 코드(`src/wallet/`)는 삭제하지 않고 legacy로 유지
-- FE 페이지의 Kasware → EVM 전환은 T-341, T-342에서 처리
+- 레거시 지갑 코드 제거 완료
 
 
 ### - [x] T-341 Duel UX 전환 (Approve/Deposit/Settle)
@@ -1228,79 +1227,20 @@
 
 ## 4) P3 — 지갑 연동(클라이언트)
 
-### - [x] T-030 Wallet Provider Abstraction
+### - [x] T-030 Wallet Provider Abstraction (Legacy)
 **의존**
 - T-010
 
-**목표**
-- 특정 지갑 종속을 줄이기 위한 추상화 레이어.
-
-**작업**
-- [x] `IWalletProvider` 인터페이스 정의:
-    - connect()
-    - getAddress()
-    - sendTransaction(to, amount, options)
-- [x] 구현체:
-    - `KaswareProvider`(우선)
-    - `MockProvider`(단, 온체인 지급/입금에 사용 금지. UI 개발용으로만)
-
-**완료조건**
-- 클라이언트 코드가 provider 교체 가능
-
-**변경 요약**
-- `apps/client/src/wallet/` 모듈 추가
-- IWalletProvider 인터페이스: connect, disconnect, getAddress, sendTransaction, getNetwork
-- KaswareProvider: Kasware 브라우저 확장 지갑 연동
-- MockProvider: UI 개발용 목 provider (온체인 결제에 사용 금지)
-- WalletContext + useWallet 훅: React 앱 전역 지갑 상태 관리
-- 18개 테스트 추가
-
-**실행 방법**
-```typescript
-import { createWalletProvider, useWallet, WalletProvider } from './wallet';
-
-// 방법 1: 직접 provider 사용
-const wallet = createWalletProvider('kasware');
-await wallet.connect();
-
-// 방법 2: React Context 사용
-<WalletProvider>
-  <App /> {/* useWallet() 훅 사용 가능 */}
-</WalletProvider>
-```
-
-**Notes/Blockers**
-- 없음
+**상태**
+- Legacy 제거됨. EVM 피벗으로 `apps/client/src/evm/` (wagmi/viem) 스택으로 대체됨. (T-340 참고)
 
 
-### - [x] T-031 Kasware Connect + Address Fetch
+### - [x] T-031 Wallet Connect + Address Fetch (Legacy)
 **의존**
 - T-030
 
-**작업**
-- [x] Connect/Disconnect UI
-- [x] 주소 표시/복사
-- [x] 오류 처리(미설치, 권한 거부)
-
-**완료조건**
-- "Connect Wallet" 클릭 → 주소 표시 성공
-
-**변경 요약**
-- WalletButton 컴포넌트 추가 (`apps/client/src/components/WalletButton.tsx`)
-- Connect/Disconnect 버튼 UI
-- 주소 truncation 표시 (kaspa:qz0c...9k5v)
-- 클릭하여 주소 복사 기능
-- 에러 처리: 미설치 시 설치 링크, 권한 거부 시 메시지
-- App.tsx에 WalletProvider 감싸기
-- Home 페이지에 WalletButton 통합
-
-**실행 방법**
-- `pnpm dev` → http://localhost:5173 접속
-- "Connect Wallet" 클릭 → Kasware 설치되어 있으면 연결, 없으면 설치 안내
-- 연결 후 주소 클릭 → 클립보드에 복사
-
-**Notes/Blockers**
-- Kasware 미설치 시 MockProvider로 fallback (UI 개발용)
+**상태**
+- Legacy 제거됨. 현재는 EVM 지갑 연결/표시 UX로 전환됨. (T-340, T-341, T-342 참고)
 
 
 ### - [x] T-032 Deposit Flow UX (Duel)
@@ -2907,7 +2847,7 @@ cat deploy/INTERN_DEPLOY_CHECKLIST.md
 - 데모 중단 상황별 대응 절차가 문서에 명시됨
 
 **변경 요약**
-- `deploy/INTERN_DEPLOY_CHECKLIST.md`: 섹션 7(Demo Wallet & Funding Preparation) + 섹션 8(Incident Response Runbook) 추가 — 지갑 권장안(Kasware/KaspaNet/CLI), 펀딩 체크리스트, 환경변수 검증, 장애 대응 테이블(Wallet/RPC/Indexer/Emergency), 데모 피벗 전략
+- `deploy/INTERN_DEPLOY_CHECKLIST.md`: 섹션 7(Demo Wallet & Funding Preparation) + 섹션 8(Incident Response Runbook) 추가 — 지갑 권장안(MetaMask/EVM/CLI), 펀딩 체크리스트, 환경변수 검증, 장애 대응 테이블(Wallet/RPC/Indexer/Emergency), 데모 피벗 전략
 - `docs/DEMO_SCRIPT.md` v2: Wallet & Funding Preparation 섹션, 15분/5분 리허설 시나리오(타임라인+체크리스트), FAQ 준비표, Incident Response Decision Tree + Recovery Scripts 추가
 
 **실행 방법**

@@ -471,7 +471,7 @@ graph TB
 |-----------|----------------|
 | Phaser Game | 3-lane infinite runner, checkpoint capsules, collision |
 | HUD | Distance, speed, checkpoints, tx panel |
-| Wallet Provider | Abstract interface for Kasware/other wallets |
+| Wallet Provider | EVM wallet integration via wagmi/viem (MetaMask/injected) |
 | Speed-Visualizer SDK | TxLifecycleTimeline, KaspaRPMGauge components |
 
 ### Server (`apps/server`)

@@ -32,7 +32,7 @@ We don't claim "sub-second finality" — we let the HUD speak for itself.
 │                          Client (Web)                           │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
 │  │   Phaser Game   │  │   HUD/SDK       │  │  Wallet Connect │ │
-│  │  (3-lane runner)│  │  (Timeline)     │  │  (Kasware)      │ │
+│  │  (3-lane runner)│  │  (Timeline)     │  │  (MetaMask)     │ │
 │  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘ │
 └───────────┼────────────────────┼────────────────────┼──────────┘
             │                    │                    │
@@ -41,14 +41,14 @@ We don't claim "sub-second finality" — we let the HUD speak for itself.
 │                        Server (Node.js)                         │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
 │  │ Session Manager │  │  TX Engine      │  │  Status Worker  │ │
-│  │ (Policy Engine) │  │  (kaspa-wasm)   │  │  (Polling)      │ │
+│  │ (Policy Engine) │  │    (EVM)        │  │  (Polling)      │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
             │
             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      Kaspa Network                              │
-│            api.kaspa.org (REST) + Explorer                      │
+│                     KASPLEX zkEVM                               │
+│                   RPC + Explorer                                │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -58,7 +58,7 @@ We don't claim "sub-second finality" — we let the HUD speak for itself.
 
 - Node.js 20+
 - pnpm 9+
-- [Kasware Wallet](https://kasware.xyz/) (browser extension)
+- [MetaMask](https://metamask.io/) (or any injected EVM wallet)
 
 ### Installation
 
@@ -97,7 +97,7 @@ SKIP_KEY_VALIDATION=true pnpm dev
 
 ### Free Run (Arcade to Earn)
 
-1. Connect your Kasware wallet
+1. Connect your EVM wallet (MetaMask)
 2. Press SPACE to start
 3. Use LEFT/RIGHT arrows to dodge obstacles
 4. Collect checkpoint capsules to earn KAS rewards
@@ -248,9 +248,8 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Links
 
 - [Kaspa](https://kaspa.org)
-- [Kasware Wallet](https://kasware.xyz/)
-- [Explorer (Mainnet)](https://explorer.kaspa.org)
-- [Explorer (Testnet)](https://explorer-tn11.kaspa.org)
+- [MetaMask](https://metamask.io/)
+- [KASPLEX Explorer](https://zkevm.kasplex.org)
 
 ---
 

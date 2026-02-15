@@ -229,7 +229,7 @@ Contract involvement: **Testnet = covenant mode**, **Mainnet = fallback mode**.
 2. **Session policy engine** — unchanged (cooldown, max events, idempotency).
 3. **Speed-Visualizer SDK** — unchanged (TxLifecycleTimeline, KaspaRPMGauge).
 4. **Deploy platforms** — Vercel (FE) + Railway (BE) — unchanged.
-5. **Wallet provider abstraction** — unchanged (IWalletProvider, Kasware, Mock).
+5. **Wallet provider abstraction** — legacy (IWalletProvider + mock), removed in ADR-002 and replaced by EVM wallet (wagmi/viem).
 
 ### Risks
 

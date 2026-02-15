@@ -1,7 +1,5 @@
 /**
  * EVM Wallet Button — Connect/Disconnect/Chain-Switch UI
- *
- * Replaces the Kasware WalletButton for EVM flow.
  */
 
 import React, { useState } from 'react';
