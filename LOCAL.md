@@ -1,44 +1,52 @@
-# KAS Racing 로컬 실행 가이드 (Postgres + KASPLEX 기준)
+# KAS Racing 로컬 실행 가이드 (KASPLEX zkEVM Testnet)
 
-## 0) 먼저 확인
+## 0) 체인 기준
 
-- 현재 코드의 실제 트랜잭션 경로(보상/입금/정산)는 **Kaspa UTXO testnet(TN11)** 기반입니다.
-- 따라서 서버/인덱서는 `NETWORK=testnet`, `kaspatest:` 주소를 사용해야 정상 동작합니다.
-- **KASPLEX zkEVM Testnet** 값은 지갑/네트워크 참고값으로 함께 정리합니다.
+현재 코드의 모든 트랜잭션 경로(보상/입금/정산)는 **KASPLEX zkEVM Testnet** 기반입니다.
 
-KASPLEX zkEVM Testnet (공식 문서 기준)
-- Chain ID: `167012`
-- RPC: `https://rpc.kasplextest.xyz`
-- Explorer: `https://zkevm.kasplex.org`
+| 항목 | 값 |
+|------|------|
+| Chain ID | `167012` |
+| RPC | `https://rpc.kasplextest.xyz` |
+| Explorer | `https://zkevm.kasplex.org` |
+| Native Token | KAS (18 decimals) |
+| Faucet | KASPLEX Discord / 팀 문의 |
 
 ## 1) 필수 준비물
 
 - Node.js 20+
 - pnpm 9+
 - Docker (로컬 Postgres 용)
-- Kasware 지갑 (testnet 계정)
+- MetaMask 지갑 (KASPLEX Testnet 설정)
+
+### MetaMask 네트워크 추가
+
+1. MetaMask → Settings → Networks → Add Network
+2. 아래 값 입력:
+   - Network Name: `KASPLEX Testnet`
+   - RPC URL: `https://rpc.kasplextest.xyz`
+   - Chain ID: `167012`
+   - Currency Symbol: `KAS`
+   - Block Explorer URL: `https://zkevm.kasplex.org`
 
 ## 2) env 파일 준비
 
 ```bash
 cp apps/server/.env.example apps/server/.env
-cp apps/indexer/.env.example apps/indexer/.env
 cp apps/client/.env.example apps/client/.env.local
 ```
 
-필수로 직접 채워야 하는 값
+필수로 직접 채워야 하는 값:
 - `apps/server/.env`
-  - `TREASURY_PRIVATE_KEY`
-  - `TREASURY_CHANGE_ADDRESS` (`kaspatest:` 주소)
-  - `ORACLE_PRIVATE_KEY`
-- `apps/indexer/.env`
-  - `WATCH_ADDRESSES` (최소 treasury 주소 포함)
+  - `OPERATOR_PRIVATE_KEY` — operator 계정 private key (0x 접두사 포함 hex)
+  - `ESCROW_CONTRACT_ADDRESS` — 배포된 MatchEscrow 컨트랙트 주소
+  - `REWARD_CONTRACT_ADDRESS` — 배포된 RewardVault 컨트랙트 주소
 
-이미 채워둔 기본값
+이미 채워둔 기본값:
 - DB: `postgresql://postgres:postgres@localhost:5432/kas_racing`
 - API: `http://localhost:8787`
-- Client Network: `testnet`
-- Explorer: `https://explorer-tn11.kaspa.org`
+- EVM RPC: `https://rpc.kasplextest.xyz`
+- Chain ID: `167012`
 
 ## 3) Postgres 실행
 
@@ -57,12 +65,7 @@ docker run --name kas-racing-pg \
 pnpm --filter @kas-racing/server dev
 ```
 
-터미널 2 (Indexer)
-```bash
-pnpm --filter @kas-racing/indexer dev
-```
-
-터미널 3 (Client)
+터미널 2 (Client)
 ```bash
 pnpm --filter @kas-racing/client dev
 ```
@@ -71,13 +74,14 @@ pnpm --filter @kas-racing/client dev
 
 - API Health: `http://localhost:8787/api/health`
 - Client: `http://localhost:5173`
-- Indexer 로그에 `Indexer running` 출력 확인
+- MetaMask에서 KASPLEX Testnet 연결 확인
 
 ## 6) 트러블슈팅
 
-- 서버 시작 시 config 에러:
-  - `TREASURY_PRIVATE_KEY`, `TREASURY_CHANGE_ADDRESS`, `ORACLE_PRIVATE_KEY` 확인
-- 지갑 네트워크 mismatch:
-  - Kasware를 testnet으로 전환
-- 보상 tx 실패:
-  - Treasury 잔고 확인 (테스트넷 faucet으로 충전)
+| 증상 | 해결 |
+|------|------|
+| 서버 시작 시 config 에러 | `OPERATOR_PRIVATE_KEY`, 컨트랙트 주소 확인 |
+| MetaMask 네트워크 mismatch | KASPLEX Testnet으로 전환 (Chain ID 167012) |
+| 보상 tx 실패 | RewardVault 잔고 확인, operator에 gas 충전 |
+| deposit tx 실패 | 플레이어 지갑에 KAS 충전 (deposit + gas 필요) |
+| "Wrong network" 배너 | MetaMask에서 네트워크 전환 버튼 클릭 |

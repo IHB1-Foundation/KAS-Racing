@@ -486,20 +486,34 @@
 - 기존 lint 에러 1건(EvmWalletButton.tsx L96)은 T-340 기존 이슈로 T-341과 무관
 
 
-### - [ ] T-342 FreeRun Reward + Proof UX 전환
+### - [x] T-342 FreeRun Reward + Proof UX 전환
 **의존**
 - T-331, T-340
 
 **작업**
-- [ ] 체크포인트 reward tx 흐름 EVM 기준 반영
-- [ ] Timeline을 tx hash + receipt status 기반으로 갱신
-- [ ] Proof 페이지 log decode/검증 UI 전환
+- [x] 체크포인트 reward tx 흐름 EVM 기준 반영
+- [x] Timeline을 tx hash + receipt status 기반으로 갱신
+- [x] Proof 페이지 log decode/검증 UI 전환
 
 **산출물**
 - `FreeRun`, `Proof` 페이지 EVM화
 
 **완료조건**
 - checkpoint 지급 tx가 자동 추적되고 Proof에서 검증됨
+
+**변경 요약**
+- `FreeRun.tsx`: useEvmWallet + V3 session/event API, reward amounts in wei (formatEther), EvmNetworkGuard, chain switch 지원
+- `Proof.tsx`: V3 EVM tx/proof API 전환, 듀얼 조회모드(tx hash / session+seq), KASPLEX explorer 링크, decoded EVM events 표시
+- `v3client.ts`: session(start/event/end/events), tx(status/details), proof API 함수 + 타입 추가
+
+**실행 방법**
+- `pnpm --filter @kas-racing/client typecheck` (통과)
+- `pnpm --filter @kas-racing/client build` (빌드 성공)
+- `pnpm --filter @kas-racing/client test` (19 tests 통과)
+
+**Notes/Blockers**
+- WS realtime sync hook(useRealtimeSync)는 여전히 legacy TxStatusInfo 타입 사용 — FreeRun에서 호환 처리
+- payloadParser.ts는 EVM Proof에서 미사용 (log decode로 대체)
 
 
 ### - [ ] T-350 LOCAL/DEPLOY/ENV 문서 전면 교체 (KASPLEX)
