@@ -6,6 +6,7 @@
 
 import React, { useState } from 'react';
 import { useEvmWallet } from './useEvmWallet.js';
+import { formatEvmAddress } from './formatAddress.js';
 
 export function EvmWalletButton() {
   const {
@@ -81,9 +82,7 @@ export function EvmWalletButton() {
     );
   }
 
-  const shortAddr = address
-    ? `${address.slice(0, 6)}...${address.slice(-4)}`
-    : '';
+  const shortAddr = formatEvmAddress(address);
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
