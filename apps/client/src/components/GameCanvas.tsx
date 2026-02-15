@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import Phaser from 'phaser';
 import { createGameConfig, type GameMode, FreeRunScene, DuelScene } from '../game';
+import { isE2E } from '../e2e';
 
 export interface GameStats {
   distance: number;
@@ -103,6 +104,18 @@ export function GameCanvas({
   );
 
   useEffect(() => {
+    if (isE2E) {
+      if (statsIntervalRef.current) {
+        clearInterval(statsIntervalRef.current);
+        statsIntervalRef.current = null;
+      }
+      if (gameRef.current) {
+        gameRef.current.destroy(true);
+        gameRef.current = null;
+      }
+      return;
+    }
+
     if (!containerRef.current) return;
 
     // Destroy existing game if any

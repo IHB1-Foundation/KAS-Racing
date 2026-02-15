@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { app, httpServer, io } from './app.js';
 import { startEvmEventBridge } from './workers/evmEventBridge.js';
 import { initPayloadSeed } from './payload/index.js';
+import { dbInitPromise } from './db/index.js';
 
 // Initialize payload seed for Proof-of-Action
 // Seed is randomly generated on each server start
@@ -11,14 +12,24 @@ console.log('[server] Payload seed initialized for Proof-of-Action');
 
 // Start server
 const port = Number(process.env.PORT ?? 8787);
+const requiresDbReady =
+  process.env.NODE_ENV === 'test' || process.env.E2E_TEST_MODE === 'true';
 
-console.log('[server] WebSocket server initialized');
-httpServer.listen(port, () => {
-  console.log(`[server] HTTP listening on http://localhost:${port}`);
-  console.log(`[server] WebSocket path: /ws`);
+async function startServer() {
+  if (requiresDbReady) {
+    await dbInitPromise;
+  }
 
-  // Start EVM event bridge (chain_events_evm → WS + v3 tables)
-  void startEvmEventBridge();
-});
+  console.log('[server] WebSocket server initialized');
+  httpServer.listen(port, () => {
+    console.log(`[server] HTTP listening on http://localhost:${port}`);
+    console.log(`[server] WebSocket path: /ws`);
+
+    // Start EVM event bridge (chain_events_evm → WS + v3 tables)
+    void startEvmEventBridge();
+  });
+}
+
+void startServer();
 
 export { app, httpServer, io };

@@ -10,6 +10,7 @@ import { useCallback, useMemo } from 'react';
 import { formatUnits } from 'viem';
 import { kasplexTestnet } from './chains.js';
 import { normalizeEvmAddress } from './formatAddress.js';
+import { isE2E } from '../e2e.js';
 
 export interface EvmWalletState {
   address: string | null;
@@ -32,6 +33,9 @@ export function useEvmWallet(): EvmWalletState {
 
   const { data: balanceData } = useBalance({
     address,
+    query: {
+      enabled: !isE2E && !!address,
+    },
   });
 
   const isCorrectChain = chainId === kasplexTestnet.id;

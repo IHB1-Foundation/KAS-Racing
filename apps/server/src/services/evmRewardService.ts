@@ -29,6 +29,7 @@ import {
   buildProofHash,
 } from '../tx/evmContracts.js';
 import { getEvmEventsBySessionId } from './evmChainQueryService.js';
+import { insertChainEvent, isE2EEnabled, nextMockTxHash } from '../utils/e2e.js';
 import type {
   EvmTxStatus,
   V3RewardEventResponse,
@@ -135,6 +136,56 @@ export async function processEvmReward(request: EvmRewardRequest): Promise<EvmRe
   };
 
   await db.insert(rewardEventsV3).values(newEvent);
+
+  if (isE2EEnabled()) {
+    const mockTxHash = nextMockTxHash();
+
+    await db
+      .update(rewardEventsV3)
+      .set({
+        txHash: mockTxHash,
+        txStatus: 'submitted',
+      })
+      .where(eq(rewardEventsV3.id, eventId));
+
+    const sessionIdBytes32 = toSessionId(sessionId);
+    const createdAt = new Date();
+    const { blockNumber } = await insertChainEvent({
+      contract: 'RewardVault',
+      eventName: 'RewardPaid',
+      txHash: mockTxHash,
+      createdAt,
+      args: {
+        sessionId: sessionIdBytes32,
+        seq,
+        recipient: session.userAddress,
+        amount: rewardAmountWei,
+      },
+    });
+
+    await insertChainEvent({
+      contract: 'RewardVault',
+      eventName: 'ProofRecorded',
+      txHash: mockTxHash,
+      blockNumber,
+      createdAt: new Date(createdAt.getTime() + 5),
+      args: {
+        sessionId: sessionIdBytes32,
+        seq,
+        proofHash,
+      },
+    });
+
+    return {
+      eventId,
+      sessionId,
+      seq,
+      amountWei: rewardAmountWei,
+      txHash: mockTxHash,
+      txStatus: 'submitted',
+      isNew: true,
+    };
+  }
 
   // 5. Call contract
   try {

@@ -12,6 +12,7 @@ import { TxLifecycleTimeline, KaspaRPMGauge, type TxStatus } from '@kas-racing/s
 import { LatencyDebugPanel } from '../components/LatencyDebugPanel';
 import { useRealtimeSync, type ChainStateEvent } from '../realtime';
 import { formatEther } from 'viem';
+import { isE2E } from '../e2e';
 
 const MAX_CHECKPOINTS = 10;
 type TxRecordStatus = TxStatus | 'pending';
@@ -59,6 +60,7 @@ export function FreeRun() {
   const [error, setError] = useState<string | null>(null);
 
   const [showDebug, setShowDebug] = useState(false);
+  const [e2eSeq, setE2eSeq] = useState(1);
 
   // Ref to track pending requests (prevent duplicate sends)
   const pendingSeqs = useRef<Set<number>>(new Set());
@@ -207,6 +209,7 @@ export function FreeRun() {
     setTxRecords([]);
     setError(null);
     pendingSeqs.current.clear();
+    setE2eSeq(1);
 
     // Need wallet connected
     if (!isConnected || !address) {
@@ -232,6 +235,28 @@ export function FreeRun() {
   const handleGameStart = useCallback(() => {
     void processGameStart();
   }, [processGameStart]);
+
+  const handleE2eStart = useCallback(() => {
+    void processGameStart();
+  }, [processGameStart]);
+
+  const handleE2eCheckpoint = useCallback(() => {
+    const nextSeq = e2eSeq;
+    setE2eSeq(prev => prev + 1);
+    handleCheckpoint({
+      seq: nextSeq,
+      distance: stats.distance,
+      time: Date.now(),
+    });
+  }, [e2eSeq, handleCheckpoint, stats.distance]);
+
+  const handleE2eGameOver = useCallback(() => {
+    handleGameOver({
+      distance: stats.distance,
+      checkpoints: stats.checkpoints,
+      time: Date.now(),
+    });
+  }, [handleGameOver, stats.checkpoints, stats.distance]);
 
   // Format reward amount for display
   const formatReward = (amountWei?: string) => {
@@ -391,6 +416,29 @@ export function FreeRun() {
                 latencyRecords={latencyRecords}
               />
             )}
+          </div>
+        )}
+
+        {isE2E && (
+          <div style={{ marginTop: '16px' }}>
+            <div className="muted" style={{ fontSize: '12px', marginBottom: '6px' }}>E2E Controls</div>
+            <div className="row" style={{ gap: '8px' }}>
+              <button className="btn btn-sm" data-testid="e2e-start-session" onClick={handleE2eStart}>
+                Start Session
+              </button>
+              <button className="btn btn-sm" data-testid="e2e-checkpoint" onClick={handleE2eCheckpoint}>
+                Checkpoint
+              </button>
+              <button className="btn btn-sm" data-testid="e2e-gameover" onClick={handleE2eGameOver}>
+                End Run
+              </button>
+            </div>
+            <div style={{ marginTop: '8px', fontSize: '11px' }}>
+              <span className="muted">Session:</span>{' '}
+              <span data-testid="e2e-session-id" style={{ fontFamily: 'monospace' }}>
+                {session?.sessionId ?? 'none'}
+              </span>
+            </div>
           </div>
         )}
 

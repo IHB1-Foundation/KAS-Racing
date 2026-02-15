@@ -13,6 +13,7 @@ import { TxLifecycleTimeline } from '@kas-racing/speed-visualizer-sdk';
 import { LatencyDebugPanel } from '../components/LatencyDebugPanel';
 import { useRealtimeSync, type ChainStateEvent, type MatchStateEvent } from '../realtime';
 import { parseEther, formatEther, type Address, type Hash } from 'viem';
+import { isE2E, e2eApiBase } from '../e2e';
 
 type View = 'lobby' | 'create' | 'join' | 'waiting' | 'deposits' | 'game' | 'finished';
 
@@ -80,7 +81,10 @@ export function DuelLobby() {
   const handleMatchUpdate = useCallback((data: unknown) => {
     // Realtime updates may come in old format — refresh V3 data instead
     if (match?.id) {
-      void getMatchV3(match.id, { sync: true }).then(setMatch).catch(() => {});
+      void getMatchV3(match.id, { sync: true }).then((updated) => {
+        setMatch(updated);
+        setView(stateToView(updated.state));
+      }).catch(() => {});
     }
     void data; // consumed
   }, [match?.id]);
@@ -299,6 +303,34 @@ export function DuelLobby() {
     resetDeposit();
     setSearchParams({});
   };
+
+  // ── E2E Helpers ──
+  const e2eDeposit = useCallback(async (player: 'player1' | 'player2') => {
+    if (!match?.id) return;
+    try {
+      await fetch(`${e2eApiBase}/api/v3/e2e/match/${match.id}/deposit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player }),
+      });
+      const updated = await getMatchV3(match.id, { sync: true });
+      setMatch(updated);
+      setView(stateToView(updated.state));
+    } catch (err) {
+      console.error('[e2e] deposit failed', err);
+    }
+  }, [match?.id]);
+
+  const e2eSubmitScore = useCallback(async (playerAddress: string, score: number) => {
+    if (!match?.id) return;
+    try {
+      const updated = await submitScoreV3(match.id, playerAddress, score);
+      setMatch(updated);
+      setView(stateToView(updated.state));
+    } catch (err) {
+      console.error('[e2e] submit score failed', err);
+    }
+  }, [match?.id]);
 
   // ── Derived state ──
 
@@ -988,6 +1020,38 @@ export function DuelLobby() {
                 latencyRecords={latencyRecords}
               />
             )}
+          </div>
+        )}
+
+        {isE2E && match && (
+          <div style={{ marginTop: '16px' }}>
+            <div className="muted" style={{ fontSize: '12px', marginBottom: '6px' }}>E2E Controls</div>
+            <div className="row" style={{ gap: '8px' }}>
+              <button className="btn btn-sm" data-testid="e2e-deposit-self" onClick={() => void e2eDeposit('player1')}>
+                Sim Deposit P1
+              </button>
+              <button className="btn btn-sm" data-testid="e2e-deposit-opponent" onClick={() => void e2eDeposit('player2')}>
+                Sim Deposit P2
+              </button>
+              {address && (
+                <button
+                  className="btn btn-sm"
+                  data-testid="e2e-score-self"
+                  onClick={() => void e2eSubmitScore(address, 123)}
+                >
+                  Submit P1 Score
+                </button>
+              )}
+              {match.players.player2.address && (
+                <button
+                  className="btn btn-sm"
+                  data-testid="e2e-score-opponent"
+                  onClick={() => void e2eSubmitScore(match.players.player2.address, 77)}
+                >
+                  Submit P2 Score
+                </button>
+              )}
+            </div>
           </div>
         )}
 

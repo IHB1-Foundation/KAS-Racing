@@ -8,18 +8,23 @@
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
+    "e2e:test": "playwright test",
+    "e2e": "concurrently -k --success command-tests -n server,client,tests -c blue,green,magenta \"cross-env NODE_ENV=test E2E_TEST_MODE=true DATABASE_URL= CORS_ORIGIN= PORT=8788 pnpm --filter @kas-racing/server dev\" \"cross-env VITE_E2E=true VITE_API_URL=http://localhost:8788 VITE_PORT=5174 pnpm --filter @kas-racing/client dev\" \"wait-on http://localhost:5174 http://localhost:8788/api/health && cross-env E2E_BASE_URL=http://localhost:5174 E2E_API_URL=http://localhost:8788 pnpm e2e:test\"",
     "format": "prettier -w ."
   },
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "@eslint/js": "^9.0.0",
     "@types/node": "^22.0.0",
     "concurrently": "^9.0.0",
+    "cross-env": "^7.0.3",
     "eslint": "^9.0.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.0",
     "globals": "^15.0.0",
     "happy-dom": "^20.4.0",
     "prettier": "^3.0.0",
+    "wait-on": "^8.0.1",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.0.0"
   }

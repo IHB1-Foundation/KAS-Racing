@@ -10,7 +10,9 @@ import sessionRoutes from './session.js';
 import matchRoutes from './match.js';
 import marketRoutes from './market.js';
 import txRoutes from './tx.js';
+import e2eRoutes from './e2e.js';
 import { getSlaSummary, getRecentMetrics } from '../../services/metricsService.js';
+import { isE2EEnabled } from '../../utils/e2e.js';
 
 const router = Router();
 
@@ -18,6 +20,9 @@ router.use('/session', sessionRoutes);
 router.use('/match', matchRoutes);
 router.use('/market', marketRoutes);
 router.use('/tx', txRoutes);
+if (isE2EEnabled()) {
+  router.use('/e2e', e2eRoutes);
+}
 
 /**
  * GET /api/v3/metrics/sla

@@ -31,6 +31,7 @@ import {
   settleMatchDraw,
   toMatchId,
 } from '../tx/evmContracts.js';
+import { insertChainEvent, isE2EEnabled, nextMockTxHash } from '../utils/e2e.js';
 import {
   getEvmEventsByMatchId,
 } from './evmChainQueryService.js';
@@ -268,6 +269,53 @@ export async function processSettlement(matchId: string): Promise<void> {
     winnerAddress = match.player2Address ?? null;
   } else {
     settlementType = 'draw';
+  }
+
+  if (isE2EEnabled()) {
+    const txHash = nextMockTxHash();
+    const payoutWei = settlementType === 'draw'
+      ? match.depositAmountWei
+      : (BigInt(match.depositAmountWei) * 2n).toString();
+
+    const createdAt = new Date();
+    const { blockNumber } = await insertChainEvent({
+      contract: 'MatchEscrow',
+      eventName: settlementType === 'draw' ? 'Draw' : 'Settled',
+      txHash,
+      createdAt,
+      args: {
+        matchId: match.matchIdOnchain,
+        ...(winnerAddress ? { winner: winnerAddress } : {}),
+      },
+    });
+
+    const newSettlement: NewSettlementV3 = {
+      id: randomUUID(),
+      matchIdOnchain: match.matchIdOnchain,
+      settlementType,
+      winnerAddress,
+      payoutWei,
+      txHash,
+      txStatus: 'mined',
+      blockNumber,
+      createdAt,
+      minedAt: createdAt,
+    };
+
+    await db.insert(settlementsV3).values(newSettlement);
+
+    await db
+      .update(matchesV3)
+      .set({
+        settleTxHash: txHash,
+        winnerAddress,
+        state: 'settled',
+        settledAt: createdAt,
+      })
+      .where(eq(matchesV3.id, matchId));
+
+    console.log(`[evm-match] E2E settled ${matchId} (${settlementType})`);
+    return;
   }
 
   try {

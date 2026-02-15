@@ -547,7 +547,7 @@ export async function getProofV3(
   sessionId: string,
   seq: number,
 ): Promise<V3ProofResponse> {
-  const response = await fetch(`${API_BASE}/api/v3/proof/${sessionId}/${seq}`);
+  const response = await fetch(`${API_BASE}/api/v3/tx/proof/${sessionId}/${seq}`);
 
   if (!response.ok) {
     throw new Error(await parseErrorResponse(response));

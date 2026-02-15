@@ -8,6 +8,7 @@
 import { type Address, type Hash, toHex, keccak256, toBytes, encodePacked } from "viem";
 import { sendContractTx, getPublicClient, loadOperatorAccount, type TxResult } from "./evmClient.js";
 import { matchEscrowAbi, rewardVaultAbi } from "./evmAbis.js";
+import { isE2EEnabled, nextMockTxHash } from "../utils/e2e.js";
 
 // ─── Contract Addresses ──────────────────────────────────────
 
@@ -38,6 +39,9 @@ export async function createMatchOnchain(params: {
   player2: Address;
   depositAmountWei: bigint;
 }): Promise<TxResult> {
+  if (isE2EEnabled()) {
+    return { hash: nextMockTxHash(), receipt: null, success: true };
+  }
   return sendContractTx({
     address: getEscrowAddress(),
     abi: matchEscrowAbi,
@@ -53,6 +57,9 @@ export async function settleMatch(params: {
   matchId: Hash;
   winner: Address;
 }): Promise<TxResult> {
+  if (isE2EEnabled()) {
+    return { hash: nextMockTxHash(), receipt: null, success: true };
+  }
   return sendContractTx({
     address: getEscrowAddress(),
     abi: matchEscrowAbi,
@@ -65,6 +72,9 @@ export async function settleMatch(params: {
  * Settle a match as draw — refund both players
  */
 export async function settleMatchDraw(matchId: Hash): Promise<TxResult> {
+  if (isE2EEnabled()) {
+    return { hash: nextMockTxHash(), receipt: null, success: true };
+  }
   return sendContractTx({
     address: getEscrowAddress(),
     abi: matchEscrowAbi,
@@ -77,6 +87,9 @@ export async function settleMatchDraw(matchId: Hash): Promise<TxResult> {
  * Cancel a match (before fully funded)
  */
 export async function cancelMatch(matchId: Hash): Promise<TxResult> {
+  if (isE2EEnabled()) {
+    return { hash: nextMockTxHash(), receipt: null, success: true };
+  }
   return sendContractTx({
     address: getEscrowAddress(),
     abi: matchEscrowAbi,
@@ -89,6 +102,9 @@ export async function cancelMatch(matchId: Hash): Promise<TxResult> {
  * Read match state from contract
  */
 export async function getMatchStateOnchain(matchId: Hash): Promise<number> {
+  if (isE2EEnabled()) {
+    return 0;
+  }
   const client = getPublicClient();
   const result = await client.readContract({
     address: getEscrowAddress(),
@@ -112,6 +128,9 @@ export async function payRewardOnchain(params: {
   proofHash: Hash;
   payload: `0x${string}`;
 }): Promise<TxResult> {
+  if (isE2EEnabled()) {
+    return { hash: nextMockTxHash(), receipt: null, success: true };
+  }
   return sendContractTx({
     address: getRewardAddress(),
     abi: rewardVaultAbi,
@@ -131,6 +150,9 @@ export async function payRewardOnchain(params: {
  * Check if a reward has already been paid
  */
 export async function isRewardPaid(sessionId: Hash, seq: bigint): Promise<boolean> {
+  if (isE2EEnabled()) {
+    return false;
+  }
   const client = getPublicClient();
   const result = await client.readContract({
     address: getRewardAddress(),
@@ -145,6 +167,9 @@ export async function isRewardPaid(sessionId: Hash, seq: bigint): Promise<boolea
  * Get vault balance
  */
 export async function getVaultBalance(): Promise<bigint> {
+  if (isE2EEnabled()) {
+    return 0n;
+  }
   const client = getPublicClient();
   const result = await client.readContract({
     address: getRewardAddress(),

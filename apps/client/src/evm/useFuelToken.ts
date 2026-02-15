@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type Address, type Hash, parseAbi } from 'viem';
 import { useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { kasplexTestnet } from './chains.js';
+import { isE2E } from '../e2e.js';
 
 const erc20Abi = parseAbi([
   'function approve(address spender, uint256 amount) external returns (bool)',
@@ -27,6 +28,7 @@ export function useFuelToken(
 ): UseFuelTokenResult {
   const [approveState, setApproveState] = useState<ApproveState>('idle');
   const [approveError, setApproveError] = useState<string | null>(null);
+  const [e2eAllowance, setE2eAllowance] = useState<bigint>(10_000n * 10n ** 18n);
 
   const {
     data: allowanceData,
@@ -38,7 +40,7 @@ export function useFuelToken(
     args: ownerAddress && spenderAddress ? [ownerAddress, spenderAddress] : undefined,
     chainId: kasplexTestnet.id,
     query: {
-      enabled: !!tokenAddress && !!ownerAddress && !!spenderAddress,
+      enabled: !isE2E && !!tokenAddress && !!ownerAddress && !!spenderAddress,
       refetchInterval: 5_000,
     },
   });
@@ -63,6 +65,12 @@ export function useFuelToken(
   }, [approveMined, refetch]);
 
   const approve = useCallback((spender: Address, amount: bigint) => {
+    if (isE2E) {
+      setApproveState('mined');
+      setApproveError(null);
+      setE2eAllowance(amount);
+      return;
+    }
     if (!tokenAddress) {
       setApproveError('kFUEL token address not configured');
       setApproveState('error');
@@ -98,7 +106,7 @@ export function useFuelToken(
   }, [approveMined, approvePending, approveState, approveTxHash]);
 
   const currentError = approveError ?? (writeError ? parseApproveError(writeError) : null);
-  const allowance = allowanceData ?? 0n;
+  const allowance = isE2E ? e2eAllowance : (allowanceData ?? 0n);
 
   const hasAllowance = useCallback((requiredAmount: bigint) => allowance >= requiredAmount, [allowance]);
   const refreshAllowance = useCallback(() => { void refetch(); }, [refetch]);
