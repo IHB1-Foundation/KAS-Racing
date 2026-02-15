@@ -30,6 +30,14 @@ export function useEvmWallet(): EvmWalletState {
   const { connectAsync, connectors, isPending: isConnecting, error: connectError } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
+  const e2eDisconnected =
+    isE2E && typeof window !== 'undefined' && window.localStorage.getItem('e2eDisconnected') === 'true';
+  const e2eWrongChain =
+    isE2E && typeof window !== 'undefined' && window.localStorage.getItem('e2eWrongChain') === 'true';
+  const e2eWalletError =
+    isE2E && typeof window !== 'undefined'
+      ? window.localStorage.getItem('e2eWalletError')
+      : null;
 
   const { data: balanceData } = useBalance({
     address,
@@ -59,6 +67,9 @@ export function useEvmWallet(): EvmWalletState {
   }, [switchChain]);
 
   const error = useMemo(() => {
+    if (e2eWalletError) {
+      return e2eWalletError;
+    }
     if (connectError) {
       if (connectError.message.includes('rejected') || connectError.message.includes('denied')) {
         return 'Connection rejected. Please try again.';
@@ -66,19 +77,24 @@ export function useEvmWallet(): EvmWalletState {
       return connectError.message;
     }
     return null;
-  }, [connectError]);
+  }, [connectError, e2eWalletError]);
 
   const normalizedAddress = useMemo(() => {
     const normalized = normalizeEvmAddress(address ?? null);
     return normalized ?? (address ?? null);
   }, [address]);
 
+  const effectiveIsConnected = e2eDisconnected ? false : isConnected;
+  const effectiveAddress = e2eDisconnected ? null : normalizedAddress;
+  const effectiveChainId = e2eDisconnected ? undefined : (e2eWrongChain ? 1 : chainId);
+  const effectiveIsCorrectChain = e2eDisconnected ? false : (e2eWrongChain ? false : isCorrectChain);
+
   return {
-    address: normalizedAddress,
-    isConnected,
+    address: effectiveAddress,
+    isConnected: effectiveIsConnected,
     isConnecting,
-    chainId,
-    isCorrectChain,
+    chainId: effectiveChainId,
+    isCorrectChain: effectiveIsCorrectChain,
     balance: balanceData ? formatUnits(balanceData.value, balanceData.decimals) : null,
     error,
     connect: handleConnect,

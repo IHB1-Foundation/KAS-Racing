@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { resetE2E, joinMatch, player2 } from './helpers';
+import { resetE2E, joinMatch, createMatch, depositMatch, player1, player2 } from './helpers';
 
 test.describe('Duel flow', () => {
   test('creates match, simulates deposits, settles', async ({ page, request }) => {
@@ -33,5 +33,25 @@ test.describe('Duel flow', () => {
     await page.getByTestId('e2e-score-opponent').click();
 
     await expect(page.getByRole('heading', { name: /match complete/i })).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('restores match view from URL', async ({ page, request }) => {
+    await resetE2E(request);
+
+    const { id: matchId, joinCode } = await createMatch(request, player1);
+
+    await page.goto(`/duel?matchId=${matchId}&role=player1`);
+    await expect(page.locator('.join-code')).toHaveText(joinCode);
+
+    await joinMatch(request, joinCode, player2);
+
+    await page.goto(`/duel?matchId=${matchId}&role=player1`);
+    await expect(page.getByRole('heading', { name: /deposit required/i })).toBeVisible({ timeout: 15_000 });
+
+    await depositMatch(request, matchId, 'player1');
+    await depositMatch(request, matchId, 'player2');
+
+    await page.goto(`/duel?matchId=${matchId}&role=player1`);
+    await expect(page.getByRole('heading', { name: /race in progress/i })).toBeVisible({ timeout: 15_000 });
   });
 });

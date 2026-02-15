@@ -33,5 +33,10 @@ test.describe('Free Run flow', () => {
     await page.getByRole('button', { name: /verify proof/i }).click();
 
     await expect(page.getByText(/verified on-chain proof/i)).toBeVisible();
+
+    await page.getByRole('button', { name: /by tx hash/i }).click();
+    await page.fill('#txhash', txHash ?? '');
+    await page.getByRole('button', { name: /^verify$/i }).click();
+    await expect(page.getByText(/transaction found/i)).toBeVisible();
   });
 });

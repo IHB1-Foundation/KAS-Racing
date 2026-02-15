@@ -19,6 +19,18 @@ export async function joinMatch(
   });
 }
 
+export async function createMatch(
+  request: APIRequestContext,
+  playerAddress: string,
+  betAmountWei = '1000000000000000000',
+): Promise<{ id: string; joinCode: string }> {
+  const res = await request.post(`${apiBase}/api/v3/match/create`, {
+    data: { playerAddress, betAmountWei },
+  });
+  const data = await res.json();
+  return { id: data.id as string, joinCode: data.joinCode as string };
+}
+
 export async function depositMatch(
   request: APIRequestContext,
   matchId: string,
