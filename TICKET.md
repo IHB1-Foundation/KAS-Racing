@@ -145,21 +145,33 @@
 - chai v4 고정 (v5 ESM 호환 문제로 Hardhat 2.x에서 필수)
 
 
-### - [ ] T-311 Core Contracts 구현 (Escrow/Match/Settlement)
+### - [x] T-311 Core Contracts 구현 (Escrow/Match/Settlement)
 **의존**
 - T-310
 
 **작업**
-- [ ] `MatchEscrow`(양측 예치/취소/타임아웃) 구현
-- [ ] `MatchManager`(매치 생성/참여/상태전이) 구현
-- [ ] `Settlement`(승자 정산/무승부 분배) 구현
-- [ ] 권한모델(oracle/operator/admin) 구현
+- [x] `MatchEscrow`(양측 예치/취소/타임아웃) 구현
+- [x] `MatchManager`(매치 생성/참여/상태전이) — MatchEscrow에 통합
+- [x] `Settlement`(승자 정산/무승부 분배) — MatchEscrow.settle()/settleDraw()
+- [x] 권한모델(oracle/operator/admin) — Ownable + operators mapping
 
 **산출물**
 - Solidity 코어 컨트랙트 + ABI
 
 **완료조건**
-- “제3자 탈취 불가/조건 미충족 정산 불가” 케이스가 테스트로 보장됨
+- "제3자 탈취 불가/조건 미충족 정산 불가" 케이스가 테스트로 보장됨
+
+**변경 요약**
+- `MatchEscrow.sol`: 단일 컨트랙트에 매치 생성/예치/정산/환불/취소 전 라이프사이클 통합
+- 28 tests (theft resistance 2건 포함) 전부 통과
+- OpenZeppelin Ownable + ReentrancyGuard + Pausable 적용
+- 상태머신: Created → Funded → Settled/Refunded/Cancelled
+
+**실행 방법**
+- `pnpm --filter @kas-racing/contracts-evm test`
+
+**Notes/Blockers**
+- MatchManager/Settlement을 별도 컨트랙트 대신 MatchEscrow에 통합 (데모 안정성 우선)
 
 
 ### - [ ] T-312 Reward + Proof Registry Contract
