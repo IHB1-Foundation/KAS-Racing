@@ -16,6 +16,7 @@
  *   - Chain reorg: UTXO-based (no block reorg handling needed for DAG)
  */
 
+import 'dotenv/config';
 import { loadConfig } from './config.js';
 import { IndexerStore } from './store.js';
 import { ChainWatcher } from './watcher.js';

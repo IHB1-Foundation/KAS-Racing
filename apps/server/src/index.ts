@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { app, httpServer, io } from './app.js';
 import { getConfig, safeLogConfig, resetConfigCache } from './config/index.js';
 import { startTxStatusWorker } from './workers/txStatusWorker.js';
