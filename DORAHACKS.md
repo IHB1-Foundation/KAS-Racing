@@ -70,3 +70,8 @@ A 3‑lane runner that fires **real Kaspa on‑chain transactions during gamepla
 - Full covenant escrow settlement on mainnet
 - Expanded SDK docs/examples
 - Additional game modes using the same on‑chain telemetry
+
+## AI Usage
+
+- AI tools were used for scaffolding and documentation.
+- All core gameplay, contract logic, and integration flows were reviewed and validated by the team.

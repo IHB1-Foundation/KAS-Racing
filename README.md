@@ -184,10 +184,8 @@ kas-racing/
 │   └── server/          # Express API + WebSocket
 ├── packages/
 │   └── speed-visualizer-sdk/  # Reusable components
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── ADR-002-evm-pivot.md
-│   └── ADR-003-live-market.md
+├── README.md            # Main public documentation
+└── DORAHACKS.md          # Hackathon submission
 ```
 
 ## Deployment
@@ -213,33 +211,14 @@ Set `VITE_API_URL` in Vercel to your Railway server URL (example: `https://<serv
   - `DATABASE_SSL=true`
 - Verify health check: `GET /api/health` returns 200 on the Railway public URL.
 
-### Server (Fly.io) (Legacy)
+## Security Notes
 
-```bash
-cd apps/server
-fly launch --no-deploy
-fly volumes create kas_racing_data --region sea --size 1
-fly secrets set NETWORK=mainnet TREASURY_PRIVATE_KEY=... ...
-fly deploy
-```
+- Operator keys are server‑side only
+- Rate limiting protects gameplay endpoints
 
-## Security
+## AI Usage
 
-- Treasury/Oracle keys are server-side only
-- API keys are never exposed to clients
-- Rate limiting protects against abuse
-- See [SECURITY.md](SECURITY.md) for full details
-
-## AI Usage Disclosure
-
-This project was developed with AI assistance. See [AI_USAGE.md](AI_USAGE.md) for details on:
-- Which parts used AI assistance
-- What tools were used
-- How AI contributions were reviewed
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+This project used AI assistance for scaffolding and documentation. All code was reviewed and tested by the team.
 
 ## License
 
@@ -249,7 +228,7 @@ Proprietary, all rights reserved. See [LICENSE](LICENSE) for details.
 
 - [Kaspa](https://kaspa.org)
 - [MetaMask](https://metamask.io/)
-- [KASPLEX Explorer](https://zkevm.kasplex.org)
+- [KASPLEX Explorer](https://explorer.testnet.kasplextest.xyz)
 
 ---
 
