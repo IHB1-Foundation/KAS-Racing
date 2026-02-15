@@ -202,14 +202,14 @@
 - 없음
 
 
-### - [ ] T-313 Contract Test/Security Baseline
+### - [x] T-313 Contract Test/Security Baseline
 **의존**
 - T-311, T-312
 
 **작업**
-- [ ] 단위/시나리오 테스트(정상/실패/공격 경로)
-- [ ] reentrancy, access-control, pause, replay 점검
-- [ ] 가스 스냅샷 및 한도 정의
+- [x] 단위/시나리오 테스트(정상/실패/공격 경로)
+- [x] reentrancy, access-control, pause, replay 점검
+- [x] 가스 스냅샷 및 한도 정의
 
 **산출물**
 - 테스트 리포트 + 보안 체크리스트 v1
@@ -217,6 +217,18 @@
 **완료조건**
 - 치명 취약점 0건
 - 핵심 시나리오 테스트 100% 통과
+
+**변경 요약**
+- `Security.test.ts`: reentrancy(ReentrancyAttacker 컨트랙트), replay, access-control escalation, pause, 가스 스냅샷 15 tests
+- `ReentrancyAttacker.sol`: settle/refund re-entrance 시도 테스트용 악성 컨트랙트
+- `docs/SECURITY_CHECKLIST_V1.md`: 취약점 점검 결과 + 가스 한도 + 테스트 커버리지 요약
+- 전체 72 tests / 0 critical findings
+
+**실행 방법**
+- `pnpm --filter @kas-racing/contracts-evm test`
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-314 KASPLEX Testnet 배포 + 검증
