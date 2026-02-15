@@ -30,7 +30,7 @@ This file tracks progress on each ticket. Entries are appended as work is comple
 **Status**: DONE
 **Date**: 2026-02-02
 
-- Added MIT LICENSE
+- Added proprietary license file
 - Added CODE_OF_CONDUCT.md (Contributor Covenant)
 - Added CONTRIBUTING.md (contribution guidelines)
 - Added SECURITY.md (vulnerability reporting)

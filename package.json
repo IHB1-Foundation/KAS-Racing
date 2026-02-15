@@ -1,6 +1,7 @@
 {
   "name": "kas-racing",
   "private": true,
+  "license": "UNLICENSED",
   "packageManager": "pnpm@9.14.4",
   "scripts": {
     "dev": "concurrently -k -n client,server -c green,blue \"pnpm --filter @kas-racing/client dev\" \"pnpm --filter @kas-racing/server dev\"",

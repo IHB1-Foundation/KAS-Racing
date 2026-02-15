@@ -200,7 +200,7 @@
 
 **Actions:**
 1. Return to home page
-2. Show GitHub link / MIT license badge
+2. Show GitHub link / proprietary license notice
 3. Fade out
 
 ---
@@ -219,7 +219,7 @@
 | 8:00-10:00 | **Proof Page Deep Dive** | Look up 2-3 tx hashes, explain event decoding, show Explorer |
 | 10:00-12:00 | **SDK & Architecture** | Show SDK code, component API, monorepo structure |
 | 12:00-14:00 | **Q&A / Technical Discussion** | Common questions: security model, contract design |
-| 14:00-15:00 | **Closing & Next Steps** | Roadmap, open-source links, contact |
+| 14:00-15:00 | **Closing & Next Steps** | Roadmap, licensing/contact, access requests |
 
 ### Step-by-Step Preparation (15-min) — T-30 minutes
 
@@ -288,7 +288,7 @@ curl -sf -o /dev/null -w "%{http_code}" https://<vercel-url>
 | "How fast is confirmation?" | Submitted -> Mined within seconds; we show real measurements, not marketing claims |
 | "Can the server steal funds?" | MatchEscrow contract enforces winner-only payout; theft-resistance tested with 28 unit tests |
 | "What about cheating?" | Server judges, but game events are committed on-chain with proof hashes for verifiability |
-| "Can I use the SDK?" | Yes — `@kas-racing/speed-visualizer-sdk` is MIT-licensed, works with any React app |
+| "Can I use the SDK?" | Not without a written commercial license. Contact the team for access. |
 | "What chain is this?" | KASPLEX zkEVM Testnet (Chain ID 167012), an EVM-compatible layer on Kaspa |
 | "How many contracts?" | Two: MatchEscrow (duel lifecycle) + RewardVault (Free Run rewards) |
 
@@ -306,7 +306,7 @@ curl -sf -o /dev/null -w "%{http_code}" https://<vercel-url>
 | 0:30-2:30 | **Free Run Demo** | Play one round, collect 2 checkpoints, highlight TX Timeline |
 | 2:30-3:30 | **Duel Quick Show** | Show pre-created match, deposit flow, settlement result |
 | 3:30-4:30 | **Proof + SDK** | Quick tx hash lookup, mention SDK availability |
-| 4:30-5:00 | **Closing** | Open-source, MIT, KASPLEX testnet — try it yourself |
+| 4:30-5:00 | **Closing** | Proprietary build, KASPLEX testnet — request access from the team |
 
 ### Step-by-Step Preparation (5-min) — T-15 minutes
 

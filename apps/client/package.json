@@ -1,6 +1,7 @@
 {
   "name": "@kas-racing/client",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "scripts": {
     "dev": "vite",

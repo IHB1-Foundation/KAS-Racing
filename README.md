@@ -2,7 +2,7 @@
 
 > A web-based 3-lane runner game with real-time KASPLEX zkEVM integration, demonstrating sub-second transaction UX.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](#license)
 [![Built with Kaspa](https://img.shields.io/badge/Built%20with-Kaspa-00d4aa)](https://kaspa.org)
 
 ## What is KAS Racing?
@@ -243,7 +243,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+Proprietary, all rights reserved. See [LICENSE](LICENSE) for details.
 
 ## Links
 

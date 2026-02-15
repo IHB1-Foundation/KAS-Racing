@@ -189,7 +189,7 @@ export function Home() {
       {/* Footer */}
       <div className="landing-footer">
         <span className="footer-badge">Built with Kaspa</span>
-        <span className="footer-text">MIT License</span>
+        <span className="footer-text">Proprietary License</span>
       </div>
     </div>
   );
