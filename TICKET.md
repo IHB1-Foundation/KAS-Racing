@@ -516,20 +516,32 @@
 - payloadParser.ts는 EVM Proof에서 미사용 (log decode로 대체)
 
 
-### - [ ] T-350 LOCAL/DEPLOY/ENV 문서 전면 교체 (KASPLEX)
+### - [x] T-350 LOCAL/DEPLOY/ENV 문서 전면 교체 (KASPLEX)
 **의존**
 - T-314, T-320, T-331, T-340
 
 **작업**
-- [ ] `LOCAL.md`를 EVM 실행절차로 교체
-- [ ] `deploy/*.template`의 RPC/CHAIN_ID/주소 변수 업데이트
-- [ ] 인턴 runbook에 지갑/토큰/가스 준비 절차 재작성
+- [x] `LOCAL.md`를 EVM 실행절차로 교체
+- [x] `deploy/*.template`의 RPC/CHAIN_ID/주소 변수 업데이트
+- [x] 인턴 runbook에 지갑/토큰/가스 준비 절차 재작성
 
 **산출물**
 - 최신 로컬/배포 문서 세트
 
 **완료조건**
 - 인턴이 문서만으로 로컬 실행 + 테스트넷 배포 가능
+
+**변경 요약**
+- `LOCAL.md`: KASPLEX Testnet 기준 전면 재작성 (MetaMask 설정, EVM env, operator/contract 주소)
+- `deploy/*.template`: Kaspa UTXO 변수 → EVM 변수 전환 (OPERATOR_PRIVATE_KEY, CONTRACT 주소, EVM_RPC_URL)
+- `.env.example`: server/client 양쪽 EVM 기준 업데이트
+- `INTERN_DEPLOY_CHECKLIST.md`: MetaMask/EVM 기준 전면 재작성, 3서비스(Postgres+API+FE) 구성
+
+**실행 방법**
+- 문서 확인: `cat LOCAL.md`, `cat deploy/railway.api.env.template`
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-351 Railway/Vercel 배포 파이프라인 업데이트
