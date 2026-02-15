@@ -14,18 +14,18 @@ A 3‑lane runner where **real KASPLEX zkEVM transactions fire during gameplay**
 
 ## Fun / Experience
 - **Arcade‑to‑Earn loop:** collect a capsule → reward tx fires → HUD shows the lifecycle in‑game.
-- **Ghost‑Wheel Duel (1v1):** deposits, funding, and settlement are wired directly to the race outcome.
+- **Ghost‑Wheel Duel (1v1):** deposits, funding, and settlement are wired directly to the race outcome—no off‑chain escrow.
 
 ## Why It’s Special
 - **No mocks—real on‑chain transactions in the game loop.**
 - **Lifecycle visualization in milliseconds** (submitted → mined → confirmed).
-- **Proof page** that decodes payloads to verify gameplay on‑chain.
+- **Proof page** that reconstructs and verifies game events against on‑chain logs (RewardPaid + ProofRecorded).
 
 ## Key Features
 - **Free Run:** checkpoint capsules trigger real kFUEL rewards.
-- **Ghost‑Wheel Duel:** contract‑backed deposits + winner‑take‑all settlement.
+- **Ghost‑Wheel Duel:** MatchEscrow‑backed deposits + winner‑take‑all settlement.
 - **Speed‑Visualizer SDK:** reusable React HUD components.
-- **Proof Page:** validate game events against chain data.
+- **Proof Page:** validate game events against chain data + payload hashes.
 
 ## Tech Stack
 - **Client:** React + Phaser 3
@@ -36,10 +36,14 @@ A 3‑lane runner where **real KASPLEX zkEVM transactions fire during gameplay**
 - **Deploy:** Vercel (client), Railway (server)
 
 ## How It Works (High‑Level)
-1. Player connects an EVM wallet and starts a session.
-2. Checkpoints trigger RewardVault payouts in kFUEL.
-3. Socket updates stream on‑chain event timestamps into the HUD.
-4. Proof Page decodes payloads for on‑chain verification.
+1. Player connects an EVM wallet and starts a **Free Run** session.
+2. Each checkpoint calls the server, which pays rewards via **RewardVault** (kFUEL).
+3. The server builds a deterministic payload string:  
+   `KASRACE1|<network>|<mode>|<sessionId>|checkpoint|<seq>`  
+   then hashes it for **ProofRecorded**.
+4. Indexer captures **RewardPaid** + **ProofRecorded** events and streams timestamps to the HUD in real time.
+5. The **Proof Page** recomputes payloads, matches hashes, and shows the exact tx + block for every checkpoint.
+6. In **Ghost‑Wheel Duel**, players create/join a lobby, both deposit into **MatchEscrow**, race, then the winner is settled on‑chain with a single payout.
 
 ## Links
 - **Repository:** <REPO_URL>
@@ -52,4 +56,4 @@ A 3‑lane runner where **real KASPLEX zkEVM transactions fire during gameplay**
 - More game modes using the same on‑chain telemetry
 
 ## License
-MIT
+Proprietary (all rights reserved)
