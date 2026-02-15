@@ -21,9 +21,10 @@ export type { MockProviderOptions } from './MockProvider';
 
 export { WalletProvider, useWallet, getWalletErrorMessage } from './WalletContext';
 
-import { IWalletProvider, WalletProviderType } from './types';
+import type { IWalletProvider, WalletProviderType } from './types';
 import { KaswareProvider } from './KaswareProvider';
-import { MockProvider, MockProviderOptions } from './MockProvider';
+import { MockProvider } from './MockProvider';
+import type { MockProviderOptions } from './MockProvider';
 
 /**
  * Create a wallet provider instance

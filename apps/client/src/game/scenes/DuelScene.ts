@@ -108,6 +108,7 @@ export class DuelScene extends Phaser.Scene {
   private drawPlayer() {
     if (!this.lanePositions.length) return;
     const x = this.lanePositions[this.state.currentLane];
+    if (x === undefined) return;
     const y = GAME_HEIGHT - 80;
 
     this.player.clear();
@@ -243,6 +244,7 @@ export class DuelScene extends Phaser.Scene {
   private spawnObstacle() {
     const lane = Phaser.Math.Between(0, LANE_COUNT - 1);
     const x = this.lanePositions[lane];
+    if (x === undefined) return;
 
     const obstacle = this.add.graphics();
     obstacle.fillStyle(0xff4444, 1);
@@ -253,7 +255,7 @@ export class DuelScene extends Phaser.Scene {
     this.obstacles.add(obstacle);
   }
 
-  update(_time: number, delta: number) {
+  override update(_time: number, delta: number) {
     if (!this.state.isPlaying) return;
 
     const elapsed = Date.now() - this.state.startTime;
@@ -335,6 +337,7 @@ export class DuelScene extends Phaser.Scene {
 
     // Visual feedback
     const x = this.lanePositions[this.state.currentLane];
+    if (x === undefined) return;
     const y = GAME_HEIGHT - 80;
 
     const flash = this.add.graphics();

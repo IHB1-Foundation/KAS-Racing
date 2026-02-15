@@ -10,6 +10,8 @@ vi.mock('./txStatusService.js', () => ({
 // Mock the ws module
 vi.mock('../ws/index.js', () => ({
   emitMatchUpdated: vi.fn(),
+  emitChainStateChanged: vi.fn(),
+  emitMatchStateChanged: vi.fn(),
 }));
 
 // Now import the mocked modules and the service under test

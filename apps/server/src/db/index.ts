@@ -3,20 +3,117 @@ import { Pool } from 'pg';
 import * as schema from './schema.js';
 
 const DATABASE_URL = process.env.DATABASE_URL?.trim() ?? '';
-if (!DATABASE_URL) {
+const maxPoolSize = Number(process.env.DATABASE_POOL_MAX ?? '20');
+const isTestEnv =
+  process.env.NODE_ENV === 'test' ||
+  process.env.VITEST === 'true' ||
+  process.env.VITEST === '1';
+
+function shouldUseSsl(connectionString: string): boolean {
+  if (process.env.DATABASE_SSL) {
+    return process.env.DATABASE_SSL.toLowerCase() !== 'false';
+  }
+  return !(
+    connectionString.includes('localhost') ||
+    connectionString.includes('127.0.0.1')
+  );
+}
+
+async function createPool(): Promise<Pool> {
+  if (DATABASE_URL) {
+    const useSsl = shouldUseSsl(DATABASE_URL);
+    return new Pool({
+      connectionString: DATABASE_URL,
+      ssl: useSsl ? { rejectUnauthorized: false } : undefined,
+      max: Number.isFinite(maxPoolSize) ? maxPoolSize : 20,
+    });
+  }
+
+  if (isTestEnv) {
+    const { newDb } = await import('pg-mem');
+    const memDb = newDb({ autoCreateForeignKeyIndices: true });
+    const adapter = memDb.adapters.createPg();
+    const MemPool = adapter.Pool as {
+      prototype: {
+        query?: (...args: unknown[]) => unknown;
+        adaptResults?: (query: unknown, res: unknown) => unknown;
+        adaptQuery?: (query: unknown, values?: unknown[]) => unknown;
+      };
+      new (): unknown;
+    };
+
+    const originalQuery = MemPool.prototype.query;
+    if (typeof originalQuery === 'function') {
+      MemPool.prototype.query = function queryWithoutPgOptions(...args: unknown[]) {
+        const [firstArg, ...restArgs] = args;
+        if (firstArg && typeof firstArg === 'object') {
+          const sanitized = { ...(firstArg as Record<string, unknown>) };
+          delete sanitized.types;
+          return originalQuery.call(this, sanitized, ...restArgs);
+        }
+        return originalQuery.call(this, ...args);
+      };
+    }
+
+    const originalAdaptResults = MemPool.prototype.adaptResults;
+    if (typeof originalAdaptResults === 'function') {
+      MemPool.prototype.adaptResults = function adaptResultsWithRowMode(
+        query: unknown,
+        res: unknown
+      ) {
+        const rowMode = (
+          query &&
+          typeof query === 'object' &&
+          'rowMode' in (query as Record<string, unknown>)
+            ? (query as Record<string, unknown>).rowMode
+            : undefined
+        );
+
+        const queryWithoutRowMode =
+          query && typeof query === 'object'
+            ? { ...(query as Record<string, unknown>), rowMode: undefined }
+            : query;
+
+        const baseResult = originalAdaptResults.call(this, queryWithoutRowMode, res) as {
+          rows?: Array<Record<string, unknown>>;
+          [key: string]: unknown;
+        };
+
+        if (rowMode !== 'array' || !Array.isArray(baseResult.rows)) {
+          return baseResult;
+        }
+
+        return {
+          ...baseResult,
+          rows: baseResult.rows.map((row) => Object.keys(row).map((key) => row[key])),
+        };
+      };
+    }
+
+    const originalAdaptQuery = MemPool.prototype.adaptQuery;
+    if (typeof originalAdaptQuery === 'function') {
+      MemPool.prototype.adaptQuery = function adaptQueryWithoutTypes(
+        query: unknown,
+        values?: unknown[]
+      ) {
+        if (query && typeof query === 'object') {
+          const sanitized = { ...(query as Record<string, unknown>) };
+          delete sanitized.types;
+          return originalAdaptQuery.call(this, sanitized, values);
+        }
+        return originalAdaptQuery.call(this, query, values);
+      };
+    }
+
+    return new MemPool() as unknown as Pool;
+  }
+
   throw new Error(
     'DATABASE_URL is required. Set a Railway Postgres connection string before starting the server.'
   );
 }
 
-const useSsl = process.env.DATABASE_SSL?.toLowerCase() !== 'false';
-const maxPoolSize = Number(process.env.DATABASE_POOL_MAX ?? '20');
-
-export const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: useSsl ? { rejectUnauthorized: false } : undefined,
-  max: Number.isFinite(maxPoolSize) ? maxPoolSize : 20,
-});
+export const pool = await createPool();
 
 // Create Drizzle ORM instance
 export const db = drizzle(pool, { schema });

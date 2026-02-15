@@ -2,7 +2,7 @@
  * TX Lifecycle Types
  */
 
-export type TxStatus = 'broadcasted' | 'accepted' | 'included' | 'confirmed' | 'failed';
+export type TxStatus = 'pending' | 'broadcasted' | 'accepted' | 'included' | 'confirmed' | 'failed';
 
 export interface TxStatusInfo {
   txid: string;

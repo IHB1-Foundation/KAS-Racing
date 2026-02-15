@@ -9,10 +9,11 @@ import { LatencyDebugPanel } from '../components/LatencyDebugPanel';
 import { useRealtimeSync, type ChainStateEvent } from '../realtime';
 
 const MAX_CHECKPOINTS = 10;
+type TxRecordStatus = TxStatus | 'pending';
 
 interface TxRecord {
   seq: number;
-  status: TxStatus;
+  status: TxRecordStatus;
   txid?: string;
   rewardAmount?: number;
   timestamp: number;
@@ -336,7 +337,7 @@ export function FreeRun() {
                   {tx.txid ? (
                     <TxLifecycleTimeline
                       txid={tx.txid}
-                      status={tx.status}
+                      status={tx.status === 'pending' ? 'broadcasted' : tx.status}
                       timestamps={tx.chainTimestamps ?? { broadcasted: tx.timestamp }}
                       network={network ?? 'testnet'}
                     />

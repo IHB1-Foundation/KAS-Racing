@@ -6,7 +6,8 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
-import { IWalletProvider, WalletError, WalletErrorCode, TransactionResult, TransactionOptions } from './types';
+import type { IWalletProvider, WalletError, TransactionResult, TransactionOptions } from './types';
+import { WalletErrorCode } from './types';
 import { getDefaultWalletProvider } from './index';
 
 // 1 KAS = 100,000,000 sompi

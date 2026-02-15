@@ -719,7 +719,7 @@ import { TxLifecycleTimeline, KaspaRPMGauge } from '@kas-racing/speed-visualizer
 
 **Notes/Blockers**
 - 실제 네트워크 BPS 데이터 연동은 추후 개선 가능
-- [ ] 체크포인트 지급 txid가 Timeline에 자동으로 연결
+- [x] 체크포인트 지급 txid가 Timeline에 자동으로 연결
 
 **완료조건**
 - 한 판 플레이 중 tx lifecycle이 “눈으로” 확인됨
@@ -1104,7 +1104,7 @@ const payload = generatePayload({
 
 **작업**
 - [x] reward tx 생성 시 payload 삽입(가능한 범위에서)
-- [ ] explorer/Proof page에서 payload 확인 가능한지 검증
+- [x] explorer/Proof page에서 payload 확인 가능한지 검증
 
 **완료조건**
 - 적어도 1개의 reward tx에 payload가 포함됨
@@ -1736,7 +1736,7 @@ E2E=true ORACLE_PRIVATE_KEY=... TREASURY_PRIVATE_KEY=... \
 - 파이프라인/스크립트/검증 로직은 완성됨
 
 
-### - [x] T-204 Indexing Layer 구축 (Ponder + Postgres)
+### - [x] T-204 Indexing Layer 구축 (Kaspa Custom Indexer + Postgres)
 **의존**
 - T-203
 

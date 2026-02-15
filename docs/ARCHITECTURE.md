@@ -15,7 +15,7 @@ The sections below define the **v2 target architecture**. MVP-era diagrams are p
 | 1 | **Contract-first** | On-chain covenant escrow is the source of truth for deposits/settlements |
 | 2 | **Server as Orchestrator** | Server handles keys, policy, TX orchestration — never overrides on-chain state |
 | 3 | **Postgres single DB** | All operational data (matches, deposits, settlements, events, idempotency) in one Postgres |
-| 4 | **Ponder for indexing** | Contract events are indexed into Postgres by Ponder; API reads indexed data |
+| 4 | **Indexer service for Kaspa** | Contract events are indexed into Postgres by a custom indexer; API reads indexed data |
 | 5 | **Deploy split** | FE = Vercel, BE + Indexer + Postgres = Railway |
 
 ### Target Topology
@@ -36,7 +36,7 @@ graph TB
     end
 
     subgraph IDX["Indexer (Railway — Service 2)"]
-        PONDER[Ponder Event Indexer]
+        INDEXER[Custom Chain Event Indexer]
     end
 
     subgraph DB["Railway Postgres"]
@@ -55,8 +55,8 @@ graph TB
     API --> PG
     API -->|read indexed data| PG
 
-    PONDER -->|watch blocks| RPC
-    PONDER -->|write events| PG
+    INDEXER -->|watch blocks| RPC
+    INDEXER -->|write events| PG
 
     SDK_FE -->|explorer link| EXPLORER
 ```
@@ -67,7 +67,7 @@ graph TB
 |---|---|---|
 | **Frontend** | Wallet connect, game UI, TX signing (deposits), real-time status display | Key custody, policy enforcement, TX broadcasting (rewards/settlements) |
 | **API Server** | Session/match lifecycle, policy checks, TX build+sign+broadcast, WS push, idempotency | On-chain rule enforcement, block indexing |
-| **Ponder Indexer** | Block watching, event extraction, backfill, reorg handling, writing `chain_events` | Domain logic, TX broadcasting |
+| **Indexer Service** | Block watching, event extraction, backfill, cursor-based replay, writing `chain_events` | Domain logic, TX broadcasting |
 | **Postgres** | Persistent state: users, sessions, matches, deposits, settlements, chain_events, idempotency_keys | — |
 | **Contract (Escrow)** | Enforce output restrictions (players only), timelock refund, oracle signature requirement | Game logic, scoring |
 
@@ -75,10 +75,10 @@ graph TB
 
 | Environment | Chain Target | FE | BE | DB | Indexer | Escrow Mode |
 |---|---|---|---|---|---|---|
-| **local** | Testnet 12 RPC | localhost:5173 | localhost:8787 | Local Postgres | Local Ponder (optional) | covenant or fallback |
-| **testnet** | Testnet 12 | Vercel preview | Railway dev | Railway Postgres | Railway Ponder | covenant |
-| **staging** | Testnet 12 | Vercel preview | Railway staging | Railway Postgres | Railway Ponder | covenant |
-| **production** | Mainnet | Vercel prod | Railway prod | Railway Postgres | Railway Ponder | fallback (until KIP-10 mainnet) |
+| **local** | Testnet 12 RPC | localhost:5173 | localhost:8787 | Local Postgres | Local Indexer (optional) | covenant or fallback |
+| **testnet** | Testnet 12 | Vercel preview | Railway dev | Railway Postgres | Railway Indexer | covenant |
+| **staging** | Testnet 12 | Vercel preview | Railway staging | Railway Postgres | Railway Indexer | covenant |
+| **production** | Mainnet | Vercel prod | Railway prod | Railway Postgres | Railway Indexer | fallback (until KIP-10 mainnet) |
 
 ### Directory Structure (v2)
 
@@ -115,7 +115,7 @@ kas-racing/
 | `contracts` | **(NEW)** Deployed contract addresses | id, network, type, address, deployTxid, deployedAt |
 | `deposits` | **(NEW)** Deposit TX tracking (split from matches) | id, matchId, player, txid, status, amount, confirmedAt |
 | `settlements` | **(NEW)** Settlement TX tracking (split from matches) | id, matchId, txid, status, mode, winnerAddress, amount |
-| `chain_events` | **(NEW)** Raw indexed events from Ponder | id, blockNumber, txid, eventType, data, indexedAt |
+| `chain_events` | **(NEW)** Raw indexed events from indexer | id, blockNumber, txid, eventType, data, indexedAt |
 | `idempotency_keys` | **(NEW)** Request deduplication | key, response, expiresAt |
 
 > Current schema (v1) stores deposit/settlement fields inline on the `matches` table. v2 promotes them to separate tables for indexer compatibility and query flexibility.
@@ -172,7 +172,7 @@ sequenceDiagram
     participant B as Player B (FE)
     participant API as API Server
     participant PG as Postgres
-    participant IDX as Ponder Indexer
+    participant IDX as Chain Indexer
     participant K as Kaspa Testnet
 
     %% Match creation
@@ -276,8 +276,8 @@ sequenceDiagram
 └───────────▲──────────┘  └────────▲─────────────────────────┘
             │ SQL                    │ RPC (watch blocks)
 ┌───────────┴──────────────────────┴─────────────────────────┐
-│                    PONDER INDEXER                            │
-│  Block watcher │ Event extractor │ Backfill │ Reorg handler │
+│                    CHAIN INDEXER                             │
+│  Block watcher │ Event extractor │ Backfill │ Cursor replay │
 │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
 │  Boundary: Read-only from chain. Write-only to Postgres.    │
 │  No domain logic. No TX broadcasting.                       │
@@ -327,7 +327,7 @@ See [ESCROW_SCRIPT_TEMPLATE.md](./ESCROW_SCRIPT_TEMPLATE.md) for the full templa
 | Failure | Detection | Fallback |
 |---|---|---|
 | Testnet RPC down | Health check fails / TX broadcast timeout | Switch to fallback mode (treasury custodial) |
-| Ponder indexer behind | API detects stale `chain_events` | Direct RPC query for deposit status |
+| Indexer behind | API detects stale `chain_events` | Direct RPC query for deposit status |
 | Postgres down | Connection pool error | Server returns 503; FE shows "service unavailable" |
 | Covenant TX rejected | Broadcast returns error | Log error; retry once; if still fails, mark settlement as `failed` |
 | Player wallet refuses | FE catches rejection | Show retry button + error message |

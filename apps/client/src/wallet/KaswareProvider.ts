@@ -7,10 +7,12 @@
  * @see https://kasware.xyz
  */
 
-import {
+import type {
   IWalletProvider,
   TransactionOptions,
   TransactionResult,
+} from './types';
+import {
   WalletErrorCode,
   createWalletError,
 } from './types';
@@ -73,8 +75,16 @@ export class KaswareProvider implements IWalletProvider {
         );
       }
 
-      this.address = accounts[0];
-      return this.address;
+      const [primaryAccount] = accounts;
+      if (!primaryAccount) {
+        throw createWalletError(
+          WalletErrorCode.CONNECTION_REJECTED,
+          'No accounts returned from Kasware'
+        );
+      }
+
+      this.address = primaryAccount;
+      return primaryAccount;
     } catch (err) {
       // Check if user rejected the connection
       const error = err as Error;
@@ -195,9 +205,10 @@ export class KaswareProvider implements IWalletProvider {
 
     try {
       const accounts = await window.kasware!.getAccounts();
-      if (accounts && accounts.length > 0) {
-        this.address = accounts[0];
-        return this.address;
+      const [primaryAccount] = accounts;
+      if (primaryAccount) {
+        this.address = primaryAccount;
+        return primaryAccount;
       }
     } catch {
       // Ignore errors

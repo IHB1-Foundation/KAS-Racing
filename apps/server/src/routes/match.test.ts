@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app, httpServer } from '../app.js';
-import { db, matches } from '../db/index.js';
+import { db, matches, deposits, settlements } from '../db/index.js';
 
 describe('Match API (Matchmaking)', () => {
   beforeAll(() => {
@@ -18,6 +18,8 @@ describe('Match API (Matchmaking)', () => {
 
   beforeEach(async () => {
     // Clean up test data from DB
+    await db.delete(deposits);
+    await db.delete(settlements);
     await db.delete(matches);
   });
 

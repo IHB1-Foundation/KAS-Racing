@@ -455,7 +455,7 @@ export function DuelLobby() {
                     txid={getDepositTxid(myDep)!}
                     status={(getDepositStatus(myDep) as 'broadcasted' | 'accepted' | 'included' | 'confirmed') ?? 'broadcasted'}
                     timestamps={getDepositTimestamps(myDep)}
-                    network={network}
+                    network={network ?? undefined}
                   />
                 )}
               </div>
@@ -479,7 +479,7 @@ export function DuelLobby() {
                     txid={getDepositTxid(opDep)!}
                     status={(getDepositStatus(opDep) as 'broadcasted' | 'accepted' | 'included' | 'confirmed') ?? 'broadcasted'}
                     timestamps={getDepositTimestamps(opDep)}
-                    network={network}
+                    network={network ?? undefined}
                   />
                 )}
               </div>
@@ -584,7 +584,7 @@ export function DuelLobby() {
                   txid={settleTxid}
                   status={(settleStatus as 'broadcasted' | 'accepted' | 'included' | 'confirmed') ?? 'broadcasted'}
                   timestamps={settleTimestamps}
-                  network={network}
+                  network={network ?? undefined}
                 />
               </div>
             )}

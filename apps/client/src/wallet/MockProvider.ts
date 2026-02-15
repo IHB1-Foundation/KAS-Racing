@@ -8,10 +8,12 @@
  * "Mock은 UI 개발 보조용으로만 허용하며, 지급/입금/정산의 핵심 경로에는 절대 쓰지 마라."
  */
 
-import {
+import type {
   IWalletProvider,
   TransactionOptions,
   TransactionResult,
+} from './types';
+import {
   WalletErrorCode,
   createWalletError,
 } from './types';

@@ -9,7 +9,7 @@ export function createGameConfig(
   parent: string | HTMLElement,
   mode: GameMode,
 ): Phaser.Types.Core.GameConfig {
-  const scenes = [BootScene];
+  const scenes: Phaser.Types.Scenes.SceneType[] = [BootScene];
 
   if (mode === 'freerun') {
     scenes.push(FreeRunScene);

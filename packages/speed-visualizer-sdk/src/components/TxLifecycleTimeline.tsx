@@ -10,6 +10,7 @@ import type { TxStatus, TxLifecycleTimelineProps } from '../types.js';
 const STAGES: TxStatus[] = ['broadcasted', 'accepted', 'included', 'confirmed'];
 
 const STAGE_LABELS: Record<TxStatus, string> = {
+  pending: 'Pending',
   broadcasted: 'Broadcasted',
   accepted: 'Accepted',
   included: 'Included',
