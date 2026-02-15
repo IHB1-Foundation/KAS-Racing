@@ -1,21 +1,38 @@
 import { useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { GameCanvas, type GameStats, type CheckpointEvent, type GameOverEvent } from '../components/GameCanvas';
-import { useWallet } from '../wallet';
-import { startSession, sendEvent, endSession, type SessionPolicy, type TxStatusInfo } from '../api/client';
+import { useEvmWallet, EvmNetworkGuard } from '../evm';
+import {
+  startSessionV3,
+  sendEventV3,
+  endSessionV3,
+  type V3SessionPolicy,
+} from '../api/v3client';
+import type { TxStatusInfo } from '../api/client';
 import { TxLifecycleTimeline, KaspaRPMGauge, type TxStatus } from '@kas-racing/speed-visualizer-sdk';
-import { NetworkGuard } from '../components/NetworkGuard';
 import { LatencyDebugPanel } from '../components/LatencyDebugPanel';
 import { useRealtimeSync, type ChainStateEvent } from '../realtime';
+import { formatEther } from 'viem';
 
 const MAX_CHECKPOINTS = 10;
 type TxRecordStatus = TxStatus | 'pending';
 
+// Map EVM tx status to TxLifecycleTimeline status
+function mapEvmStatus(s: string): TxStatus {
+  switch (s) {
+    case 'submitted': case 'pending': return 'broadcasted';
+    case 'mined': return 'included';
+    case 'confirmed': return 'confirmed';
+    case 'failed': return 'failed';
+    default: return 'broadcasted';
+  }
+}
+
 interface TxRecord {
   seq: number;
   status: TxRecordStatus;
-  txid?: string;
-  rewardAmount?: number;
+  txHash?: string;
+  rewardAmountWei?: string;
   timestamp: number;
   error?: string;
   chainTimestamps?: Record<string, number | undefined>;
@@ -24,11 +41,11 @@ interface TxRecord {
 
 interface SessionState {
   sessionId: string;
-  policy: SessionPolicy;
+  policy: V3SessionPolicy;
 }
 
 export function FreeRun() {
-  const { address, isConnected, connect, network } = useWallet();
+  const { address, isConnected, connect, isCorrectChain, switchToKasplex } = useEvmWallet();
 
   const [stats, setStats] = useState<GameStats>({
     distance: 0,
@@ -50,14 +67,14 @@ export function FreeRun() {
   const sessionRef = useRef<SessionState | null>(null);
   sessionRef.current = session;
 
-  // Real-time sync via WebSocket
+  // Real-time sync via WebSocket (uses legacy TxStatusInfo shape from WS)
   const handleTxStatusUpdate = useCallback((data: TxStatusInfo) => {
     setTxRecords(prev =>
       prev.map(tx =>
-        tx.txid === data.txid
+        tx.txHash === data.txid
           ? {
               ...tx,
-              status: data.status as TxStatus,
+              status: mapEvmStatus(data.status),
               chainTimestamps: data.timestamps,
               confirmations: data.confirmations,
             }
@@ -71,10 +88,10 @@ export function FreeRun() {
     if (data.entityType !== 'reward') return;
     setTxRecords(prev =>
       prev.map(tx =>
-        tx.txid === data.txid
+        tx.txHash === data.txid
           ? {
               ...tx,
-              status: data.newStatus as TxStatus,
+              status: mapEvmStatus(data.newStatus),
               chainTimestamps: data.timestamps,
               confirmations: data.confirmations,
             }
@@ -125,8 +142,8 @@ export function FreeRun() {
     ]);
 
     try {
-      // Send to server
-      const result = await sendEvent(
+      // Send to V3 server
+      const result = await sendEventV3(
         currentSession.sessionId,
         'checkpoint',
         event.seq,
@@ -139,9 +156,9 @@ export function FreeRun() {
           tx.seq === event.seq
             ? {
                 ...tx,
-                status: result.accepted ? (result.txid ? 'broadcasted' : 'pending') : 'failed',
-                txid: result.txid,
-                rewardAmount: result.rewardAmount,
+                status: result.accepted ? (result.txHash ? mapEvmStatus(result.txStatus ?? 'submitted') : 'pending') : 'failed',
+                txHash: result.txHash,
+                rewardAmountWei: result.rewardAmountWei,
                 error: result.rejectReason,
               }
             : tx
@@ -151,7 +168,10 @@ export function FreeRun() {
       if (!result.accepted) {
         console.warn(`[FreeRun] Event rejected: ${result.rejectReason ?? 'unknown'}`);
       } else {
-        console.log(`[FreeRun] Reward TX: ${result.txid ?? 'pending'}, amount: ${result.rewardAmount ?? 0} KAS`);
+        const amountDisplay = result.rewardAmountWei
+          ? formatEther(BigInt(result.rewardAmountWei))
+          : '0';
+        console.log(`[FreeRun] Reward TX: ${result.txHash ?? 'pending'}, amount: ${amountDisplay} KAS`);
       }
     } catch (err) {
       console.error('[FreeRun] Failed to send event:', err);
@@ -186,7 +206,7 @@ export function FreeRun() {
     // End session
     if (currentSession) {
       try {
-        await endSession(currentSession.sessionId);
+        await endSessionV3(currentSession.sessionId);
         console.log('[FreeRun] Session ended');
       } catch (err) {
         console.warn('[FreeRun] Failed to end session:', err);
@@ -212,9 +232,9 @@ export function FreeRun() {
       return;
     }
 
-    // Start new session
+    // Start new V3 session
     try {
-      const response = await startSession(address, 'free_run');
+      const response = await startSessionV3(address, 'free_run');
       setSession({
         sessionId: response.sessionId,
         policy: response.policy,
@@ -231,16 +251,21 @@ export function FreeRun() {
     void processGameStart();
   }, [processGameStart]);
 
-  // Sync wrapper for connect button
-  const handleConnect = useCallback(() => {
-    void connect();
-  }, [connect]);
-
   // Format address for display
   const formatAddress = useCallback((addr: string) => {
     if (addr.length <= 16) return addr;
-    return `${addr.slice(0, 12)}...${addr.slice(-6)}`;
+    return `${addr.slice(0, 8)}...${addr.slice(-4)}`;
   }, []);
+
+  // Format reward amount for display
+  const formatReward = (amountWei?: string) => {
+    if (!amountWei) return null;
+    try {
+      return `${formatEther(BigInt(amountWei))} KAS`;
+    } catch {
+      return null;
+    }
+  };
 
   return (
     <div className="layout">
@@ -256,7 +281,7 @@ export function FreeRun() {
       <aside className="panel">
         <h2>Free Run</h2>
         <p className="muted">Collect checkpoints to earn KAS rewards.</p>
-        <NetworkGuard />
+        <EvmNetworkGuard />
 
         {/* Wallet Status */}
         {!isConnected && (
@@ -264,13 +289,24 @@ export function FreeRun() {
             <p className="muted" style={{ marginBottom: '8px' }}>
               Connect wallet to receive rewards
             </p>
-            <button className="btn btn-sm" onClick={handleConnect}>
+            <button className="btn btn-sm" onClick={connect}>
               Connect Wallet
             </button>
           </div>
         )}
 
-        {isConnected && address && (
+        {isConnected && !isCorrectChain && (
+          <div className="wallet-prompt" style={{ marginBottom: '16px' }}>
+            <p className="muted" style={{ marginBottom: '8px' }}>
+              Switch to KASPLEX Testnet
+            </p>
+            <button className="btn btn-sm" onClick={switchToKasplex}>
+              Switch Network
+            </button>
+          </div>
+        )}
+
+        {isConnected && isCorrectChain && address && (
           <div className="wallet-info" style={{ marginBottom: '16px' }}>
             <span className="muted">Wallet: </span>
             <span className="address">{formatAddress(address)}</span>
@@ -313,7 +349,7 @@ export function FreeRun() {
         <div className="game-status">
           {!stats.isPlaying && !stats.isGameOver && (
             <p className="status-text">
-              {isConnected ? 'Press SPACE to start' : 'Connect wallet, then SPACE to start'}
+              {isConnected && isCorrectChain ? 'Press SPACE to start' : 'Connect wallet, then SPACE to start'}
             </p>
           )}
           {stats.isPlaying && <p className="status-text status-playing">Running...</p>}
@@ -330,16 +366,16 @@ export function FreeRun() {
                 <div key={tx.seq} style={{ marginBottom: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                     <span className="tx-seq">#{tx.seq}</span>
-                    {tx.rewardAmount && (
-                      <span className="tx-amount">{tx.rewardAmount} KAS</span>
+                    {formatReward(tx.rewardAmountWei) && (
+                      <span className="tx-amount">{formatReward(tx.rewardAmountWei)}</span>
                     )}
                   </div>
-                  {tx.txid ? (
+                  {tx.txHash ? (
                     <TxLifecycleTimeline
-                      txid={tx.txid}
+                      txid={tx.txHash}
                       status={tx.status === 'pending' ? 'broadcasted' : tx.status}
                       timestamps={tx.chainTimestamps ?? { broadcasted: tx.timestamp }}
-                      network={network ?? 'testnet'}
+                      network="testnet"
                     />
                   ) : (
                     <div className={`tx-status tx-status-${tx.status}`}>

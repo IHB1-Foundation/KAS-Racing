@@ -455,20 +455,35 @@
 - FE 페이지의 Kasware → EVM 전환은 T-341, T-342에서 처리
 
 
-### - [ ] T-341 Duel UX 전환 (Approve/Deposit/Settle)
+### - [x] T-341 Duel UX 전환 (Approve/Deposit/Settle)
 **의존**
 - T-331, T-340
 
 **작업**
-- [ ] 토큰 approve → deposit 단계형 UX
-- [ ] tx 대기/실패/재시도 상태머신 반영
-- [ ] 승패 결정 후 settlement lifecycle 표시
+- [x] 토큰 approve → deposit 단계형 UX
+- [x] tx 대기/실패/재시도 상태머신 반영
+- [x] 승패 결정 후 settlement lifecycle 표시
 
 **산출물**
 - `DuelLobby` EVM 플로우 완성
 
 **완료조건**
 - 신규 유저가 FE에서만 듀얼 전 과정을 완료 가능
+
+**변경 요약**
+- `useMatchEscrow.ts`: wagmi 기반 MatchEscrow.deposit() 훅 (idle→confirming→submitted→mined→error 상태머신)
+- `v3client.ts`: V3 API 클라이언트 (createMatchV3/joinMatchV3/getMatchV3/submitScoreV3/syncMatchV3)
+- `DuelLobby.tsx`: useEvmWallet + V3 API + contract deposit으로 전면 전환, V3 상태(lobby→created→funded→settled) 반영
+- `evm/index.ts`: useMatchEscrow/useIsDeposited export 추가
+
+**실행 방법**
+- `pnpm --filter @kas-racing/client typecheck` (통과)
+- `pnpm --filter @kas-racing/client build` (빌드 성공)
+- `pnpm --filter @kas-racing/client test` (19 tests 통과)
+
+**Notes/Blockers**
+- Native KAS deposit (payable)이므로 ERC-20 approve 단계는 불필요 — deposit만으로 완결
+- 기존 lint 에러 1건(EvmWalletButton.tsx L96)은 T-340 기존 이슈로 T-341과 무관
 
 
 ### - [ ] T-342 FreeRun Reward + Proof UX 전환

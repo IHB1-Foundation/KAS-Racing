@@ -172,3 +172,238 @@ export async function syncMatchV3(matchId: string): Promise<V3MatchResponse> {
 
   return (await response.json()) as V3MatchResponse;
 }
+
+// ── Session / Reward API ──
+
+export interface V3SessionPolicy {
+  rewardCooldownMs: number;
+  rewardMaxPerSession: number;
+  rewardAmounts: number[];
+}
+
+export interface V3StartSessionResponse {
+  sessionId: string;
+  policy: V3SessionPolicy;
+}
+
+export interface V3SessionEventResponse {
+  accepted: boolean;
+  rejectReason?: string;
+  rewardAmountWei?: string;
+  txHash?: string;
+  txStatus?: EvmTxStatus;
+  eventId?: string;
+}
+
+export interface V3SessionInfo {
+  id: string;
+  mode: string;
+  status: string;
+  eventCount: number;
+  policy: V3SessionPolicy;
+  createdAt: number;
+}
+
+export interface V3RewardEvent {
+  id: string;
+  sessionId: string;
+  seq: number;
+  recipientAddress: string;
+  amountWei: string;
+  proofHash: string | null;
+  txHash: string | null;
+  txStatus: EvmTxStatus;
+  blockNumber: string | null;
+  chainEvents: Array<{
+    id: number;
+    blockNumber: string;
+    txHash: string;
+    logIndex: number;
+    contract: string;
+    eventName: string;
+    args: Record<string, unknown>;
+    createdAt: number;
+  }>;
+  timestamps: {
+    created: number;
+    mined: number | null;
+    confirmed: number | null;
+  };
+}
+
+/**
+ * Start a new game session (V3)
+ */
+export async function startSessionV3(
+  userAddress: string,
+  mode: 'free_run' | 'duel' = 'free_run',
+): Promise<V3StartSessionResponse> {
+  const response = await fetch(`${API_BASE}/api/v3/session/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userAddress, mode }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+
+  return (await response.json()) as V3StartSessionResponse;
+}
+
+/**
+ * Send a game event (V3 — reward via RewardVault contract)
+ */
+export async function sendEventV3(
+  sessionId: string,
+  type: 'checkpoint',
+  seq: number,
+  timestamp: number,
+): Promise<V3SessionEventResponse> {
+  const response = await fetch(`${API_BASE}/api/v3/session/event`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId, type, seq, timestamp }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+
+  return (await response.json()) as V3SessionEventResponse;
+}
+
+/**
+ * End a session (V3)
+ */
+export async function endSessionV3(sessionId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/v3/session/${sessionId}/end`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+}
+
+/**
+ * Get session events with EVM chain data
+ */
+export async function getSessionEventsV3(
+  sessionId: string,
+): Promise<{ sessionId: string; events: V3RewardEvent[]; total: number }> {
+  const response = await fetch(`${API_BASE}/api/v3/session/${sessionId}/events`);
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+
+  return (await response.json()) as { sessionId: string; events: V3RewardEvent[]; total: number };
+}
+
+// ── Transaction / Proof API ──
+
+export interface V3TxStatusResponse {
+  txHash: string;
+  status: EvmTxStatus;
+  blockNumber: string | null;
+  confirmations: number;
+  events: Array<{
+    id: number;
+    blockNumber: string;
+    txHash: string;
+    logIndex: number;
+    contract: string;
+    eventName: string;
+    args: Record<string, unknown>;
+    createdAt: number;
+  }>;
+  timestamps: {
+    submitted?: number;
+    mined?: number;
+    confirmed?: number;
+  };
+}
+
+export interface V3TxDetailsResponse {
+  txHash: string;
+  receipt: {
+    blockNumber: string;
+    status: string;
+    gasUsed: string;
+    from: string;
+    to: string | null;
+  } | null;
+  events: Array<{
+    id: number;
+    blockNumber: string;
+    txHash: string;
+    logIndex: number;
+    contract: string;
+    eventName: string;
+    args: Record<string, unknown>;
+    createdAt: number;
+  }>;
+}
+
+export interface V3ProofResponse {
+  sessionId: string;
+  seq: number;
+  proofHash: string | null;
+  payload: string | null;
+  txHash: string | null;
+  blockNumber: string | null;
+  verified: boolean;
+  chainEvents: Array<{
+    id: number;
+    blockNumber: string;
+    txHash: string;
+    logIndex: number;
+    contract: string;
+    eventName: string;
+    args: Record<string, unknown>;
+    createdAt: number;
+  }>;
+}
+
+/**
+ * Get EVM transaction status
+ */
+export async function getTxStatusV3(txHash: string): Promise<V3TxStatusResponse> {
+  const response = await fetch(`${API_BASE}/api/v3/tx/${txHash}/status`);
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+
+  return (await response.json()) as V3TxStatusResponse;
+}
+
+/**
+ * Get EVM transaction details
+ */
+export async function getTxDetailsV3(txHash: string): Promise<V3TxDetailsResponse> {
+  const response = await fetch(`${API_BASE}/api/v3/tx/${txHash}`);
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+
+  return (await response.json()) as V3TxDetailsResponse;
+}
+
+/**
+ * Get proof-of-action data
+ */
+export async function getProofV3(
+  sessionId: string,
+  seq: number,
+): Promise<V3ProofResponse> {
+  const response = await fetch(`${API_BASE}/api/v3/proof/${sessionId}/${seq}`);
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+
+  return (await response.json()) as V3ProofResponse;
+}
