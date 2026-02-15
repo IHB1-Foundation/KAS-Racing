@@ -344,4 +344,29 @@ describe('V3 API Routes', () => {
       expect(res.body.proofHash).toBeNull();
     });
   });
+
+  // ── Metrics Routes ──
+
+  describe('GET /api/v3/metrics/sla', () => {
+    it('returns SLA summary', async () => {
+      const res = await request(app)
+        .get('/api/v3/metrics/sla')
+        .expect(200);
+
+      expect(res.body.totalEvents).toBeDefined();
+      expect(res.body.recentCount).toBeDefined();
+      expect(res.body.byType).toBeDefined();
+    });
+  });
+
+  describe('GET /api/v3/metrics/events', () => {
+    it('returns recent metrics events', async () => {
+      const res = await request(app)
+        .get('/api/v3/metrics/events')
+        .expect(200);
+
+      expect(res.body.events).toBeDefined();
+      expect(Array.isArray(res.body.events)).toBe(true);
+    });
+  });
 });

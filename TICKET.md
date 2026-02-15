@@ -351,20 +351,40 @@
 - 없음
 
 
-### - [ ] T-331 API Refactor (Contract-first EVM)
+### - [x] T-331 API Refactor (Contract-first EVM)
 **의존**
 - T-330
 
 **작업**
-- [ ] match/session API를 컨트랙트 상태 기준으로 재정의
-- [ ] 상태전이 검증을 indexed event 기준으로 변경
-- [ ] Proof/Status endpoint를 EVM tx/log 기반으로 전환
+- [x] match/session API를 컨트랙트 상태 기준으로 재정의
+- [x] 상태전이 검증을 indexed event 기준으로 변경
+- [x] Proof/Status endpoint를 EVM tx/log 기반으로 전환
 
 **산출물**
 - 서버 라우트/서비스 리팩토링 + OpenAPI 문서
 
 **완료조건**
 - FE가 EVM 플로우에서 필요한 상태를 단일 API로 조회 가능
+
+**변경 요약**
+- `/api/v3/` 엔드포인트: session(start/event/end/events), match(create/join/submit-score/sync/chain-events), tx(status/details/proof)
+- 3개 EVM-first 서비스: evmMatchService(MatchEscrow 연동), evmRewardService(RewardVault 연동), evmChainQueryService(chain_events_evm 쿼리)
+- Match 라이프사이클: lobby → createMatch on-chain → deposit(FE직접) → settle via contract
+- Reward: RewardVault 컨트랙트 통한 지급 + DB+컨트랙트 듀얼 멱등성
+- Tx 상태: chain_events_evm(인덱서) 우선 → RPC receipt fallback
+- Proof 검증: RewardPaid/ProofRecorded 이벤트 기반
+- matches_v3 스키마 업데이트: joinCode, lobby state, nullable 필드 추가
+- OpenAPI v3 스펙: `docs/openapi-v3.yaml`
+- 21개 신규 테스트 (총 134개, 전체 통과)
+
+**실행 방법**
+- `pnpm --filter @kas-racing/server test` (134 tests 통과)
+- `pnpm --filter @kas-racing/server build`
+- V3 API: `GET/POST /api/v3/session/*`, `/api/v3/match/*`, `/api/v3/tx/*`
+
+**Notes/Blockers**
+- 기존 v1/v2 API(`/api/session`, `/api/match`, `/api/tx`)는 하위호환 유지
+- 기존 파일(evmClient.ts, evmContracts.ts)의 pre-existing lint 에러는 이번 티켓 범위 밖
 
 
 ### - [ ] T-332 Realtime Bridge (WS + Indexer events)

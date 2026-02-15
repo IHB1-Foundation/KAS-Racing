@@ -191,6 +191,45 @@ export function emitMatchStateChanged(event: MatchStateEvent): void {
   io.to(`match:${event.matchId}`).emit('matchStateChanged', event);
 }
 
+// ── V3 EVM Events ──
+
+/**
+ * Emit raw EVM chain event to all connected clients.
+ * Clients can filter by contract/eventName on their side.
+ */
+export function emitEvmChainEvent(event: import('../types/evm.js').EvmChainEventInfo): void {
+  if (!io) return;
+  io.emit('evmChainEvent', event);
+}
+
+/**
+ * Emit EVM match update to clients subscribed to a specific match.
+ */
+export function emitEvmMatchUpdate(
+  matchId: string,
+  eventName: string,
+  chainEvent: import('../types/evm.js').EvmChainEventInfo,
+): void {
+  if (!io) return;
+  io.to(`match:${matchId}`).emit('evmMatchUpdate', { matchId, eventName, chainEvent });
+}
+
+/**
+ * Emit EVM reward update to clients subscribed to the session.
+ * Routes by txHash since the session room uses sessionId.
+ */
+export function emitEvmRewardUpdate(
+  txHash: string,
+  eventName: string,
+  chainEvent: import('../types/evm.js').EvmChainEventInfo,
+): void {
+  if (!io) return;
+  // Broadcast to all — client filters by relevance
+  // (We don't have a txHash→sessionId mapping here; the client
+  //  knows which txHashes belong to its session)
+  io.emit('evmRewardUpdate', { txHash, eventName, chainEvent });
+}
+
 /**
  * Get the Socket.IO server instance
  */

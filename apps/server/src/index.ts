@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { app, httpServer, io } from './app.js';
 import { getConfig, safeLogConfig, resetConfigCache } from './config/index.js';
 import { startTxStatusWorker } from './workers/txStatusWorker.js';
+import { startEvmEventBridge } from './workers/evmEventBridge.js';
 import { initPayloadSeed } from './payload/index.js';
 
 // Validate configuration on startup (unless explicitly skipped for development)
@@ -39,6 +40,9 @@ httpServer.listen(port, () => {
 
   // Start TX status worker (always start for status tracking)
   startTxStatusWorker();
+
+  // Start EVM event bridge (chain_events_evm → WS + v3 tables)
+  void startEvmEventBridge();
 });
 
 export { app, httpServer, io };
