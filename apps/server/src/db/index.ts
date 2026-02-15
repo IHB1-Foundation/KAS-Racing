@@ -4,6 +4,8 @@ import * as schema from './schema.js';
 
 const DATABASE_URL = process.env.DATABASE_URL?.trim() ?? '';
 const maxPoolSize = Number(process.env.DATABASE_POOL_MAX ?? '20');
+const connectTimeoutMs = Number(process.env.DATABASE_CONNECT_TIMEOUT_MS ?? '10000');
+const schemaInitTimeoutMs = Number(process.env.DATABASE_SCHEMA_INIT_TIMEOUT_MS ?? '30000');
 const isTestEnv =
   process.env.NODE_ENV === 'test' ||
   process.env.VITEST === 'true' ||
@@ -26,6 +28,7 @@ async function createPool(): Promise<Pool> {
       connectionString: DATABASE_URL,
       ssl: useSsl ? { rejectUnauthorized: false } : undefined,
       max: Number.isFinite(maxPoolSize) ? maxPoolSize : 20,
+      connectionTimeoutMillis: Number.isFinite(connectTimeoutMs) ? connectTimeoutMs : 10000,
     });
   }
 
@@ -392,9 +395,37 @@ async function ensureSchema(): Promise<void> {
 }
 
 const shouldAutoMigrate = process.env.SKIP_DB_MIGRATIONS !== 'true';
-if (shouldAutoMigrate) {
-  await ensureSchema();
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
 }
+
+export const dbInitPromise = shouldAutoMigrate
+  ? withTimeout(ensureSchema(), schemaInitTimeoutMs, 'Database schema initialization')
+  : Promise.resolve();
+
+void dbInitPromise
+  .then(() => {
+    if (shouldAutoMigrate) {
+      console.log('[db] Schema ensured');
+    }
+  })
+  .catch((error) => {
+    console.error('[db] Schema initialization failed:', error);
+  });
 
 // Export schema for convenience
 export * from './schema.js';
