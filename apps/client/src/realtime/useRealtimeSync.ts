@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { getMatch, type TxStatusInfo, type MatchInfo } from '../api/client';
+import { getMatchV3, type V3MatchResponse } from '../api/v3client';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8787';
 const POLL_INTERVAL_FALLBACK_MS = 3000;
@@ -117,8 +117,7 @@ interface UseRealtimeSyncOptions {
   enabled?: boolean;
   /** When set, poll at this interval even when WS is connected (reconciliation). */
   reconcileIntervalMs?: number;
-  onTxStatusUpdate?: (data: TxStatusInfo) => void;
-  onMatchUpdate?: (data: MatchInfo) => void;
+  onMatchUpdate?: (data: V3MatchResponse) => void;
   onChainStateChanged?: (data: ChainStateEvent) => void;
   onMatchStateChanged?: (data: MatchStateEvent) => void;
   onMarketTick?: (data: MarketTickEvent) => void;
@@ -128,18 +127,9 @@ interface UseRealtimeSyncOptions {
   onBetCancelled?: (data: BetCancelledEvent) => void;
 }
 
-function mapEvmEventToTxStatus(eventName: string): TxStatusInfo['status'] {
-  switch (eventName) {
-    case 'MatchFunded':
-    case 'Settled':
-    case 'Draw':
-    case 'Deposited':
-    case 'RewardPaid':
-    case 'ProofRecorded':
-      return 'included';
-    default:
-      return 'accepted';
-  }
+function mapEvmEventToTxStatus(_eventName: string): 'submitted' | 'mined' | 'confirmed' {
+  // EVM events are emitted only after inclusion in a block.
+  return 'mined';
 }
 
 export function useRealtimeSync(options: UseRealtimeSyncOptions) {
@@ -173,7 +163,7 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions) {
 
     if (callbacksRef.current.matchId && callbacksRef.current.onMatchUpdate) {
       try {
-        const match = await getMatch(callbacksRef.current.matchId);
+        const match = await getMatchV3(callbacksRef.current.matchId, { sync: true });
         callbacksRef.current.onMatchUpdate(match);
         addLatencyRecord({
           event: 'matchPoll',
@@ -270,70 +260,6 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions) {
     socket.on('connect_error', () => {
       setConnectionState('disconnected');
       startPolling();
-    });
-
-    // Handle tx status updates
-    socket.on('txStatusUpdated', (data: TxStatusInfo) => {
-      const receiveTime = Date.now();
-      callbacksRef.current.onTxStatusUpdate?.(data);
-
-      addLatencyRecord({
-        event: 'txStatusUpdated',
-        entityId: data.txid,
-        latencyMs: data.timestamps?.broadcasted
-          ? receiveTime - data.timestamps.broadcasted
-          : 0,
-        timestamp: receiveTime,
-        source: 'ws',
-      });
-    });
-
-    // Handle match updates
-    socket.on('matchUpdated', (data: MatchInfo) => {
-      callbacksRef.current.onMatchUpdate?.(data);
-
-      addLatencyRecord({
-        event: 'matchUpdated',
-        entityId: data.id,
-        latencyMs: 0,
-        timestamp: Date.now(),
-        source: 'ws',
-      });
-    });
-
-    // Handle chain state changes (indexer-fed)
-    socket.on('chainStateChanged', (data: ChainStateEvent) => {
-      const receiveTime = Date.now();
-      callbacksRef.current.onChainStateChanged?.(data);
-
-      // Calculate latency from the most recent chain timestamp
-      let chainLatencyMs = 0;
-      const ts = data.timestamps;
-      const latestChainTs = ts.confirmed ?? ts.included ?? ts.accepted ?? ts.broadcasted;
-      if (latestChainTs) {
-        chainLatencyMs = receiveTime - latestChainTs;
-      }
-
-      addLatencyRecord({
-        event: `chain:${data.entityType}:${data.newStatus}`,
-        entityId: data.txid.slice(0, 12),
-        latencyMs: chainLatencyMs,
-        timestamp: receiveTime,
-        source: 'ws',
-      });
-    });
-
-    // Handle match state changes
-    socket.on('matchStateChanged', (data: MatchStateEvent) => {
-      callbacksRef.current.onMatchStateChanged?.(data);
-
-      addLatencyRecord({
-        event: `match:${data.newStatus}`,
-        entityId: data.matchId,
-        latencyMs: 0,
-        timestamp: Date.now(),
-        source: 'ws',
-      });
     });
 
     // Handle EVM match updates (v3)

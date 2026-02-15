@@ -35,7 +35,7 @@ function stateToView(state: string): View {
 }
 
 export function DuelLobby() {
-  const { address, isConnected, connect, isCorrectChain, switchToKasplex, balance } = useEvmWallet();
+  const { address, isConnected, connect, isCorrectChain, switchToKasplex, balance, error: walletError } = useEvmWallet();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [view, setView] = useState<View>('lobby');
@@ -351,7 +351,7 @@ export function DuelLobby() {
   };
 
   // Show combined deposit error
-  const displayError = error ?? approveError ?? depositError;
+  const displayError = error ?? approveError ?? depositError ?? walletError;
 
   // ── Render ──
 

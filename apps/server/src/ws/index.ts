@@ -1,7 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import type { TxStatusInfo, SessionEventResult, ChainStateEvent, MatchStateEvent } from '../types/index.js';
-import type { Match } from '../db/schema.js';
+import type { EvmChainEventInfo } from '../types/evm.js';
 
 let io: Server | null = null;
 
@@ -122,88 +121,13 @@ export function setupWebSocket(httpServer: HttpServer): Server {
   return io;
 }
 
-/**
- * Emit txStatusUpdated to all clients subscribed to a session
- */
-export function emitTxStatusUpdated(
-  sessionId: string,
-  txStatus: TxStatusInfo
-): void {
-  if (!io) return;
-  io.to(`session:${sessionId}`).emit('txStatusUpdated', txStatus);
-}
-
-/**
- * Emit sessionEventAck to all clients subscribed to a session
- */
-export function emitSessionEventAck(
-  sessionId: string,
-  result: SessionEventResult & { seq: number }
-): void {
-  if (!io) return;
-  io.to(`session:${sessionId}`).emit('sessionEventAck', result);
-}
-
-/**
- * Emit matchUpdated to all clients subscribed to a match
- */
-export function emitMatchUpdated(
-  matchId: string,
-  match: Match
-): void {
-  if (!io) return;
-  io.to(`match:${matchId}`).emit('matchUpdated', {
-    id: match.id,
-    status: match.status,
-    playerA: match.playerAAddress ? {
-      address: match.playerAAddress,
-      depositTxid: match.playerADepositTxid,
-      depositStatus: match.playerADepositStatus,
-    } : null,
-    playerB: match.playerBAddress ? {
-      address: match.playerBAddress,
-      depositTxid: match.playerBDepositTxid,
-      depositStatus: match.playerBDepositStatus,
-    } : null,
-    winner: match.winnerId,
-    playerAScore: match.playerAScore,
-    playerBScore: match.playerBScore,
-    settleTxid: match.settleTxid,
-    settleStatus: match.settleStatus,
-  });
-}
-
-/**
- * Emit chainStateChanged to clients subscribed to a session or match.
- * Routes to the appropriate room based on entityType.
- */
-export function emitChainStateChanged(event: ChainStateEvent): void {
-  if (!io) return;
-
-  if (event.entityType === 'reward') {
-    // Reward events belong to sessions
-    io.to(`session:${event.entityId}`).emit('chainStateChanged', event);
-  } else {
-    // Deposit/settlement events belong to matches
-    io.to(`match:${event.entityId}`).emit('chainStateChanged', event);
-  }
-}
-
-/**
- * Emit matchStateChanged to clients subscribed to a match.
- */
-export function emitMatchStateChanged(event: MatchStateEvent): void {
-  if (!io) return;
-  io.to(`match:${event.matchId}`).emit('matchStateChanged', event);
-}
-
 // ── V3 EVM Events ──
 
 /**
  * Emit raw EVM chain event to all connected clients.
  * Clients can filter by contract/eventName on their side.
  */
-export function emitEvmChainEvent(event: import('../types/evm.js').EvmChainEventInfo): void {
+export function emitEvmChainEvent(event: EvmChainEventInfo): void {
   if (!io) return;
   io.emit('evmChainEvent', event);
 }
@@ -214,7 +138,7 @@ export function emitEvmChainEvent(event: import('../types/evm.js').EvmChainEvent
 export function emitEvmMatchUpdate(
   matchId: string,
   eventName: string,
-  chainEvent: import('../types/evm.js').EvmChainEventInfo,
+  chainEvent: EvmChainEventInfo,
 ): void {
   if (!io) return;
   io.to(`match:${matchId}`).emit('evmMatchUpdate', { matchId, eventName, chainEvent });
@@ -227,7 +151,7 @@ export function emitEvmMatchUpdate(
 export function emitEvmRewardUpdate(
   txHash: string,
   eventName: string,
-  chainEvent: import('../types/evm.js').EvmChainEventInfo,
+  chainEvent: EvmChainEventInfo,
 ): void {
   if (!io) return;
   // Broadcast to all — client filters by relevance

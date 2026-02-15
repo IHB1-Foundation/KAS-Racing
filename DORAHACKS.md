@@ -1,45 +1,45 @@
 # KAS Racing (Speed‑Visualizer SDK)
 
 ## One‑Line Summary
-A 3‑lane runner that fires **real Kaspa on‑chain transactions during gameplay** and visualizes each stage in real time—proving speed by UX, not claims—plus a reusable Speed‑Visualizer HUD SDK.
+A 3‑lane runner where **real KASPLEX zkEVM transactions fire during gameplay** and a live HUD visualizes every state change in‑game—proving speed by UX, not claims—plus a reusable Speed‑Visualizer SDK.
 
-## Track Targets
-- **Gaming & Interactive:** on‑chain transactions directly drive gameplay rewards and 1v1 outcomes.
-- **Payments & Commerce:** instant‑feeling micro‑payouts at checkpoints with a transparent lifecycle.
-- **Real‑Time Data:** live transaction‑state telemetry streamed into the HUD as the action happens.
+## Track Target
+**Primary:** Gaming & Interactive  
+**Secondary:** Real‑Time Data, Payments & Commerce
 
 ## Impact
-- **Flips the “blockchain is slow” perception:** users *feel* speed through instant, visible feedback.
-- **Shows what real‑time PoW unlocks:** game economies and settlement loops that respond immediately.
-- **Reusable SDK:** other builders can plug the Speed‑Visualizer into any Kaspa app.
+- **Turns “blockchain is slow” into a felt experience:** players see tx progress instantly as they play.
+- **Demonstrates real‑time PoW UX on Kaspa’s ecosystem:** on‑chain rewards and escrowed duels feel immediate.
+- **Reusable SDK:** other builders can drop the Speed‑Visualizer into any Kaspa/KASPLEX app.
 
 ## Fun / Experience
-- **Instant reward loop:** collect a capsule → a real payout tx fires → HUD pops through states.
-- **Ghost‑Wheel 1v1:** deposit → match → settle flows are hard‑wired to the game outcome.
+- **Arcade‑to‑Earn loop:** collect a capsule → reward tx fires → HUD shows the lifecycle in‑game.
+- **Ghost‑Wheel Duel (1v1):** deposits, funding, and settlement are wired directly to the race outcome.
 
 ## Why It’s Special
-- **No mocks—real transactions in the game loop.**
-- **Millisecond lifecycle visualization** (`broadcasted → accepted → included → confirmed`).
-- **On‑chain proof page** to decode payloads and verify game events.
+- **No mocks—real on‑chain transactions in the game loop.**
+- **Lifecycle visualization in milliseconds** (submitted → mined → confirmed).
+- **Proof page** that decodes payloads to verify gameplay on‑chain.
 
 ## Key Features
-- **Free Run (Arcade‑to‑Earn):** checkpoint capsules trigger real rewards.
-- **Ghost‑Wheel Duel (1v1):** matched deposits + settlement flow.
+- **Free Run:** checkpoint capsules trigger real kFUEL rewards.
+- **Ghost‑Wheel Duel:** contract‑backed deposits + winner‑take‑all settlement.
 - **Speed‑Visualizer SDK:** reusable React HUD components.
-- **Proof Page:** decode payloads for on‑chain verification.
+- **Proof Page:** validate game events against chain data.
 
 ## Tech Stack
 - **Client:** React + Phaser 3
-- **Server:** Node.js (Express) + WebSocket (socket.io)
+- **Wallet:** wagmi + viem (MetaMask / injected)
+- **Server:** Node.js (Express) + Socket.IO
 - **DB:** PostgreSQL (Drizzle ORM)
-- **Blockchain:** Kaspa (kaspa‑wasm + REST API)
+- **Chain:** KASPLEX zkEVM (RewardVault + MatchEscrow)
 - **Deploy:** Vercel (client), Railway (server)
 
 ## How It Works (High‑Level)
-1. Player starts a session and hits a checkpoint.
-2. Server validates policy (cooldown/max events) and builds a real payout transaction.
-3. HUD updates live as the tx progresses through Kaspa network states.
-4. Proof Page parses payloads to verify events on‑chain.
+1. Player connects an EVM wallet and starts a session.
+2. Checkpoints trigger RewardVault payouts in kFUEL.
+3. Socket updates stream on‑chain event timestamps into the HUD.
+4. Proof Page decodes payloads for on‑chain verification.
 
 ## Links
 - **Repository:** <REPO_URL>
@@ -47,9 +47,9 @@ A 3‑lane runner that fires **real Kaspa on‑chain transactions during gamepla
 - **Demo Video:** <VIDEO_URL>
 
 ## What’s Next
-- Full covenant escrow settlement on mainnet
-- Expanded SDK docs/examples
-- Additional game modes using the same on‑chain telemetry
+- Mainnet‑ready deployment on KASPLEX
+- Expanded SDK docs + examples
+- More game modes using the same on‑chain telemetry
 
 ## License
 MIT

@@ -75,7 +75,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   [ErrorCode.RATE_LIMIT_EXCEEDED]: 'Too many requests. Please try again later.',
   [ErrorCode.INVALID_REQUEST]: 'Invalid request format.',
   [ErrorCode.MISSING_REQUIRED_FIELD]: 'Required field is missing.',
-  [ErrorCode.INVALID_ADDRESS]: 'Invalid Kaspa address format.',
+  [ErrorCode.INVALID_ADDRESS]: 'Invalid EVM address format.',
   [ErrorCode.INVALID_AMOUNT]: 'Invalid amount specified.',
   [ErrorCode.SESSION_NOT_FOUND]: 'Session not found.',
   [ErrorCode.SESSION_ENDED]: 'Session has already ended.',
@@ -92,7 +92,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   [ErrorCode.CANNOT_JOIN_OWN_MATCH]: 'Cannot join your own match.',
   [ErrorCode.TX_NOT_FOUND]: 'Transaction not found.',
   [ErrorCode.TX_BROADCAST_FAILED]: 'Failed to broadcast transaction.',
-  [ErrorCode.INSUFFICIENT_FUNDS]: 'Insufficient funds in treasury.',
+  [ErrorCode.INSUFFICIENT_FUNDS]: 'Insufficient funds in operator wallet.',
   [ErrorCode.INTERNAL_ERROR]: 'Internal server error.',
   [ErrorCode.CONFIG_ERROR]: 'Server configuration error.',
 };

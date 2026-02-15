@@ -29,7 +29,6 @@ import {
   buildProofHash,
 } from '../tx/evmContracts.js';
 import { getEvmEventsBySessionId } from './evmChainQueryService.js';
-import { getConfig } from '../config/index.js';
 import type {
   EvmTxStatus,
   V3RewardEventResponse,
@@ -109,8 +108,9 @@ export async function processEvmReward(request: EvmRewardRequest): Promise<EvmRe
 
   // 4. Create DB record in pending state
   const eventId = randomUUID();
-  const config = getConfig();
-  const network = config.network;
+  const network = (process.env.NETWORK ?? 'testnet').toLowerCase() === 'mainnet'
+    ? 'mainnet'
+    : 'testnet';
 
   const proofHash = buildProofHash({
     network,

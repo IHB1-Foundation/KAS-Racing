@@ -1,18 +1,18 @@
 # KAS Racing
 
-> A web-based 3-lane runner game with real-time Kaspa blockchain integration, demonstrating sub-second transaction UX.
+> A web-based 3-lane runner game with real-time KASPLEX zkEVM integration, demonstrating sub-second transaction UX.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Built with Kaspa](https://img.shields.io/badge/Built%20with-Kaspa-00d4aa)](https://kaspa.org)
 
 ## What is KAS Racing?
 
-KAS Racing is a fast-paced endless runner game that integrates **real Kaspa blockchain transactions** into gameplay. When you collect checkpoint capsules, you receive instant KAS rewards — and you can watch the entire transaction lifecycle unfold in real-time through our HUD.
+KAS Racing is a fast-paced endless runner game that integrates **real KASPLEX zkEVM transactions** (Kaspa ecosystem) into gameplay. When you collect checkpoint capsules, you receive instant kFUEL rewards — and you can watch the entire transaction lifecycle unfold in real-time through our HUD.
 
 **Key Features:**
 - **Real Blockchain Integration**: No mocks, no simulations — actual on-chain transactions
-- **Transaction Lifecycle Visualization**: Watch your rewards progress through `broadcasted → accepted → included → confirmed`
-- **Speed-Visualizer SDK**: Reusable React components for any Kaspa-integrated app
+- **Transaction Lifecycle Visualization**: Watch rewards progress through `submitted → mined → confirmed`
+- **Speed-Visualizer SDK**: Reusable React components for any Kaspa/KASPLEX-integrated app
 - **1v1 Duel Mode**: Bet against friends with transparent settlement
 
 ## Why KAS Racing?
@@ -40,8 +40,8 @@ We don't claim "sub-second finality" — we let the HUD speak for itself.
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Server (Node.js)                         │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │ Session Manager │  │  TX Engine      │  │  Status Worker  │ │
-│  │ (Policy Engine) │  │    (EVM)        │  │  (Polling)      │ │
+│  │ Session Manager │  │  TX Engine      │  │  Event Bridge   │ │
+│  │ (Policy Engine) │  │    (EVM)        │  │  (Indexer)      │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
             │
@@ -82,15 +82,14 @@ pnpm dev
 For real transaction broadcasts, copy `.env.example` to `.env` and fill in:
 
 ```bash
-NETWORK=mainnet
-TREASURY_PRIVATE_KEY=your_64_hex_private_key
-TREASURY_CHANGE_ADDRESS=kaspa:qz...
-ORACLE_PRIVATE_KEY=your_64_hex_private_key
-```
-
-For development without real transactions:
-```bash
-SKIP_KEY_VALIDATION=true pnpm dev
+NETWORK=testnet
+EVM_CHAIN_ID=167012
+EVM_RPC_URL=https://rpc.kasplextest.xyz
+OPERATOR_PRIVATE_KEY=your_64_hex_private_key
+ESCROW_CONTRACT_ADDRESS=0x...
+REWARD_CONTRACT_ADDRESS=0x...
+FUEL_TOKEN_ADDRESS=0x...
+VITE_KFUEL_TOKEN_ADDRESS=0x...
 ```
 
 ## Game Modes
@@ -100,7 +99,7 @@ SKIP_KEY_VALIDATION=true pnpm dev
 1. Connect your EVM wallet (MetaMask)
 2. Press SPACE to start
 3. Use LEFT/RIGHT arrows to dodge obstacles
-4. Collect checkpoint capsules to earn KAS rewards
+4. Collect checkpoint capsules to earn kFUEL rewards
 5. Watch the TX Timeline update in real-time
 
 **Controls:**
@@ -111,7 +110,7 @@ SKIP_KEY_VALIDATION=true pnpm dev
 
 1. Create a match and choose bet amount
 2. Share the join code with your opponent
-3. Both players deposit KAS
+3. Both players deposit kFUEL
 4. Race for 30 seconds — highest distance wins
 5. Winner receives the pot automatically
 
@@ -161,19 +160,20 @@ Payload format: `KASRACE1|network|mode|sessionId|event|seq|commit`
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/health` | GET | Health check |
-| `/api/session/start` | POST | Start game session |
-| `/api/session/event` | POST | Submit checkpoint event |
-| `/api/tx/:txid/status` | GET | Get transaction status |
-| `/api/match/create` | POST | Create duel match |
-| `/api/match/join` | POST | Join match by code |
+| `/api/v3/session/start` | POST | Start game session |
+| `/api/v3/session/event` | POST | Submit checkpoint event |
+| `/api/v3/tx/:txHash/status` | GET | Get transaction status |
+| `/api/v3/match/create` | POST | Create duel match |
+| `/api/v3/match/join` | POST | Join match by code |
 
 ### WebSocket Events
 
 | Event | Direction | Description |
 |-------|-----------|-------------|
 | `subscribe` | Client→Server | Subscribe to session updates |
-| `txStatusUpdated` | Server→Client | Transaction status change |
-| `matchUpdated` | Server→Client | Match state change |
+| `subscribeMatch` | Client→Server | Subscribe to match updates |
+| `evmRewardUpdate` | Server→Client | RewardVault event updates (tx lifecycle) |
+| `evmMatchUpdate` | Server→Client | MatchEscrow event updates |
 
 ## Project Structure
 
@@ -186,9 +186,8 @@ kas-racing/
 │   └── speed-visualizer-sdk/  # Reusable components
 ├── docs/
 │   ├── ARCHITECTURE.md
-│   ├── COVENANT_FEASIBILITY.md
-│   └── ESCROW_SCRIPT_TEMPLATE.md
-└── PROJECT.md           # Full specification
+│   ├── ADR-002-evm-pivot.md
+│   └── ADR-003-live-market.md
 ```
 
 ## Deployment
@@ -205,9 +204,10 @@ Set `VITE_API_URL` in Vercel to your Railway server URL (example: `https://<serv
 
 - This repo includes `railway.json` which deploys `apps/server/Dockerfile`.
 - Create a Railway service from this repo, add Railway Postgres, then set Variables:
-  - `NETWORK`
-  - `TREASURY_PRIVATE_KEY`, `TREASURY_CHANGE_ADDRESS`
-  - `ORACLE_PRIVATE_KEY`
+  - `NETWORK` (payload labeling)
+  - `EVM_CHAIN_ID`, `EVM_RPC_URL`
+  - `OPERATOR_PRIVATE_KEY`
+  - `ESCROW_CONTRACT_ADDRESS`, `REWARD_CONTRACT_ADDRESS`, `FUEL_TOKEN_ADDRESS`
   - `CORS_ORIGIN` (your Vercel URL)
   - `DATABASE_URL` (Railway Postgres connection string)
   - `DATABASE_SSL=true`

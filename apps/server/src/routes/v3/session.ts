@@ -11,10 +11,21 @@ import { eq } from 'drizzle-orm';
 import { db, sessions, type NewSession } from '../../db/index.js';
 import { processEvmReward, getEvmSessionEvents } from '../../services/evmRewardService.js';
 import { parseEther } from 'viem';
-import type { SessionPolicy, SessionEventResult } from '../../types/index.js';
 import type { V3SessionEventRequest } from '../../types/evm.js';
+import { normalizeEvmAddress } from '../../utils/evmAddress.js';
 
 const router = Router();
+
+interface SessionPolicy {
+  rewardCooldownMs: number;
+  rewardMaxPerSession: number;
+  rewardAmounts: number[];
+}
+
+interface SessionEventResult {
+  accepted: boolean;
+  rejectReason?: string;
+}
 
 type AsyncHandler = (req: Request, res: Response) => Promise<void>;
 const asyncHandler = (fn: AsyncHandler): RequestHandler => {
@@ -47,10 +58,16 @@ router.post('/start', asyncHandler(async (req: Request, res: Response) => {
       return;
     }
 
+    const normalizedAddress = normalizeEvmAddress(body.userAddress);
+    if (!normalizedAddress) {
+      res.status(400).json({ error: 'userAddress must be a valid EVM address' });
+      return;
+    }
+
     const sessionId = randomUUID();
     const newSession: NewSession = {
       id: sessionId,
-      userAddress: body.userAddress,
+      userAddress: normalizedAddress,
       mode,
       status: 'active',
       rewardCooldownMs: DEFAULT_POLICY.rewardCooldownMs,
@@ -60,7 +77,7 @@ router.post('/start', asyncHandler(async (req: Request, res: Response) => {
     };
 
     await db.insert(sessions).values(newSession);
-    console.log(`[v3/session] Created ${sessionId} for ${body.userAddress} (${mode})`);
+    console.log(`[v3/session] Created ${sessionId} for ${normalizedAddress} (${mode})`);
 
     res.json({ sessionId, policy: DEFAULT_POLICY });
   } catch (error) {

@@ -275,5 +275,3 @@ place bet
 ## References
 
 - [ADR-002: EVM Pivot](./ADR-002-evm-pivot.md)
-- [T-390: Duel Realtime Baseline](../TICKET.md)
-- [PROJECT.md: Section 6 — On-chain Design](../PROJECT.md)

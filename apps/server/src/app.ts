@@ -3,9 +3,6 @@ import express from 'express';
 import { createServer } from 'http';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
-import sessionRoutes from './routes/session.js';
-import txRoutes from './routes/tx.js';
-import matchRoutes from './routes/match.js';
 import v3Routes from './routes/v3/index.js';
 import { setupWebSocket } from './ws/index.js';
 import { requestLogger } from './middleware/requestLogger.js';
@@ -119,14 +116,10 @@ app.get('/api/health', (_req, res) => {
 // API Routes with specific rate limiters
 if (!isTestEnv) {
   // Session routes with event-specific limiter
-  app.post('/api/session/event', sessionEventLimiter);
+  app.post('/api/v3/session/event', sessionEventLimiter);
   // Match routes with betting-specific limiter
-  app.use('/api/match', matchLimiter);
+  app.use('/api/v3/match', matchLimiter);
 }
-
-app.use('/api/session', sessionRoutes);
-app.use('/api/tx', txRoutes);
-app.use('/api/match', matchRoutes);
 app.use('/api/v3', v3Routes);
 
 // Setup WebSocket

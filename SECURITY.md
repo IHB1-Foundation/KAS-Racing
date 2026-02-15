@@ -17,7 +17,7 @@ If that is not available, email: **security@example.com** (replace with your pre
 - [x] `.env` is in `.gitignore`
 - [x] `.env.example` provided with empty values
 - [x] Private keys are only loaded at runtime from environment
-- [x] Keys are never logged (safeLogConfig masks sensitive values)
+- [x] Keys are never logged (masked in EVM tx engine logs)
 
 ### API Security
 - [x] Rate limiting enabled (100 req/min general, 30 req/min for game events)
@@ -26,9 +26,9 @@ If that is not available, email: **security@example.com** (replace with your pre
 - [x] Standardized error codes (no sensitive info in errors)
 
 ### Wallet Security
-- [x] Treasury private key isolated in config module
-- [x] Oracle private key separate from treasury key
-- [x] Keys validated on server startup (fail-closed)
+- [x] Operator private key isolated in EVM tx engine
+- [x] Contract addresses configured via environment
+- [x] Key format validated before signing transactions
 
 ### Network Security
 - [x] HTTPS enforced in production (via hosting provider)

@@ -8,7 +8,6 @@ import {
   endSessionV3,
   type V3SessionPolicy,
 } from '../api/v3client';
-import type { TxStatusInfo } from '../api/client';
 import { TxLifecycleTimeline, KaspaRPMGauge, type TxStatus } from '@kas-racing/speed-visualizer-sdk';
 import { LatencyDebugPanel } from '../components/LatencyDebugPanel';
 import { useRealtimeSync, type ChainStateEvent } from '../realtime';
@@ -45,7 +44,7 @@ interface SessionState {
 }
 
 export function FreeRun() {
-  const { address, isConnected, connect, isCorrectChain, switchToKasplex } = useEvmWallet();
+  const { address, isConnected, connect, isCorrectChain, switchToKasplex, error: walletError } = useEvmWallet();
 
   const [stats, setStats] = useState<GameStats>({
     distance: 0,
@@ -67,22 +66,6 @@ export function FreeRun() {
   const sessionRef = useRef<SessionState | null>(null);
   sessionRef.current = session;
 
-  // Real-time sync via WebSocket (uses legacy TxStatusInfo shape from WS)
-  const handleTxStatusUpdate = useCallback((data: TxStatusInfo) => {
-    setTxRecords(prev =>
-      prev.map(tx =>
-        tx.txHash === data.txid
-          ? {
-              ...tx,
-              status: mapEvmStatus(data.status),
-              chainTimestamps: data.timestamps,
-              confirmations: data.confirmations,
-            }
-          : tx
-      )
-    );
-  }, []);
-
   // Indexer-fed chain state updates
   const handleChainStateChanged = useCallback((data: ChainStateEvent) => {
     if (data.entityType !== 'reward') return;
@@ -103,7 +86,6 @@ export function FreeRun() {
   const { connectionState, latencyRecords, avgLatencyMs } = useRealtimeSync({
     sessionId: session?.sessionId ?? null,
     enabled: !!session,
-    onTxStatusUpdate: handleTxStatusUpdate,
     onChainStateChanged: handleChainStateChanged,
   });
 
@@ -304,6 +286,12 @@ export function FreeRun() {
           <div className="wallet-info" style={{ marginBottom: '16px' }}>
             <span className="muted">Wallet: </span>
             <span className="address">{formatEvmAddress(address)}</span>
+          </div>
+        )}
+
+        {walletError && (
+          <div className="error-banner" style={{ marginBottom: '16px', color: '#ef4444' }}>
+            {walletError}
           </div>
         )}
 

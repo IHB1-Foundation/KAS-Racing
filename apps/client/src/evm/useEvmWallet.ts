@@ -9,6 +9,7 @@ import { useAccount, useConnect, useDisconnect, useSwitchChain, useBalance } fro
 import { useCallback, useMemo } from 'react';
 import { formatUnits } from 'viem';
 import { kasplexTestnet } from './chains.js';
+import { normalizeEvmAddress } from './formatAddress.js';
 
 export interface EvmWalletState {
   address: string | null;
@@ -25,7 +26,7 @@ export interface EvmWalletState {
 
 export function useEvmWallet(): EvmWalletState {
   const { address, isConnected, chainId } = useAccount();
-  const { connect, connectors, isPending: isConnecting, error: connectError } = useConnect();
+  const { connectAsync, connectors, isPending: isConnecting, error: connectError } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
 
@@ -39,10 +40,11 @@ export function useEvmWallet(): EvmWalletState {
     // Prefer MetaMask, then first available injected connector
     const metamask = connectors.find(c => c.id === 'io.metamask' || c.name.toLowerCase().includes('metamask'));
     const connector = metamask ?? connectors[0];
-    if (connector) {
-      connect({ connector, chainId: kasplexTestnet.id });
-    }
-  }, [connect, connectors]);
+    if (!connector) return;
+
+    void connectAsync({ connector, chainId: kasplexTestnet.id })
+      .catch(() => connectAsync({ connector }).catch(() => {}));
+  }, [connectAsync, connectors]);
 
   const handleDisconnect = useCallback(() => {
     disconnect();
@@ -62,8 +64,13 @@ export function useEvmWallet(): EvmWalletState {
     return null;
   }, [connectError]);
 
+  const normalizedAddress = useMemo(() => {
+    const normalized = normalizeEvmAddress(address ?? null);
+    return normalized ?? (address ?? null);
+  }, [address]);
+
   return {
-    address: address ?? null,
+    address: normalizedAddress,
     isConnected,
     isConnecting,
     chainId,
