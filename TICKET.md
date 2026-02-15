@@ -261,20 +261,34 @@
 - 실제 KASPLEX Testnet 배포에 테스트넷 KAS 필요 (faucet 또는 수동 펀딩)
 
 
-### - [ ] T-320 Indexer 전환 (Ponder + Postgres)
+### - [x] T-320 Indexer 전환 (Ponder + Postgres)
 **의존**
 - T-314
 
 **작업**
-- [ ] `apps/indexer-evm`에 Ponder 설정
-- [ ] 컨트랙트 이벤트 ingest 스키마 정의
-- [ ] 백필/리오그 처리 정책 확정
+- [x] `apps/indexer-evm`에 viem 기반 이벤트 인덱서 설정 (KASPLEX 커스텀 체인 호환)
+- [x] 컨트랙트 이벤트 ingest 스키마 정의 (chain_events_evm 테이블)
+- [x] 백필/리오그 처리 정책 확정 (configurable reorgDepth, batch backfill)
 
 **산출물**
-- Ponder 인덱서 + generated types
+- EVM 이벤트 인덱서 + ABI 타입
 
 **완료조건**
 - 매치/입금/정산/보상 이벤트가 DB에 지연 없이 적재됨
+
+**변경 요약**
+- `apps/indexer-evm/`: viem 기반 EVM 이벤트 폴링 인덱서
+- ABI 정의: MatchEscrow 7 events + RewardVault 3 events
+- Postgres store: chain_events_evm + indexer_cursor 테이블, idempotent insert
+- Reorg 처리: configurable depth, 감지 시 자동 재인덱싱
+- 5 tests 통과, typecheck 통과
+
+**실행 방법**
+- `pnpm --filter @kas-racing/indexer-evm test`
+- `pnpm --filter @kas-racing/indexer-evm dev` (requires DATABASE_URL)
+
+**Notes/Blockers**
+- Ponder 대신 viem 직접 사용 (KASPLEX zkEVM이 커스텀 체인이라 Ponder 네이티브 지원 미확인)
 
 
 ### - [ ] T-321 Postgres Schema v3 (EVM 이벤트 모델)
