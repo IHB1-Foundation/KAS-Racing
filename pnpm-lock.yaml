@@ -231,6 +231,9 @@ importers:
       socket.io:
         specifier: ^4.8.3
         version: 4.8.3
+      viem:
+        specifier: ^2.21.0
+        version: 2.46.0(typescript@5.9.3)
       ws:
         specifier: ^8.19.0
         version: 8.19.0

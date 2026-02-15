@@ -25,6 +25,7 @@
     "kaspa-wasm": "^0.13.0",
     "pg": "^8.16.3",
     "socket.io": "^4.8.3",
+    "viem": "^2.21.0",
     "ws": "^8.19.0"
   },
   "devDependencies": {

@@ -322,14 +322,14 @@
 - 없음
 
 
-### - [ ] T-330 Backend Tx Engine EVM화
+### - [x] T-330 Backend Tx Engine EVM화
 **의존**
 - T-314, T-321
 
 **작업**
-- [ ] `viem` 기반 RPC client + signer 모듈
-- [ ] nonce/gas/재시도/영수증 추적 로직 구현
-- [ ] 운영키 로딩/검증/마스킹 로깅 적용
+- [x] `viem` 기반 RPC client + signer 모듈
+- [x] nonce/gas/재시도/영수증 추적 로직 구현
+- [x] 운영키 로딩/검증/마스킹 로깅 적용
 
 **산출물**
 - `apps/server` EVM tx 엔진
@@ -337,6 +337,18 @@
 **완료조건**
 - 보상/정산 tx를 서버에서 안전하게 broadcast 가능
 - 실패 시 재시도 정책이 명시적으로 동작
+
+**변경 요약**
+- `evmClient.ts`: viem PublicClient + WalletClient, 키 로딩/검증/마스킹, 3회 재시도(지수 백오프)
+- `evmAbis.ts`: MatchEscrow + RewardVault ABI (서버 호출용)
+- `evmContracts.ts`: createMatch/settle/settleDraw/cancel/payReward 래퍼 + 유틸리티
+- 6 tests 추가, 총 113 tests 통과
+
+**실행 방법**
+- `pnpm --filter @kas-racing/server test`
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-331 API Refactor (Contract-first EVM)
