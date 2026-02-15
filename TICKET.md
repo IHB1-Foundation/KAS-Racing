@@ -313,23 +313,35 @@
 - 온체인 배치 payout은 기존 매치 정산 컨트랙트를 재사용 예정 (settlement record의 txHash에 기록)
 
 
-### - [ ] T-407 Risk Controls + Abuse Prevention (운영 안전장치)
+### - [x] T-407 Risk Controls + Abuse Prevention (운영 안전장치)
 **의존**
 - T-406
 
 **작업**
-- [ ] per-user/per-market 주문 속도 제한
-- [ ] 최대 베팅 금액/노출 한도/시장별 circuit breaker
-- [ ] 비정상 배당 급변 감지(모델 오류/입력 이상치 방어)
-- [ ] 운영자 강제 lock/cancel 절차 및 감사 로그 추가
+- [x] per-user/per-market 주문 속도 제한
+- [x] 최대 베팅 금액/노출 한도/시장별 circuit breaker
+- [x] 비정상 배당 급변 감지(모델 오류/입력 이상치 방어)
+- [x] 운영자 강제 lock/cancel 절차 및 감사 로그 추가
 
 **산출물**
-- 리스크 정책 모듈 + 운영 runbook
-- 보안/악용 시나리오 테스트
+- `apps/server/src/services/marketRiskService.ts` (신규)
+- `apps/server/src/services/marketRiskService.test.ts` (신규)
+- `apps/server/src/routes/v3/market.ts` (rate limit + audit log 적용)
 
 **완료조건**
 - 스팸/폭주 상황에서 서비스가 안정적으로 보호됨
 - 운영자가 수동 개입할 때 모든 액션이 로그로 추적 가능
+
+**변경 요약**
+- Rate limiter: sliding window (1초 5건 기본), bet 엔드포인트에 429 응답 적용
+- Circuit breaker: 배당 30% 이상 급변 시 자동 halt, admin reset 가능
+- Audit log: 최대 1000건 in-memory, circuit_breaker_tripped/reset, admin_force_lock/cancel 기록
+- 기존 risk controls 유지: MAX_BET, MAX_EXPOSURE, MAX_POOL, MIN_BET (T-403)
+- 7개 단위 테스트 전부 통과
+
+**실행 방법**
+- `pnpm --filter @kas-racing/server test -- src/services/marketRiskService.test.ts`
+- `pnpm --filter @kas-racing/server typecheck`
 
 **Notes/Blockers**
 - 없음

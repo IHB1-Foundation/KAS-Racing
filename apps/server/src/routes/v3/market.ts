@@ -21,6 +21,11 @@ import {
   settleMarket,
   cancelMarket,
 } from '../../services/marketSettlementService.js';
+import {
+  checkRateLimit,
+  logAdminLock,
+  logAdminCancel,
+} from '../../services/marketRiskService.js';
 import { submitTelemetry } from '../../workers/oddsTickWorker.js';
 import type { RaceTelemetry } from '../../services/oddsEngineService.js';
 import { eq, desc } from 'drizzle-orm';
@@ -75,6 +80,12 @@ router.post('/:id/bet', asyncHandler(async (req: Request, res: Response) => {
     }
     if (!body.idempotencyKey) {
       res.status(400).json({ error: 'idempotencyKey is required' });
+      return;
+    }
+
+    // Rate limit check
+    if (!checkRateLimit(body.userId)) {
+      res.status(429).json({ error: 'Rate limit exceeded', code: 'RATE_LIMITED' });
       return;
     }
 
@@ -289,11 +300,13 @@ router.post('/:id/settle', asyncHandler(async (req: Request, res: Response) => {
 router.post('/:id/cancel-market', asyncHandler(async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const body = req.body as { reason?: string; actor?: string };
     if (!id) {
       res.status(400).json({ error: 'Market ID is required' });
       return;
     }
 
+    logAdminCancel(id, body.actor ?? 'api', body.reason ?? 'manual cancel');
     await cancelMarket(id);
     res.json({ cancelled: true });
   } catch (error) {
