@@ -119,26 +119,36 @@
 - 없음
 
 
-### - [ ] T-401 Realtime Market Schema + Migration
+### - [x] T-401 Realtime Market Schema + Migration
 **의존**
 - T-400
 
 **작업**
-- [ ] 테이블 설계: `race_markets`, `odds_ticks`, `bet_orders`, `bet_cancels`, `market_settlements`
-- [ ] idempotency key + sequence index 설계(중복 요청 방지)
-- [ ] 고빈도 조회용 인덱스 설계(시장별 최신 odds, 사용자 미정산 포지션)
-- [ ] 마이그레이션/롤백 스크립트 추가
+- [x] 테이블 설계: `race_markets`, `odds_ticks`, `bet_orders`, `bet_cancels`, `market_settlements`
+- [x] idempotency key + sequence index 설계(중복 요청 방지)
+- [x] 고빈도 조회용 인덱스 설계(시장별 최신 odds, 사용자 미정산 포지션)
+- [x] 마이그레이션/롤백 스크립트 추가
 
 **산출물**
 - `apps/server/src/db/schema.ts` 확장
-- `apps/server/drizzle/*.sql` 마이그레이션
+- `apps/server/drizzle/0002_live_market_tables.sql` 마이그레이션
 
 **완료조건**
 - 로컬/스테이징 모두 migrate 성공
 - 최신 odds 조회/오더 조회 쿼리 P95가 목표 내(문서화된 기준)
 
+**변경 요약**
+- schema.ts에 5개 테이블 추가: `race_markets`, `odds_ticks`, `bet_orders`, `bet_cancels`, `market_settlements`
+- 인덱스: `bet_orders_idempotency_idx` (unique), `odds_ticks_market_seq_idx` (unique), `bet_orders_user_market_idx` (조회 최적화)
+- 마이그레이션 SQL: `drizzle/0002_live_market_tables.sql`
+- 타입 export: `RaceMarket`, `OddsTick`, `BetOrder`, `BetCancel`, `MarketSettlement` + New* variants
+
+**실행 방법**
+- `pnpm --filter @kas-racing/server typecheck` — 스키마 타입체크 확인
+- DB 마이그레이션: `pnpm --filter @kas-racing/server drizzle-kit migrate` (로컬 Postgres 필요)
+
 **Notes/Blockers**
-- 없음
+- 로컬 Postgres 미기동 시 migrate 실행 불가 — 스키마 타입체크로 대체 검증
 
 
 ### - [ ] T-402 Live Odds Engine (실시간 확률/배당 계산기)

@@ -279,6 +279,96 @@ export const rewardEventsV3 = pgTable('reward_events_v3', {
   txStatusIdx: index('reward_events_v3_tx_status_idx').on(table.txStatus),
 }));
 
+// ── Race Markets (v3: live betting market per race) ──
+
+export const raceMarkets = pgTable('race_markets', {
+  id: text('id').primaryKey(), // UUID
+  matchId: text('match_id').notNull().references(() => matchesV3.id),
+  state: text('state', {
+    enum: ['open', 'locked', 'settled', 'cancelled'],
+  }).notNull().default('open'),
+  player1Address: text('player1_address').notNull(),
+  player2Address: text('player2_address').notNull(),
+  totalPoolWei: text('total_pool_wei').notNull().default('0'), // sum of all active bets
+  oddsTicks: integer('odds_ticks').notNull().default(0), // tick counter
+  lockBeforeEndMs: integer('lock_before_end_ms').notNull().default(3000),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  lockedAt: timestamp('locked_at', { withTimezone: true, mode: 'date' }),
+  settledAt: timestamp('settled_at', { withTimezone: true, mode: 'date' }),
+  cancelledAt: timestamp('cancelled_at', { withTimezone: true, mode: 'date' }),
+}, (table) => ({
+  matchIdx: uniqueIndex('race_markets_match_idx').on(table.matchId),
+  stateIdx: index('race_markets_state_idx').on(table.state),
+}));
+
+// ── Odds Ticks (v3: historical odds snapshots) ──
+
+export const oddsTicks = pgTable('odds_ticks', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  marketId: text('market_id').notNull().references(() => raceMarkets.id),
+  seq: integer('seq').notNull(), // monotonic within market
+  probABps: integer('prob_a_bps').notNull(), // 0–10000 basis points
+  probBBps: integer('prob_b_bps').notNull(), // 0–10000 basis points
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+}, (table) => ({
+  marketSeqIdx: uniqueIndex('odds_ticks_market_seq_idx').on(table.marketId, table.seq),
+  marketLatestIdx: index('odds_ticks_market_latest_idx').on(table.marketId, table.createdAt),
+}));
+
+// ── Bet Orders (v3: user bets on race outcomes) ──
+
+export const betOrders = pgTable('bet_orders', {
+  id: text('id').primaryKey(), // UUID
+  marketId: text('market_id').notNull().references(() => raceMarkets.id),
+  userId: text('user_id').notNull().references(() => users.id),
+  side: text('side', { enum: ['A', 'B'] }).notNull(), // which player the bet is on
+  stakeWei: text('stake_wei').notNull(), // string for bigint precision
+  oddsAtPlacementBps: integer('odds_at_placement_bps').notNull(), // locked odds
+  status: text('status', {
+    enum: ['pending', 'won', 'lost', 'cancelled'],
+  }).notNull().default('pending'),
+  payoutWei: text('payout_wei'), // null until settled
+  idempotencyKey: text('idempotency_key').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  settledAt: timestamp('settled_at', { withTimezone: true, mode: 'date' }),
+}, (table) => ({
+  idempotencyIdx: uniqueIndex('bet_orders_idempotency_idx').on(table.idempotencyKey),
+  marketStatusIdx: index('bet_orders_market_status_idx').on(table.marketId, table.status),
+  userMarketIdx: index('bet_orders_user_market_idx').on(table.userId, table.marketId),
+}));
+
+// ── Bet Cancels (v3: cancellation records) ──
+
+export const betCancels = pgTable('bet_cancels', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  orderId: text('order_id').notNull().references(() => betOrders.id),
+  reason: text('reason').notNull().default('user_requested'),
+  cancelledAt: timestamp('cancelled_at', { withTimezone: true, mode: 'date' }).notNull(),
+}, (table) => ({
+  orderIdx: uniqueIndex('bet_cancels_order_idx').on(table.orderId),
+}));
+
+// ── Market Settlements (v3: settlement records for markets) ──
+
+export const marketSettlements = pgTable('market_settlements', {
+  id: text('id').primaryKey(), // UUID
+  marketId: text('market_id').notNull().references(() => raceMarkets.id),
+  winnerSide: text('winner_side', { enum: ['A', 'B', 'draw'] }).notNull(),
+  totalPoolWei: text('total_pool_wei').notNull(),
+  totalPayoutWei: text('total_payout_wei').notNull(),
+  platformFeeWei: text('platform_fee_wei').notNull().default('0'),
+  txHash: text('tx_hash'),
+  txStatus: text('tx_status', {
+    enum: ['pending', 'submitted', 'mined', 'confirmed', 'failed'],
+  }).notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  minedAt: timestamp('mined_at', { withTimezone: true, mode: 'date' }),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true, mode: 'date' }),
+}, (table) => ({
+  marketIdx: uniqueIndex('market_settlements_market_idx').on(table.marketId),
+  txStatusIdx: index('market_settlements_tx_status_idx').on(table.txStatus),
+}));
+
 // ── Type Exports ──
 
 export type User = typeof users.$inferSelect;
@@ -320,3 +410,19 @@ export type NewSettlementV3 = typeof settlementsV3.$inferInsert;
 
 export type RewardEventV3 = typeof rewardEventsV3.$inferSelect;
 export type NewRewardEventV3 = typeof rewardEventsV3.$inferInsert;
+
+// v3 Market types
+export type RaceMarket = typeof raceMarkets.$inferSelect;
+export type NewRaceMarket = typeof raceMarkets.$inferInsert;
+
+export type OddsTick = typeof oddsTicks.$inferSelect;
+export type NewOddsTick = typeof oddsTicks.$inferInsert;
+
+export type BetOrder = typeof betOrders.$inferSelect;
+export type NewBetOrder = typeof betOrders.$inferInsert;
+
+export type BetCancel = typeof betCancels.$inferSelect;
+export type NewBetCancel = typeof betCancels.$inferInsert;
+
+export type MarketSettlement = typeof marketSettlements.$inferSelect;
+export type NewMarketSettlement = typeof marketSettlements.$inferInsert;
