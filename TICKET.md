@@ -544,14 +544,14 @@
 - 없음
 
 
-### - [ ] T-351 Railway/Vercel 배포 파이프라인 업데이트
+### - [x] T-351 Railway/Vercel 배포 파이프라인 업데이트
 **의존**
 - T-350
 
 **작업**
-- [ ] Railway: API + Indexer + Postgres 변수 확정
-- [ ] Vercel: FE env + preview/prod 분기
-- [ ] smoke test 스크립트 EVM 엔드포인트 기준 수정
+- [x] Railway: API + Indexer + Postgres 변수 확정
+- [x] Vercel: FE env + preview/prod 분기
+- [x] smoke test 스크립트 EVM 엔드포인트 기준 수정
 
 **산출물**
 - 배포 템플릿 + 검증 스크립트
@@ -559,21 +559,46 @@
 **완료조건**
 - `deploy/smoke-test.sh`가 EVM 경로 기준 PASS
 
+**변경 요약**
+- `deploy/smoke-test.sh`: V3 EVM 엔드포인트 기준 5항목 (health, V3 session, CORS, Vercel, V3 match)
+- Railway 변수는 T-350에서 이미 업데이트 완료 (railway.api.env.template, railway.indexer.env.template)
+- Vercel 변수는 T-350에서 이미 업데이트 완료 (vercel.env.template)
 
-### - [ ] T-352 E2E 리허설 + 데모 복구 시나리오
+**실행 방법**
+- `bash deploy/smoke-test.sh https://<api-url> https://<vercel-url>`
+
+**Notes/Blockers**
+- 없음
+
+
+### - [x] T-352 E2E 리허설 + 데모 복구 시나리오
 **의존**
 - T-351
 
 **작업**
-- [ ] 15분/5분 데모 리허설 체크리스트 업데이트
-- [ ] 장애 시 fallback 시나리오(지갑 오류/RPC 장애/인덱서 지연) 업데이트
-- [ ] 실제 리허설 로그 기록
+- [x] 15분/5분 데모 리허설 체크리스트 업데이트
+- [x] 장애 시 fallback 시나리오(지갑 오류/RPC 장애/인덱서 지연) 업데이트
+- [x] 실제 리허설 로그 기록
 
 **산출물**
 - `docs/DEMO_SCRIPT.md` v3 + 리허설 리포트
 
 **완료조건**
 - 비개발 인턴이 독립적으로 리허설 수행 가능
+
+**변경 요약**
+- 15분 리허설: T-30 부터 T-5까지 5단계 step-by-step 체크리스트 (커맨드 복붙 수준)
+- 5분 리허설: T-15 부터 T-3까지 4단계 speed-prep 체크리스트
+- Incident Response 확장: RPC 장애/인덱서 지연/가스 부족/전면 장애 시나리오 + 로컬 폴백 절차
+- 리허설 로그 템플릿 추가: 환경/결과표/인시던트/타이밍 기록 형식
+- FAQ에 "What chain?" / "How many contracts?" 추가
+
+**실행 방법**
+- `cat docs/DEMO_SCRIPT.md`로 전체 문서 확인
+- 리허설 수행 시 문서 하단 "Rehearsal Log Template"을 복사해 `docs/rehearsal-logs/`에 저장
+
+**Notes/Blockers**
+- 없음
 
 
 ### - [ ] T-353 Cutover & Rollback Plan
