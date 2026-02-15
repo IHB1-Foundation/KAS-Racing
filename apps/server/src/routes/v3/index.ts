@@ -8,6 +8,7 @@
 import { Router } from 'express';
 import sessionRoutes from './session.js';
 import matchRoutes from './match.js';
+import marketRoutes from './market.js';
 import txRoutes from './tx.js';
 import { getSlaSummary, getRecentMetrics } from '../../services/metricsService.js';
 
@@ -15,6 +16,7 @@ const router = Router();
 
 router.use('/session', sessionRoutes);
 router.use('/match', matchRoutes);
+router.use('/market', marketRoutes);
 router.use('/tx', txRoutes);
 
 /**

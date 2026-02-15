@@ -187,24 +187,33 @@
 - 없음
 
 
-### - [ ] T-403 Bet/Cancel API + Matching Guard
+### - [x] T-403 Bet/Cancel API + Matching Guard
 **의존**
 - T-402
 
 **작업**
-- [ ] `POST /api/v3/market/:id/bet` 구현(place)
-- [ ] `POST /api/v3/market/:id/cancel` 구현(cancel)
-- [ ] 취소 허용 조건/락 조건/중복요청(idempotency) 적용
-- [ ] 잔고/한도/노출(exposure) 검증 로직 추가
+- [x] `POST /api/v3/market/:id/bet` 구현(place)
+- [x] `POST /api/v3/market/:id/cancel` 구현(cancel)
+- [x] 취소 허용 조건/락 조건/중복요청(idempotency) 적용
+- [x] 잔고/한도/노출(exposure) 검증 로직 추가
 
 **산출물**
 - `apps/server/src/routes/v3/market.ts` (신규)
 - `apps/server/src/services/marketOrderService.ts` (신규)
-- API 테스트 코드
+- `apps/server/src/routes/v3/index.ts` (마켓 라우트 등록)
 
 **완료조건**
 - 베팅/취소가 규칙 위반 시 정확한 에러 코드로 거절
 - 동시 요청에서도 중복 주문/중복 취소가 발생하지 않음
+
+**변경 요약**
+- `marketOrderService`: placeBet (idempotency + state gate + exposure/pool limit), cancelBet (ownership + state gate), createMarket
+- `market.ts` 라우트: 5개 endpoint (bet, cancel, get market, get by matchId, telemetry)
+- MarketOrderError 에러 클래스: MARKET_NOT_OPEN, EXPOSURE_LIMIT, NOT_OWNER 등 구조화된 에러 코드
+- v3 index에 `/api/v3/market` 라우트 등록
+
+**실행 방법**
+- `pnpm --filter @kas-racing/server typecheck`
 
 **Notes/Blockers**
 - 없음
