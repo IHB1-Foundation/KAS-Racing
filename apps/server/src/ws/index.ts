@@ -89,6 +89,9 @@ export function setupWebSocket(httpServer: HttpServer): Server {
       console.log(`[ws] ${socket.id} unsubscribed from match ${matchId}`);
     });
 
+    // Handle market subscriptions
+    registerMarketHandlers(socket);
+
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log(`[ws] Client disconnected: ${socket.id}`);
@@ -110,6 +113,9 @@ export function setupWebSocket(httpServer: HttpServer): Server {
         }
         socketMatches.delete(socket.id);
       }
+
+      // Clean up market subscriptions
+      cleanupMarketSubscriptions(socket.id);
     });
   });
 
@@ -228,6 +234,135 @@ export function emitEvmRewardUpdate(
   // (We don't have a txHash→sessionId mapping here; the client
   //  knows which txHashes belong to its session)
   io.emit('evmRewardUpdate', { txHash, eventName, chainEvent });
+}
+
+// ── V3 Market Events ──
+
+// Track which sockets are subscribed to which markets
+const marketSubsMarket = new Map<string, Set<string>>(); // marketId -> Set<socketId>
+const socketMarketsMarket = new Map<string, Set<string>>(); // socketId -> Set<marketId>
+
+/**
+ * Register market subscription handlers on a socket.
+ * Called from the connection handler setup.
+ */
+export function registerMarketHandlers(socket: Socket): void {
+  socket.on('subscribeMarket', (data: { marketId: string }) => {
+    const { marketId } = data;
+    if (!marketId) return;
+
+    if (!marketSubsMarket.has(marketId)) {
+      marketSubsMarket.set(marketId, new Set());
+    }
+    marketSubsMarket.get(marketId)!.add(socket.id);
+
+    if (!socketMarketsMarket.has(socket.id)) {
+      socketMarketsMarket.set(socket.id, new Set());
+    }
+    socketMarketsMarket.get(socket.id)!.add(marketId);
+
+    void socket.join(`market:${marketId}`);
+    console.log(`[ws] ${socket.id} subscribed to market ${marketId}`);
+  });
+
+  socket.on('unsubscribeMarket', (data: { marketId: string }) => {
+    const { marketId } = data;
+    if (!marketId) return;
+
+    marketSubsMarket.get(marketId)?.delete(socket.id);
+    socketMarketsMarket.get(socket.id)?.delete(marketId);
+    void socket.leave(`market:${marketId}`);
+    console.log(`[ws] ${socket.id} unsubscribed from market ${marketId}`);
+  });
+}
+
+/**
+ * Clean up market subscriptions on disconnect.
+ */
+export function cleanupMarketSubscriptions(socketId: string): void {
+  const markets = socketMarketsMarket.get(socketId);
+  if (markets) {
+    for (const marketId of markets) {
+      marketSubsMarket.get(marketId)?.delete(socketId);
+    }
+    socketMarketsMarket.delete(socketId);
+  }
+}
+
+export interface MarketTickPayload {
+  marketId: string;
+  seq: number;
+  probABps: number;
+  probBBps: number;
+  timestamp: number;
+}
+
+export interface MarketLockedPayload {
+  marketId: string;
+  finalProbABps: number;
+  finalProbBBps: number;
+  lockedAt: number;
+}
+
+export interface MarketSettledPayload {
+  marketId: string;
+  winnerSide: string;
+  totalPoolWei: string;
+  totalPayoutWei: string;
+  txHash: string | null;
+}
+
+export interface BetAcceptedPayload {
+  marketId: string;
+  orderId: string;
+  side: string;
+  stakeWei: string;
+  oddsAtPlacementBps: number;
+}
+
+export interface BetCancelledPayload {
+  marketId: string;
+  orderId: string;
+}
+
+/**
+ * Emit odds tick to all clients subscribed to a market.
+ */
+export function emitMarketTick(marketId: string, payload: MarketTickPayload): void {
+  if (!io) return;
+  io.to(`market:${marketId}`).emit('marketTick', payload);
+}
+
+/**
+ * Emit market locked event.
+ */
+export function emitMarketLocked(marketId: string, payload: MarketLockedPayload): void {
+  if (!io) return;
+  io.to(`market:${marketId}`).emit('marketLocked', payload);
+}
+
+/**
+ * Emit market settled event.
+ */
+export function emitMarketSettled(marketId: string, payload: MarketSettledPayload): void {
+  if (!io) return;
+  io.to(`market:${marketId}`).emit('marketSettled', payload);
+}
+
+/**
+ * Emit bet accepted event.
+ */
+export function emitBetAccepted(marketId: string, payload: BetAcceptedPayload): void {
+  if (!io) return;
+  io.to(`market:${marketId}`).emit('betAccepted', payload);
+}
+
+/**
+ * Emit bet cancelled event.
+ */
+export function emitBetCancelled(marketId: string, payload: BetCancelledPayload): void {
+  if (!io) return;
+  io.to(`market:${marketId}`).emit('betCancelled', payload);
 }
 
 /**

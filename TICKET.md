@@ -151,23 +151,37 @@
 - 로컬 Postgres 미기동 시 migrate 실행 불가 — 스키마 타입체크로 대체 검증
 
 
-### - [ ] T-402 Live Odds Engine (실시간 확률/배당 계산기)
+### - [x] T-402 Live Odds Engine (실시간 확률/배당 계산기)
 **의존**
 - T-401
 
 **작업**
-- [ ] 레이스 텔레메트리 입력값 정의(거리, 속도, 남은시간, 이벤트)
-- [ ] 확률 계산기(초기 모델) 구현 및 odds 정규화
-- [ ] 변화량 임계치 기반 tick 발행(불필요한 과다 broadcast 방지)
-- [ ] 배당 업데이트 시 DB 저장 + WS 브로드캐스트
+- [x] 레이스 텔레메트리 입력값 정의(거리, 속도, 남은시간, 이벤트)
+- [x] 확률 계산기(초기 모델) 구현 및 odds 정규화
+- [x] 변화량 임계치 기반 tick 발행(불필요한 과다 broadcast 방지)
+- [x] 배당 업데이트 시 DB 저장 + WS 브로드캐스트
 
 **산출물**
 - `apps/server/src/services/oddsEngineService.ts` (신규)
 - `apps/server/src/workers/oddsTickWorker.ts` (신규)
+- `apps/server/src/services/oddsEngineService.test.ts` (신규)
+- `apps/server/src/ws/index.ts` (마켓 WS 이벤트 확장)
 
 **완료조건**
 - 실시간 odds tick이 설정 주기 내에서 안정적으로 발행
 - 동일 입력 시 재현 가능한 계산 결과(테스트 보장)
+
+**변경 요약**
+- `computeOdds()`: 거리비율+속도비율 가중 확률 모델, 시간 경과에 따라 거리 가중치 증가, bps 정규화, [5%,95%] 클램프
+- `publishOddsTick()`: 임계치(200bps=2%) 필터링, DB insert, WS emit
+- `lockMarket()`: final tick emit + state 전환
+- `oddsTickWorker`: 텔레메트리 큐 기반 폴링 루프, 자동 lock 감지
+- WS: `subscribeMarket`/`unsubscribeMarket` + 5종 이벤트(marketTick, marketLocked, marketSettled, betAccepted, betCancelled)
+- 8개 단위 테스트 전부 통과
+
+**실행 방법**
+- `pnpm --filter @kas-racing/server test -- src/services/oddsEngineService.test.ts`
+- `pnpm --filter @kas-racing/server typecheck`
 
 **Notes/Blockers**
 - 없음
