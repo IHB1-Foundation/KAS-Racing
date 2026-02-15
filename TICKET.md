@@ -115,14 +115,14 @@
 - 없음
 
 
-### - [ ] T-310 Contracts Workspace Bootstrap (Solidity)
+### - [x] T-310 Contracts Workspace Bootstrap (Solidity)
 **의존**
 - T-301
 
 **작업**
-- [ ] `apps/contracts-evm` 생성 (Hardhat + TypeScript)
-- [ ] OpenZeppelin, hardhat-deploy, typechain 설정
-- [ ] `build/test/deploy` 스크립트 표준화
+- [x] `apps/contracts-evm` 생성 (Hardhat + TypeScript)
+- [x] OpenZeppelin, hardhat-deploy, typechain 설정
+- [x] `build/test/deploy` 스크립트 표준화
 
 **산출물**
 - EVM 컨트랙트 워크스페이스 + CI 통합
@@ -130,6 +130,19 @@
 **완료조건**
 - `pnpm --filter @kas-racing/contracts-evm test` 통과
 - ABI/타입이 FE/BE로 배포 가능
+
+**변경 요약**
+- `apps/contracts-evm/` 생성: Hardhat 2.28 + Solidity 0.8.24 + OpenZeppelin 5.x + typechain (ethers-v6)
+- Placeholder Lock contract + 8 tests (전부 통과)
+- scripts: build/test/deploy:testnet/verify/clean
+- KASPLEX Testnet 네트워크 설정(Chain 167012)
+
+**실행 방법**
+- `pnpm --filter @kas-racing/contracts-evm test`
+- `pnpm --filter @kas-racing/contracts-evm build`
+
+**Notes/Blockers**
+- chai v4 고정 (v5 ESM 호환 문제로 Hardhat 2.x에서 필수)
 
 
 ### - [ ] T-311 Core Contracts 구현 (Escrow/Match/Settlement)
