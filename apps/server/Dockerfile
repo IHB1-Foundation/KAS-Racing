@@ -8,6 +8,7 @@ WORKDIR /app
 
 # Copy workspace files
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY tsconfig.base.json ./
 COPY apps/server/package.json ./apps/server/
 COPY packages/speed-visualizer-sdk/package.json ./packages/speed-visualizer-sdk/
 
@@ -31,6 +32,7 @@ WORKDIR /app
 
 # Copy workspace files
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY tsconfig.base.json ./
 COPY apps/server/package.json ./apps/server/
 COPY packages/speed-visualizer-sdk/package.json ./packages/speed-visualizer-sdk/
 
