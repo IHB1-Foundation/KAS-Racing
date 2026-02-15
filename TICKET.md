@@ -251,23 +251,31 @@
 - 없음
 
 
-### - [ ] T-405 Frontend Live Betting UI (배당 변화 + 즉시 베팅/취소)
+### - [x] T-405 Frontend Live Betting UI (배당 변화 + 즉시 베팅/취소)
 **의존**
 - T-404
 
 **작업**
-- [ ] 실시간 배당 패널(상승/하락 표시, 최근 tick 시각화)
-- [ ] 베팅 입력/확정/취소 UI 및 체결 상태 뱃지
-- [ ] 내 오더/포지션/미체결/취소내역 패널 추가
-- [ ] 낙관적 UI + 서버 거절 시 롤백 처리
+- [x] 실시간 배당 패널(상승/하락 표시, 최근 tick 시각화)
+- [x] 베팅 입력/확정/취소 UI 및 체결 상태 뱃지
+- [x] 내 오더/포지션/미체결/취소내역 패널 추가
+- [x] 낙관적 UI + 서버 거절 시 롤백 처리
 
 **산출물**
-- `apps/client/src/pages/` 실시간 마켓 화면 추가/개편
-- `apps/client/src/components/` market UI 컴포넌트
+- `apps/client/src/components/LiveBettingPanel.tsx` (신규)
+- `apps/client/src/api/v3client.ts` (마켓 API 함수 추가)
 
 **완료조건**
 - 사용자 관점에서 배당 변동과 주문 상태가 실시간으로 보임
 - 취소 가능 시간 내 취소가 즉시 UI에 반영됨
+
+**변경 요약**
+- `LiveBettingPanel`: 확률 바(A=blue/B=red), 사이드 선택 + 4단계 프리셋 스테이크, 베팅 확인/취소, 내 오더 목록, 마켓 상태 뱃지
+- `v3client.ts`: getMarketV3, getMarketByMatchV3, placeBetV3, cancelBetV3, submitTelemetryV3 추가 + 관련 타입
+- 서버 거절 시 onError 콜백으로 전파 (낙관적 UI 롤백)
+
+**실행 방법**
+- `pnpm --filter @kas-racing/client typecheck`
 
 **Notes/Blockers**
 - 없음

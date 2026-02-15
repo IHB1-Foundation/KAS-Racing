@@ -392,6 +392,153 @@ export async function getTxDetailsV3(txHash: string): Promise<V3TxDetailsRespons
   return (await response.json()) as V3TxDetailsResponse;
 }
 
+// ── Market API ──
+
+export interface MarketInfo {
+  id: string;
+  matchId: string;
+  state: 'open' | 'locked' | 'settled' | 'cancelled';
+  player1Address: string;
+  player2Address: string;
+  totalPoolWei: string;
+  createdAt: number;
+  lockedAt: number | null;
+  settledAt: number | null;
+}
+
+export interface MarketOdds {
+  seq: number;
+  probABps: number;
+  probBBps: number;
+  timestamp: number;
+}
+
+export interface MarketBet {
+  id: string;
+  side: 'A' | 'B';
+  stakeWei: string;
+  oddsAtPlacementBps: number;
+  status: 'pending' | 'won' | 'lost' | 'cancelled';
+  userId: string;
+  createdAt: number;
+}
+
+export interface MarketStateResponse {
+  market: MarketInfo;
+  odds: MarketOdds | null;
+  bets: MarketBet[];
+}
+
+export interface PlaceBetResponse {
+  orderId: string;
+  side: 'A' | 'B';
+  stakeWei: string;
+  oddsAtPlacementBps: number;
+  status: string;
+}
+
+export interface CancelBetResponse {
+  orderId: string;
+  cancelled: boolean;
+}
+
+/**
+ * Get market state, current odds, and bets
+ */
+export async function getMarketV3(marketId: string): Promise<MarketStateResponse> {
+  const response = await fetch(`${API_BASE}/api/v3/market/${marketId}`);
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+
+  return (await response.json()) as MarketStateResponse;
+}
+
+/**
+ * Get market by match ID
+ */
+export async function getMarketByMatchV3(
+  matchId: string,
+): Promise<{ marketId: string; state: string; matchId: string }> {
+  const response = await fetch(`${API_BASE}/api/v3/market/match/${matchId}`);
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+
+  return (await response.json()) as { marketId: string; state: string; matchId: string };
+}
+
+/**
+ * Place a bet on a market outcome
+ */
+export async function placeBetV3(
+  marketId: string,
+  userId: string,
+  side: 'A' | 'B',
+  stakeWei: string,
+  idempotencyKey: string,
+): Promise<PlaceBetResponse> {
+  const response = await fetch(`${API_BASE}/api/v3/market/${marketId}/bet`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, side, stakeWei, idempotencyKey }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+
+  return (await response.json()) as PlaceBetResponse;
+}
+
+/**
+ * Cancel a pending bet
+ */
+export async function cancelBetV3(
+  marketId: string,
+  orderId: string,
+  userId: string,
+): Promise<CancelBetResponse> {
+  const response = await fetch(`${API_BASE}/api/v3/market/${marketId}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderId, userId }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+
+  return (await response.json()) as CancelBetResponse;
+}
+
+/**
+ * Submit race telemetry for odds calculation
+ */
+export async function submitTelemetryV3(
+  marketId: string,
+  telemetry: {
+    player1Distance: number;
+    player1Speed: number;
+    player2Distance: number;
+    player2Speed: number;
+    elapsedMs: number;
+    totalDurationMs: number;
+  },
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/v3/market/${marketId}/telemetry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(telemetry),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorResponse(response));
+  }
+}
+
 /**
  * Get proof-of-action data
  */
