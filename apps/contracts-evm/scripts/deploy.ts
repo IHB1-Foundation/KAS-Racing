@@ -103,7 +103,7 @@ async function main() {
 }
 
 function getExplorerUrl(): string {
-  return "https://zkevm.kasplex.org";
+  return "https://explorer.testnet.kasplextest.xyz";
 }
 
 main().catch((error) => {

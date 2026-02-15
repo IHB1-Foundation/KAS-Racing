@@ -22,7 +22,7 @@ export const kasplexTestnet = defineChain({
   blockExplorers: {
     default: {
       name: 'KASPLEX Explorer',
-      url: 'https://zkevm.kasplex.org',
+      url: 'https://explorer.testnet.kasplextest.xyz',
     },
   },
   testnet: true,

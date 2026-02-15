@@ -12,7 +12,7 @@ import {
 import { useEvmWallet } from '../evm';
 import { SidebarWalletBalances } from '../components/SidebarWalletBalances';
 
-const EXPLORER_BASE = 'https://zkevm.kasplex.org';
+const EXPLORER_BASE = 'https://explorer.testnet.kasplextest.xyz';
 
 // Map EVM tx status to TxLifecycleTimeline status
 function mapEvmStatus(s: string): TxStatus {
