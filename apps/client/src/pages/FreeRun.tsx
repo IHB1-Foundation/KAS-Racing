@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { GameCanvas, type GameStats, type CheckpointEvent, type GameOverEvent } from '../components/GameCanvas';
-import { useEvmWallet, EvmNetworkGuard, formatEvmAddress } from '../evm';
+import { useEvmWallet, EvmNetworkGuard } from '../evm';
 import {
   startSessionV3,
   sendEventV3,
@@ -10,6 +10,7 @@ import {
 } from '../api/v3client';
 import { TxLifecycleTimeline, KaspaRPMGauge, type TxStatus } from '@kas-racing/speed-visualizer-sdk';
 import { LatencyDebugPanel } from '../components/LatencyDebugPanel';
+import { SidebarWalletBalances } from '../components/SidebarWalletBalances';
 import { useRealtimeSync, type ChainStateEvent } from '../realtime';
 import { formatEther } from 'viem';
 import { isE2E } from '../e2e';
@@ -45,7 +46,7 @@ interface SessionState {
 }
 
 export function FreeRun() {
-  const { address, isConnected, connect, isCorrectChain, switchToKasplex, error: walletError } = useEvmWallet();
+  const { address, isConnected, connect, isCorrectChain, switchToKasplex, balance, error: walletError } = useEvmWallet();
 
   const [stats, setStats] = useState<GameStats>({
     distance: 0,
@@ -283,6 +284,12 @@ export function FreeRun() {
         <h2>Free Run</h2>
         <p className="muted">Collect checkpoints to earn kFUEL rewards.</p>
         <EvmNetworkGuard />
+        <SidebarWalletBalances
+          address={address}
+          isConnected={isConnected}
+          isCorrectChain={isCorrectChain}
+          kasBalance={balance}
+        />
 
         {/* Wallet Status */}
         {!isConnected && (
@@ -304,13 +311,6 @@ export function FreeRun() {
             <button className="btn btn-sm" onClick={switchToKasplex}>
               Switch Network
             </button>
-          </div>
-        )}
-
-        {isConnected && isCorrectChain && address && (
-          <div className="wallet-info" style={{ marginBottom: '16px' }}>
-            <span className="muted">Wallet: </span>
-            <span className="address">{formatEvmAddress(address)}</span>
           </div>
         )}
 

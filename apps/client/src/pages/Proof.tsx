@@ -9,6 +9,8 @@ import {
   type V3TxStatusResponse,
   type V3ProofResponse,
 } from '../api/v3client';
+import { useEvmWallet } from '../evm';
+import { SidebarWalletBalances } from '../components/SidebarWalletBalances';
 
 const EXPLORER_BASE = 'https://zkevm.kasplex.org';
 
@@ -31,6 +33,7 @@ interface TxVerificationResult {
 }
 
 export function Proof() {
+  const { address, isConnected, isCorrectChain, balance } = useEvmWallet();
   const [lookupMode, setLookupMode] = useState<LookupMode>('txhash');
   const [txHashInput, setTxHashInput] = useState('');
   const [sessionIdInput, setSessionIdInput] = useState('');
@@ -369,6 +372,12 @@ export function Proof() {
             ? 'Look up a transaction by its hash to see decoded events.'
             : 'Look up a proof-of-action by session ID and sequence number.'}
         </p>
+        <SidebarWalletBalances
+          address={address}
+          isConnected={isConnected}
+          isCorrectChain={isCorrectChain}
+          kasBalance={balance}
+        />
 
         {/* Tx Status Timeline */}
         {txResult && (

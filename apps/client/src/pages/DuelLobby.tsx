@@ -11,6 +11,7 @@ import {
 import { GameCanvas, type GameStats, type RaceEndEvent } from '../components/GameCanvas';
 import { TxLifecycleTimeline } from '@kas-racing/speed-visualizer-sdk';
 import { LatencyDebugPanel } from '../components/LatencyDebugPanel';
+import { SidebarWalletBalances } from '../components/SidebarWalletBalances';
 import { useRealtimeSync, type ChainStateEvent, type MatchStateEvent } from '../realtime';
 import { parseEther, formatEther, type Address, type Hash } from 'viem';
 import { isE2E, e2eApiBase } from '../e2e';
@@ -811,24 +812,8 @@ export function DuelLobby() {
             <h2>Create Match</h2>
             <div className="match-info">
               <div className="stat-item">
-                <span className="stat-label">Your Wallet</span>
-                <span className="stat-value" style={{ fontSize: '12px' }}>
-                  {address ? formatEvmAddress(address) : '-'}
-                </span>
-              </div>
-              <div className="stat-item">
                 <span className="stat-label">Bet Amount</span>
                 <span className="stat-value">{betAmountKas} kFUEL</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-label">Gas Balance</span>
-                <span className="stat-value">
-                  {balance ? `${parseFloat(balance).toFixed(4)} KAS` : '...'}
-                </span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-label">Network</span>
-                <span className="stat-value">{isCorrectChain ? 'KASPLEX Testnet' : 'Wrong Network'}</span>
               </div>
             </div>
           </>
@@ -839,14 +824,6 @@ export function DuelLobby() {
           <>
             <h2>Join Match</h2>
             <p className="muted">Get the code from your opponent</p>
-            <div className="match-info" style={{ marginTop: '16px' }}>
-              <div className="stat-item">
-                <span className="stat-label">Your Wallet</span>
-                <span className="stat-value" style={{ fontSize: '12px' }}>
-                  {address ? formatEvmAddress(address) : '-'}
-                </span>
-              </div>
-            </div>
           </>
         );
 
@@ -1006,6 +983,13 @@ export function DuelLobby() {
         {renderMainContent()}
       </main>
       <aside className="panel">
+        <SidebarWalletBalances
+          address={address}
+          isConnected={isConnected}
+          isCorrectChain={isCorrectChain}
+          kasBalance={balance}
+          tokenAddress={tokenAddress}
+        />
         {renderSidebar()}
 
         {match && (

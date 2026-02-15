@@ -76,6 +76,25 @@ a {
   overflow-y: auto;
 }
 
+.sidebar-wallet-card {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(110, 231, 255, 0.15);
+  border-radius: 10px;
+}
+
+.sidebar-wallet-card h3 {
+  margin: 0;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.sidebar-wallet-address {
+  font-size: 11px;
+  font-family: monospace;
+}
+
 .btn-primary {
   background: rgba(110, 231, 255, 0.2);
   border-color: var(--accent);
