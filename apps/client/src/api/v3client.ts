@@ -559,7 +559,3 @@ export async function getProofV3(
 
   return (await response.json()) as V3ProofResponse;
 }
-
-/**
- * Request kFUEL from faucet
- */
